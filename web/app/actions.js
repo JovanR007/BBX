@@ -215,18 +215,58 @@ export async function startTournamentAction(formData) {
 export async function createTournamentAction(formData) {
     const name = formData.get("name");
     const cutSize = Number(formData.get("cut_size"));
+    let slug = formData.get("slug");
 
     if (!name) return { success: false, error: "Name required" };
 
+    // Slug validation and normalization
+    if (slug) {
+        slug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        if (slug.length < 3) return { success: false, error: "Slug must be at least 3 characters" };
+    } else {
+        slug = null; // Ensure null if empty
+    }
+
     const { data, error } = await supabase
         .from("tournaments")
-        .insert({ name, cut_size: cutSize || 16, status: "draft" })
+        .insert({ name, cut_size: cutSize || 16, status: "draft", slug })
         .select()
         .single();
 
+    if (error) {
+        if (error.code === '23505') { // Unique constraint violation (likely on slug)
+            return { success: false, error: "URL Slug is already taken. Please choose another." };
+        }
+        return { success: false, error: error.message };
+    }
+
+    // Redirect to slug if available, else ID
+    redirect(`/t/${data.slug || data.id}`);
+}
+
+export async function seedTournamentAction(tournamentId, count = 16) {
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    // 1. Verify Draft Mode
+    const { data: tourney } = await supabase.from("tournaments").select("status").eq("id", tournamentId).single();
+    if (tourney?.status !== "draft") return { success: false, error: "Can only seed in Draft mode." };
+
+    // 2. Generate Players
+    const players = [];
+    for (let i = 1; i <= count; i++) {
+        players.push({
+            tournament_id: tournamentId,
+            display_name: `Test Player ${i}`
+        });
+    }
+
+    // 3. Bulk Insert
+    const { error } = await supabase.from("participants").insert(players);
+
     if (error) return { success: false, error: error.message };
 
-    redirect(`/t/${data.id}`);
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
 }
 
 export async function proceedToTopCutAction(tournamentId) {
@@ -523,5 +563,20 @@ export async function endTournamentAction(formData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     revalidatePath(`/`);
+    return { success: true };
+}
+
+export async function updateLiveScoreAction(matchId, scoreA, scoreB) {
+    if (!matchId) return { success: false, error: "Match ID required" };
+
+    const { error } = await supabase
+        .from("matches")
+        .update({
+            score_a: scoreA,
+            score_b: scoreB
+        })
+        .eq("id", matchId);
+
+    if (error) return { success: false, error: error.message };
     return { success: true };
 }

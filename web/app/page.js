@@ -23,10 +23,10 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="flex flex-col items-center justify-center space-y-8 text-center mb-16">
+    <div className="container mx-auto px-4 py-8 md:py-16">
+      <div className="flex flex-col items-center justify-center space-y-8 text-center mb-12 md:mb-16">
         <div className="space-y-4">
-          <h1 className="text-4xl font-extrabold tracking-tight lg:text-6xl bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
             BBX Tournament Platform
           </h1>
           <p className="mx-auto max-w-[700px] text-muted-foreground text-xl">
@@ -98,7 +98,7 @@ function Section({ title, tournaments, emptyMsg, isPast }) {
             }
 
             return (
-              <Link key={t.id} href={`/t/${t.id}`} className={cn("group relative rounded-xl border bg-card text-card-foreground shadow transition-all hover:shadow-lg hover:border-primary/50 overflow-hidden", isPast && "opacity-75 hover:opacity-100")}>
+              <Link key={t.id} href={`/t/${t.slug || t.id}`} className={cn("group relative rounded-xl border bg-card text-card-foreground shadow transition-all hover:shadow-lg hover:border-primary/50 overflow-hidden", isPast && "opacity-75 hover:opacity-100")}>
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div className={cn("p-2 rounded-lg transition-colors", t.status === 'completed' ? "bg-muted text-muted-foreground" : "bg-blue-500/10 text-blue-400")}>

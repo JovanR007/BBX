@@ -3,29 +3,21 @@
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { Trophy, Users, GitBranch, ArrowLeft } from "lucide-react";
+import { Trophy, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { useTournament } from "@/hooks/use-tournament";
+
 
 export default function TournamentDashboard({ params }) {
     // Next.js 15+ / React 19: params is a Promise
-    const { id: tournamentId } = use(params);
+    const { id: paramId } = use(params);
+    const { tournament, tournamentId, loading: tLoading, error } = useTournament(paramId);
 
     const [stats, setStats] = useState({ players: 0, matches: 0 });
-    const [loading, setLoading] = useState(true);
-    const [tournamentName, setTournamentName] = useState("Loading...");
+    const [loadingStats, setLoadingStats] = useState(true);
 
     useEffect(() => {
         async function fetchStats() {
             if (!tournamentId) return;
-
-            // Fetch tournament details
-            const { data: tourney } = await supabase
-                .from("tournaments")
-                .select("name")
-                .eq("id", tournamentId)
-                .single();
-
-            if (tourney) setTournamentName(tourney.name);
-            else setTournamentName("Tournament Not Found");
 
             const { count: playerCount } = await supabase
                 .from("participants")
@@ -38,16 +30,24 @@ export default function TournamentDashboard({ params }) {
                 .eq("tournament_id", tournamentId);
 
             setStats({ players: playerCount || 0, matches: matchCount || 0 });
-            setLoading(false);
+            setLoadingStats(false);
         }
         fetchStats();
     }, [tournamentId]);
 
+    if (error) return <div className="text-center py-20 text-red-500">Error: {error}</div>;
+    if (tLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
+
+    const tournamentName = tournament?.name || "Tournament";
+    const loading = loadingStats; // adapt local variable for existing JSX usage
+
     return (
-        <div className="container mx-auto px-4 py-16">
-            <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground mb-8 transition-colors absolute top-8 left-8">
-                <ArrowLeft className="w-4 h-4 mr-2" /> All Tournaments
-            </Link>
+        <div className="container mx-auto px-4 py-8 md:py-16">
+            <div className="mb-8">
+                <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> All Tournaments
+                </Link>
+            </div>
 
             <div className="flex flex-col items-center justify-center space-y-8 text-center">
                 <div className="space-y-4">
@@ -84,6 +84,7 @@ export default function TournamentDashboard({ params }) {
                         </div>
                     </Link>
 
+                    {/* Card 3: Admin */}
                     {/* Card 3: Admin */}
                     <Link href={`/t/${tournamentId}/admin`} className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />

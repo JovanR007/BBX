@@ -18,11 +18,19 @@ import { endTournamentAction } from "@/app/actions";
 import { parseError } from "@/lib/errors"; // Ensure parseError is available or imported if needed (it was used in Admin)
 import React from 'react';
 
+import { useTournament } from "@/hooks/use-tournament";
+
 export default function BracketPage({ params }) {
-    const { id: tournamentId } = use(params);
+    // Next.js 15+ / React 19: params is a Promise
+    const { id: paramId } = use(params);
+    const { tournament: hookTournament, tournamentId, loading: tLoading, error: tError } = useTournament(paramId);
+
     const { toast } = useToast();
 
-    const [loading, setLoading] = useState(true);
+    const [loadingData, setLoadingData] = useState(true);
+    // Alias for compatibility
+    const setLoading = setLoadingData;
+    const loading = loadingData || tLoading;
     const [viewMode, setViewMode] = useState("loading"); // 'swiss', 'top_cut', 'empty'
 
     // Data
@@ -38,7 +46,7 @@ export default function BracketPage({ params }) {
     const [concludePinOpen, setConcludePinOpen] = useState(false);
 
     useEffect(() => {
-        fetchData();
+        if (tournamentId) fetchData();
     }, [tournamentId]);
 
     async function fetchData() {
@@ -426,20 +434,37 @@ function SwissView({ matches, participants, onMatchClick }) {
         rounds[m.swiss_round_number].push(m);
     });
 
+    // Determine potential Swiss King Match (Round 5 or Last Round, Table 1)
+    // IMPORTANT: It relies on identifying the max round and the first match in that round.
+    const roundsList = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
+    const maxRound = roundsList.length > 0 ? roundsList[roundsList.length - 1] : 0;
+
     return (
         <div className="flex flex-row gap-8 pb-12 min-w-max">
-            {Object.keys(rounds).sort((a, b) => Number(a) - Number(b)).map(rNum => (
-                <div key={rNum} className="flex flex-col gap-4 min-w-[280px]">
-                    <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">
-                        Round {rNum}
+            {roundsList.map(rNum => {
+                const isLastRound = Number(rNum) === Number(maxRound);
+                // Also check if it's at least round 3-4? Swiss King usually only relevant late.
+                // Table 1 is index 0.
+
+                return (
+                    <div key={rNum} className="flex flex-col gap-4 min-w-[280px]">
+                        <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">
+                            Round {rNum}
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {rounds[rNum].map((m, idx) => (
+                                <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    participants={participants}
+                                    onClick={() => onMatchClick(m)}
+                                    isSwissKing={isLastRound && idx === 0 && Number(rNum) >= 5} // Only highlight in later rounds (5+)
+                                />
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex flex-col gap-3">
-                        {rounds[rNum].map(m => (
-                            <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} />
-                        ))}
-                    </div>
-                </div>
-            ))}
+                )
+            })}
         </div>
     )
 }
@@ -476,17 +501,35 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }) {
                             /* grid-rows-X allows exact 1/N height per slot */
                             /* minmax(0, 1fr) handles overflows gracefully */}
                             <div
-                                className="grid flex-grow relative w-full"
-                                style={{ gridTemplateRows: `repeat(${matchCount}, minmax(0, 1fr))` }}
+                                className={cn(
+                                    "grid flex-grow relative w-full",
+                                    isFinals ? "gap-16" : "" // Add large gap for Finals to separate 3rd place
+                                )}
+                                style={{
+                                    gridTemplateRows: isFinals
+                                        ? "1fr 1fr" // Use simple split for finals
+                                        : `repeat(${matchCount}, minmax(0, 1fr))`
+                                }}
                             >
-                                {rounds[rNum].map(m => (
-                                    <div key={m.id} className="flex flex-col justify-center items-center w-full px-2">
-                                        <div className="w-full">
+                                {rounds[rNum].map((m, idx) => (
+                                    <div key={m.id} className={cn(
+                                        "flex flex-col justify-center items-center w-full px-2",
+                                        isFinals && idx === 1 ? "justify-start pt-8" : "" // Push 3rd place down a bit more? Or let gap handle it.
+                                    )}>
+                                        <div className="w-full relative">
+                                            {/* Separation Label for 3rd Place */}
+                                            {isFinals && idx === 1 && (
+                                                <div className="absolute -top-10 left-0 w-full text-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                                                    3rd Place Match
+                                                </div>
+                                            )}
                                             <MatchCard
                                                 match={m}
                                                 participants={participants}
                                                 onClick={() => onMatchClick(m)}
-                                                label={isFinals && m.match_number === 2 ? "3rd Place Match" : null}
+                                                // We used to rely on label prop inside MatchCard, removing generic label logic for 3rd place to custom handle it
+                                                // But let's keep it if check specific logic
+                                                label={null} // We handle the label externally now for better positioning
                                             />
                                         </div>
                                     </div>
@@ -508,7 +551,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }) {
     )
 }
 
-function MatchCard({ match, participants, onClick, label }) {
+function MatchCard({ match, participants, onClick, label, isSwissKing }) {
     // Basic Bracket Node
     const winnerId = match.winner_id;
     const isCompleted = match.status === "complete";
@@ -536,11 +579,18 @@ function MatchCard({ match, participants, onClick, label }) {
                 "border rounded-lg bg-card p-3 shadow-sm w-full relative transition-all group",
                 isActionable ? 'hover:border-primary cursor-pointer active:scale-[0.98]' : 'opacity-80',
                 match.stage === 'top_cut' ? "border-primary/20" : "border-border",
-                showPulse ? "ring-1 ring-yellow-500/50 border-yellow-500/30 bg-yellow-500/5" : ""
+                showPulse ? "ring-1 ring-yellow-500/50 border-yellow-500/30 bg-yellow-500/5" : "",
+                isSwissKing ? "border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] bg-gradient-to-br from-yellow-500/10 to-transparent" : ""
             )}
         >
-            {showPulse && (
+            {showPulse && !isSwissKing && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-ping" />
+            )}
+
+            {isSwissKing && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider whitespace-nowrap z-10 shadow-lg flex items-center gap-1">
+                    <Crown className="w-3 h-3" /> Battle for Swiss King
+                </div>
             )}
 
             {label && (

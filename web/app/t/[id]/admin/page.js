@@ -4,58 +4,58 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, toggleRegistrationAction, endTournamentAction } from "@/app/actions";
-import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay } from "lucide-react";
+import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/modal";
 import { MatchScoringModal } from "@/components/match-scoring-modal";
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import Link from "next/link";
 
+import { useTournament } from "@/hooks/use-tournament";
+
 export default function AdminPage({ params }) {
-    const { id: tournamentId } = use(params);
     const router = useRouter();
+
+    // Next.js 15+ / React 19: params is a Promise
+    const { id: paramId } = use(params);
+    const { tournament, tournamentId, loading: tLoading, error: tError } = useTournament(paramId);
 
     const [matches, setMatches] = useState([]);
     const [participants, setParticipants] = useState([]);
-    const [tournament, setTournament] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    // const [cutSize, setCutSize] = useState(16); // Derived from tournament object now
+    const [isSeeding, setIsSeeding] = useState(false);
+    // const [error, setError] = useState(null); // Use hook error
+    // const [tournament, setTournament] = useState(null); // Use hook data
+    const [loadingData, setLoadingData] = useState(true);
     const [showStartModal, setShowStartModal] = useState(false);
     const [selectedMatch, setSelectedMatch] = useState(null);
     const { toast } = useToast();
 
+    // Data Load
     useEffect(() => {
-        fetchData();
-    }, [tournamentId]);
+        if (tournamentId) fetchData();
+    }, [tournamentId, refreshTrigger]);
 
     async function fetchData() {
         if (!tournamentId) return;
+        setLoadingData(true);
 
-        setLoading(true);
-        // Fetch Matches
         const { data: matchesData } = await supabase
             .from("matches")
             .select("*")
             .eq("tournament_id", tournamentId)
-            // .eq("stage", "top_cut") // Show ALL pending matches (Swiss + Cut)
             .eq("status", "pending")
             .order("bracket_round", { ascending: true })
             .order("match_number", { ascending: true });
 
-        // Fetch Participants
         const { data: partsData } = await supabase
             .from("participants")
             .select("*")
             .eq("tournament_id", tournamentId)
             .order("created_at", { ascending: true });
 
-        const { data: tourneyData } = await supabase
-            .from("tournaments")
-            .select("*")
-            .eq("id", tournamentId)
-            .single();
-
-        // Check if we are past Round 1
-        // If there are ANY matches with swiss_round_number > 1, then we are in Round 2+
+        // Check Round 1 status
         const { count: roundTwoCount } = await supabase
             .from("matches")
             .select("id", { count: 'exact', head: true })
@@ -66,9 +66,29 @@ export default function AdminPage({ params }) {
 
         setMatches(matchesData || []);
         setParticipants(partsData || []);
-        setTournament({ ...tourneyData, isRoundOne });
-        setLoading(false);
+        // Mutate tournament object locally to add 'isRoundOne' without re-fetching everything?
+        // Actually, we can just pass isRoundOne down or store it.
+        // Let's store isRoundOne in state or merge it.
+        // For simplicity, we'll attach it to the tournament object passed to children if possible, 
+        // OR just pass it as a separate prop.
+        // But 'tournament' comes from hook now. 
+        // Let's create a local extendedTournament.
+        setIsRoundOne(isRoundOne);
     }
+
+    // Extended logic to handle "isRoundOne" which is dynamic and not in the hook
+    // We can just query it and use a state.
+    const [isRoundOne, setIsRoundOne] = useState(true);
+
+    useEffect(() => {
+        if (participants.length > 0) setLoadingData(false);
+    }, [participants]);
+
+
+    if (tError) return <div className="p-8 text-center text-red-500">Error: {tError}</div>;
+    if (tLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin inline" /> Loading...</div>;
+
+    const loading = loadingData; // adapt for JSX
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -90,7 +110,7 @@ export default function AdminPage({ params }) {
             <div className="grid gap-8">
                 {/* Registration Management */}
                 <RegistrationSection
-                    tournament={tournament}
+                    tournament={{ ...tournament, isRoundOne }}
                     participants={participants}
                     loading={loading}
                     fetchData={fetchData}
@@ -256,18 +276,18 @@ function MatchReportCard({ match, refresh }) {
             <div className="flex items-center gap-4 bg-muted/30 p-2 rounded-lg">
                 <div className="flex flex-col items-center">
                     <label className="text-[10px] uppercase text-muted-foreground">P1</label>
-                    <input name="score_a" type="number" className="w-12 h-8 text-center bg-background border rounded" value={scoreA} onChange={e => setScoreA(Number(e.target.value))} />
+                    <input name="score_a" type="number" className="w-14 h-12 text-center text-lg bg-background border rounded" value={scoreA} onChange={e => setScoreA(Number(e.target.value))} />
                 </div>
                 <div className="text-lg font-bold text-muted-foreground">-</div>
                 <div className="flex flex-col items-center">
                     <label className="text-[10px] uppercase text-muted-foreground">P2</label>
-                    <input name="score_b" type="number" className="w-12 h-8 text-center bg-background border rounded" value={scoreB} onChange={e => setScoreB(Number(e.target.value))} />
+                    <input name="score_b" type="number" className="w-14 h-12 text-center text-lg bg-background border rounded" value={scoreB} onChange={e => setScoreB(Number(e.target.value))} />
                 </div>
             </div>
 
             <div className="flex flex-col gap-2 min-w-[140px]">
                 <label className="text-[10px] uppercase text-muted-foreground">Winning Move</label>
-                <select name="finish_type" className="h-8 bg-background border rounded text-sm px-2" value={finish} onChange={e => setFinish(e.target.value)}>
+                <select name="finish_type" className="h-12 bg-background border rounded text-base px-2" value={finish} onChange={e => setFinish(e.target.value)}>
                     <option value="spin">Spin (1pt)</option>
                     <option value="over">Over (2pts)</option>
                     <option value="burst">Burst (2pts)</option>
@@ -278,7 +298,7 @@ function MatchReportCard({ match, refresh }) {
             <button
                 type="submit"
                 disabled={submitting}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 rounded font-semibold text-sm disabled:opacity-50"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-6 rounded font-semibold text-base disabled:opacity-50 w-full md:w-auto"
             >
                 {submitting ? "..." : "Submit"}
             </button>
@@ -453,6 +473,11 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                         <p className="text-xs text-muted-foreground">
                             Add all players here before locking.
                         </p>
+
+                        {/* Debug Seed Button */}
+                        <div className="pt-4 border-t border-dashed">
+                            <DebugSeedButton tournamentId={tournamentId} />
+                        </div>
                     </div>
 
                     <div className="w-full md:w-2/3 border-l pl-0 md:pl-8 border-border">
@@ -643,5 +668,37 @@ export function ConcludeTournamentSection({ tournamentId }) {
                 </button>
             </form>
         </div>
+    )
+}
+
+function DebugSeedButton({ tournamentId }) {
+    const { toast } = useToast();
+    const [loading, setLoading] = useState(false);
+
+    async function handleSeed() {
+        if (!confirm("Add 128 Test Players? This cannot be easily undone manually.")) return;
+        setLoading(true);
+        // Dynamic import to avoid server action import issues in client component if strictly separated
+        const { seedTournamentAction } = await import("@/app/actions");
+        const res = await seedTournamentAction(tournamentId, 128);
+        setLoading(false);
+
+        if (res.success) {
+            toast({ title: "Seeded 128 Players", description: "Ready for stress testing.", variant: "success" });
+            window.location.reload();
+        } else {
+            toast({ title: "Seed Failed", description: res.error, variant: "destructive" });
+        }
+    }
+
+    return (
+        <button
+            onClick={handleSeed}
+            disabled={loading}
+            className="w-full py-2 text-xs font-mono text-muted-foreground hover:text-foreground border border-dashed rounded hover:bg-muted/50 transition-colors flex items-center justify-center gap-2"
+        >
+            <Users className="w-3 h-3" />
+            {loading ? "Seeding..." : "Debug: Add 128 Test Players"}
+        </button>
     )
 }
