@@ -1,5 +1,8 @@
 
-export async function advanceBracket(supabase, tournamentId) {
+import { supabaseAdmin } from "./supabase-admin";
+
+export async function advanceBracket(tournamentId) {
+    const supabase = supabaseAdmin;
     if (!tournamentId) throw new Error("Missing tournamentId");
 
     // 1. Determine current latest round
@@ -60,14 +63,21 @@ export async function advanceBracket(supabase, tournamentId) {
     prevMatches.forEach(m => matchesByNum.set(m.match_number, m));
 
     if (idealMatchCount < 1) {
-        console.log("Bracket seems finished.");
+        throw new Error(`Bracket finished? Cut:${cutSize}, R:${currentRoundNum}, Ideal:${idealMatchCount}`);
         return [];
     }
 
     const nextRoundNum = Number(currentRoundNum) + 1;
-    console.log(`Advancing from Round ${currentRoundNum} (Ideal matches: ${idealMatchCount}) to Round ${nextRoundNum}...`);
+    // console.log(`Advancing from Round ${currentRoundNum} (Ideal matches: ${idealMatchCount}) to Round ${nextRoundNum}...`);
 
     const isFinals = (idealMatchCount === 2); // If we are pairing 2 matches, next is Finals (1 match) + 3rd Place
+
+    const nextRoundSize = idealMatchCount / 2;
+
+    // Debug
+    if (nextRoundSize < 1 && !isFinals) {
+        throw new Error(`Logic Error: Next Size < 1. Cut:${cutSize}, Mul:${multiplier}, Next:${nextRoundSize}`);
+    }
 
     // Special Case: FINALS (Generate 1st place and 3rd place matches)
     if (isFinals) {
@@ -137,7 +147,6 @@ export async function advanceBracket(supabase, tournamentId) {
     const target = 4; // Default target
 
     // Iterate the Top Half of the Ideal Grid (Next Round Size is current / 2)
-    const nextRoundSize = idealMatchCount / 2;
     for (let i = 1; i <= nextRoundSize; i++) {
         // Standard Bracket Progression: Adjacent Matches Merge
         const slotA = 2 * i - 1;
@@ -199,6 +208,10 @@ export async function advanceBracket(supabase, tournamentId) {
 
     const { data: inserted, error: insErr } = await supabase.from("matches").insert(matchesToInsert).select();
     if (insErr) throw insErr;
+
+    if (!inserted || inserted.length === 0) {
+        throw new Error(`Generated 0 matches. Proposed: ${matchesToInsert.length}. Cut:${cutSize}, Ideal:${idealMatchCount}, NextR:${nextRoundNum}`);
+    }
 
     return inserted;
 }

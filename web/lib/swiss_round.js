@@ -1,4 +1,4 @@
-import { supabase } from "./supabase.js";
+import { supabaseAdmin } from "./supabase-admin.js";
 
 /** Fisher–Yates shuffle */
 function shuffle(array) {
@@ -18,7 +18,7 @@ function pairKey(a, b) {
  * Build a Set of all past swiss pairings to avoid rematches.
  */
 async function loadPlayedSet(tournamentId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("matches")
         .select("participant_a_id, participant_b_id")
         .eq("tournament_id", tournamentId)
@@ -40,7 +40,7 @@ async function loadPlayedSet(tournamentId) {
  * (View must provide: match_wins, buchholz, point_diff.)
  */
 async function loadActiveStandings(tournamentId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("swiss_standings")
         .select(
             "participant_id, display_name, participant_status, match_wins, buchholz, point_diff"
@@ -84,7 +84,7 @@ export async function generateSwissRound(tournamentId, roundNumber) {
     }
 
     // Tournament settings
-    const { data: tournament, error: tErr } = await supabase
+    const { data: tournament, error: tErr } = await supabaseAdmin
         .from("tournaments")
         .select("id, match_target_points, swiss_rounds")
         .eq("id", tournamentId)
@@ -97,7 +97,7 @@ export async function generateSwissRound(tournamentId, roundNumber) {
 
     // Guard: Round N-1 must be completed (except round 1)
     if (roundNumber > 1) {
-        const { data: prev, error: prevErr } = await supabase
+        const { data: prev, error: prevErr } = await supabaseAdmin
             .from("swiss_rounds")
             .select("status")
             .eq("tournament_id", tournamentId)
@@ -113,7 +113,7 @@ export async function generateSwissRound(tournamentId, roundNumber) {
     }
 
     // Create (or re-open) the swiss_round row
-    const { data: round, error: rErr } = await supabase
+    const { data: round, error: rErr } = await supabaseAdmin
         .from("swiss_rounds")
         .upsert(
             { tournament_id: tournamentId, round_number: roundNumber, status: "active" },
@@ -124,7 +124,7 @@ export async function generateSwissRound(tournamentId, roundNumber) {
     if (rErr) throw rErr;
 
     // Guard: don’t generate twice
-    const { data: existing, error: exErr } = await supabase
+    const { data: existing, error: exErr } = await supabaseAdmin
         .from("matches")
         .select("id")
         .eq("tournament_id", tournamentId)
@@ -219,7 +219,7 @@ export async function generateSwissRound(tournamentId, roundNumber) {
     }
 
     // Insert
-    const { data: inserted, error: mErr } = await supabase
+    const { data: inserted, error: mErr } = await supabaseAdmin
         .from("matches")
         .insert(matchesToInsert)
         .select("id, match_number, participant_a_id, participant_b_id, is_bye, status");

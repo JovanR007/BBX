@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@stackframe/stack": "^2.8.58",
     "@supabase/supabase-js": "^2.90.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -19,6 +20,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.18",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

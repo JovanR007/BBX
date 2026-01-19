@@ -6,10 +6,38 @@ import { redirect } from "next/navigation";
 import { advanceBracket } from "@/lib/bracket-logic";
 import { generateSwissRound } from "@/lib/swiss_round";
 import { generateTopCut } from "@/lib/top_cut";
+import { stackServerApp } from "@/lib/stack";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+export async function getTournamentDataAction(tournamentId) {
+    if (!tournamentId) return { success: false, error: "No ID provided" };
+
+    try {
+        const [tRes, mRes, pRes] = await Promise.all([
+            supabaseAdmin.from("tournaments").select("*").eq("id", tournamentId).single(),
+            supabaseAdmin.from("matches").select("*").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
+            supabaseAdmin.from("participants").select("*").eq("tournament_id", tournamentId)
+        ]);
+
+        if (tRes.error) throw tRes.error;
+        if (mRes.error) throw mRes.error;
+        if (pRes.error) throw pRes.error;
+
+        return {
+            success: true,
+            tournament: tRes.data,
+            matches: mRes.data || [],
+            participants: pRes.data || []
+        };
+    } catch (e) {
+        console.error("Fetch Error:", e);
+        return { success: false, error: e.message };
+    }
+}
 
 export async function addParticipantAction(formData) {
     const name = formData.get("name");
@@ -33,7 +61,7 @@ export async function addParticipantAction(formData) {
     }
 
     // 2. Insert Participant
-    const { data: newPart, error } = await supabase
+    const { data: newPart, error } = await supabaseAdmin
         .from("participants")
         .insert({ display_name: name, tournament_id: tournamentId })
         .select()
@@ -172,7 +200,7 @@ export async function toggleRegistrationAction(formData) {
     // If currently locked (pending), we are opening (draft).
     const newStatus = isOpen ? "pending" : "draft";
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from("tournaments")
         .update({ status: newStatus })
         .eq("id", tournamentId);
@@ -191,7 +219,7 @@ export async function startTournamentAction(formData) {
 
     try {
         // 1. Update tournament settings & status
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("tournaments")
             .update({
                 cut_size: cutSize,
@@ -213,6 +241,18 @@ export async function startTournamentAction(formData) {
 }
 
 export async function createTournamentAction(formData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    // 1. Get Store ID
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
+
+    if (!store) return { success: false, error: "You must own a store to create tournaments." };
+
     const name = formData.get("name");
     const cutSize = Number(formData.get("cut_size"));
     let slug = formData.get("slug");
@@ -227,9 +267,15 @@ export async function createTournamentAction(formData) {
         slug = null; // Ensure null if empty
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("tournaments")
-        .insert({ name, cut_size: cutSize || 16, status: "draft", slug })
+        .insert({
+            name,
+            cut_size: cutSize || 16,
+            status: "draft",
+            slug,
+            store_id: store.id
+        })
         .select()
         .single();
 
@@ -297,8 +343,6 @@ export async function advanceBracketAction(tournamentId) {
         const lastMatch = latestMatches?.[0];
 
         if (!lastMatch) {
-            // No matches? Maybe start round 1 logic if not started? 
-            // But startTournamentAction does round 1.
             return { success: false, error: "No existing matches found to advance from." };
         }
 
@@ -317,8 +361,7 @@ export async function advanceBracketAction(tournamentId) {
                 return { success: false, error: "Not all matches in the current round are complete." };
             }
 
-            // 2. Mark current round as complete in swiss_rounds table
-            // This is critical because generateSwissRound checks this status
+            // 2. Mark current round as complete
             await supabase
                 .from("swiss_rounds")
                 .update({ status: "complete" })
@@ -326,10 +369,13 @@ export async function advanceBracketAction(tournamentId) {
                 .eq("round_number", currentRound);
 
             const nextRound = (currentRound || 0) + 1;
-            await generateSwissRound(tournamentId, nextRound);
+            const res = await generateSwissRound(tournamentId, nextRound);
+            // DO NOT call advanceBracket here.
+        } else if (lastMatch.stage === 'top_cut') {
+            // Handle Top Cut Advancement
+            await advanceBracket(tournamentId);
         } else {
-            // Top Cut
-            await advanceBracket(supabase, tournamentId);
+            return { success: false, error: "Unknown tournament stage." };
         }
 
         revalidatePath(`/t/${tournamentId}/admin`);
@@ -530,7 +576,7 @@ export async function forceUpdateMatchScoreAction(formData) {
     else status = 'draw';
 
     // 4. Update
-    const { error: upErr } = await supabase
+    const { error: upErr } = await supabaseAdmin
         .from("matches")
         .update({
             score_a: scoreA,
@@ -554,7 +600,7 @@ export async function endTournamentAction(formData) {
     if (!tournamentId) return { success: false, error: "Tournament ID required" };
     if (pin !== "1234") return { success: false, error: "Invalid Admin PIN" };
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from("tournaments")
         .update({ status: "completed" })
         .eq("id", tournamentId);
@@ -569,7 +615,7 @@ export async function endTournamentAction(formData) {
 export async function updateLiveScoreAction(matchId, scoreA, scoreB) {
     if (!matchId) return { success: false, error: "Match ID required" };
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
         .from("matches")
         .update({
             score_a: scoreA,
@@ -579,4 +625,47 @@ export async function updateLiveScoreAction(matchId, scoreA, scoreB) {
 
     if (error) return { success: false, error: error.message };
     return { success: true };
+}
+
+export async function updateStoreAction(previousState, formData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const storeId = formData.get("store_id");
+    if (!storeId) return { success: false, error: "Store ID required" };
+
+    const name = formData.get("name");
+    const description = formData.get("description");
+    const address = formData.get("address");
+    const contact = formData.get("contact");
+    const imageUrl = formData.get("image_url");
+
+    // 1. Verify Ownership
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", storeId)
+        .single();
+
+    if (!store || store.owner_id !== user.id) {
+        return { success: false, error: "Unauthorized: You do not own this store." };
+    }
+
+    // 2. Update
+    const { error } = await supabaseAdmin
+        .from("stores")
+        .update({
+            name,
+            description,
+            address,
+            contact_number: contact,
+            image_url: imageUrl
+        })
+        .eq("id", storeId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/`);
+    return { success: true, message: "Store updated successfully." };
 }

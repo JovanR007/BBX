@@ -3,128 +3,138 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { Trophy, Plus, ArrowRight, Loader2 } from "lucide-react";
+import { Store, MapPin, Phone, Loader2, ArrowRight } from "lucide-react";
+import { UserButton, useUser } from "@stackframe/stack";
+import { cn } from "@/lib/utils";
 
 export default function LandingPage() {
-  const [tournaments, setTournaments] = useState([]);
+  const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const user = useUser();
+
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
-    async function fetchTournaments() {
-      const { data, error } = await supabase
-        .from("tournaments")
+    async function fetchData() {
+      // 1. Fetch Stores
+      const { data } = await supabase
+        .from("stores")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (data) setTournaments(data);
+      if (data) setStores(data);
       setLoading(false);
+
+      // 2. Check Ownership (if user exists)
+      if (user) {
+        const { data: myStore } = await supabase
+          .from("stores")
+          .select("id")
+          .eq("owner_id", user.id)
+          .single();
+
+        if (myStore) setIsOwner(true);
+      }
     }
-    fetchTournaments();
-  }, []);
+    fetchData();
+  }, [user]);
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-16">
+    <div className="container mx-auto px-4 py-8 md:py-16 relative">
+      <div className="absolute top-4 right-4">
+        <UserButton />
+      </div>
+
       <div className="flex flex-col items-center justify-center space-y-8 text-center mb-12 md:mb-16">
         <div className="space-y-4">
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
-            BBX Tournament Platform
+            Beyblade X Community
           </h1>
           <p className="mx-auto max-w-[700px] text-muted-foreground text-xl">
-            The community standard for Beyblade X tournaments.
-            <br />
-            Find a local tournament or host your own in seconds.
+            Find the best local hobby stores and tournaments near you.
           </p>
         </div>
 
-        <Link
-          href="/create"
-          className="inline-flex items-center justify-center rounded-full bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Host a Tournament
-        </Link>
+        <div className="flex gap-4">
+          {user && isOwner && (
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center rounded-full bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+            >
+              My Store Dashboard
+            </Link>
+          )}
+        </div>
       </div>
 
-      <div className="max-w-5xl mx-auto space-y-12">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold tracking-tight">Featured Hobby Stores</h2>
+          <span className="text-sm text-muted-foreground">{stores.length} found</span>
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="animate-spin w-8 h-8 text-muted-foreground" /></div>
+        ) : stores.length === 0 ? (
+          <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
+            No stores authorized yet.
+          </div>
         ) : (
-          <>
-            <Section
-              title="Active Tournaments"
-              tournaments={tournaments.filter(t => t.status !== 'completed')}
-              emptyMsg="No active tournaments."
-            />
-
-            {tournaments.some(t => t.status === 'completed') && (
-              <Section
-                title="Past Tournaments"
-                tournaments={tournaments.filter(t => t.status === 'completed')}
-                isPast
-              />
-            )}
-          </>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {stores.map((store) => (
+              <StoreCard key={store.id} store={store} />
+            ))}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-function Section({ title, tournaments, emptyMsg, isPast }) {
-  if (tournaments.length === 0 && !emptyMsg) return null;
+function StoreCard({ store }) {
+  const [imgError, setImgError] = useState(false);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
-        <span className="text-sm text-muted-foreground">{tournaments.length} found</span>
+    <Link
+      href={`/s/${store.slug}`}
+      className="group block bg-card border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/50 transition-all"
+    >
+      <div className="relative h-48 bg-muted">
+        {store.image_url && !imgError ? (
+          <img
+            src={store.image_url}
+            alt={store.name}
+            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
+            <Store className="w-16 h-16" />
+          </div>
+        )}
       </div>
+      <div className="p-6">
+        <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-1">{store.name}</h3>
 
-      {tournaments.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
-          {emptyMsg}
+        <div className="space-y-2 text-sm text-muted-foreground">
+          {store.address && (
+            <div className="flex items-start">
+              <MapPin className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+              <span className="line-clamp-2">{store.address}</span>
+            </div>
+          )}
+          {store.contact_number && (
+            <div className="flex items-center">
+              <Phone className="w-4 h-4 mr-2 shrink-0" />
+              <span>{store.contact_number}</span>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {tournaments.map((t) => {
-            let statusLabel = "Registration Open";
-            let statusColor = "text-green-400 bg-green-500/10 border-green-500/20";
 
-            if (t.status === 'started') {
-              statusLabel = "In Progress";
-              statusColor = "text-blue-400 bg-blue-500/10 border-blue-500/20";
-            } else if (t.status === 'completed') {
-              statusLabel = "Completed";
-              statusColor = "text-muted-foreground bg-secondary border-border";
-            }
-
-            return (
-              <Link key={t.id} href={`/t/${t.slug || t.id}`} className={cn("group relative rounded-xl border bg-card text-card-foreground shadow transition-all hover:shadow-lg hover:border-primary/50 overflow-hidden", isPast && "opacity-75 hover:opacity-100")}>
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={cn("p-2 rounded-lg transition-colors", t.status === 'completed' ? "bg-muted text-muted-foreground" : "bg-blue-500/10 text-blue-400")}>
-                      <Trophy className="w-6 h-6" />
-                    </div>
-                    <span className={cn("text-[10px] uppercase font-bold border px-2 py-1 rounded-full", statusColor)}>
-                      {statusLabel}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-1">{t.name}</h3>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span>{new Date(t.created_at).toLocaleDateString()}</span>
-                    <span className="mx-2">•</span>
-                    <span>Top {t.cut_size} Cut</span>
-                  </div>
-                </div>
-                {!isPast && (
-                  <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-400 to-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                )}
-              </Link>
-            )
-          })}
+        <div className="mt-6 flex items-center text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
+          View Tournaments <ArrowRight className="ml-2 w-4 h-4" />
         </div>
-      )}
-    </div>
-  )
+      </div>
+    </Link>
+  );
 }
-
-import { cn } from "@/lib/utils";

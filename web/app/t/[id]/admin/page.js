@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, toggleRegistrationAction, endTournamentAction } from "@/app/actions";
+import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction } from "@/app/actions";
 import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2 } from "lucide-react";
 import { ConfirmationModal } from "@/components/ui/modal";
 import { MatchScoringModal } from "@/components/match-scoring-modal";
@@ -41,48 +41,33 @@ export default function AdminPage({ params }) {
         if (!tournamentId) return;
         setLoadingData(true);
 
-        const { data: matchesData } = await supabase
-            .from("matches")
-            .select("*")
-            .eq("tournament_id", tournamentId)
-            .eq("status", "pending")
-            .order("bracket_round", { ascending: true })
-            .order("match_number", { ascending: true });
+        const res = await getTournamentDataAction(tournamentId);
 
-        const { data: partsData } = await supabase
-            .from("participants")
-            .select("*")
-            .eq("tournament_id", tournamentId)
-            .order("created_at", { ascending: true });
+        if (!res.success) {
+            toast({ title: "Error Loading Data", description: res.error, variant: "destructive" });
+            setLoadingData(false);
+            return;
+        }
 
-        // Check Round 1 status
-        const { count: roundTwoCount } = await supabase
-            .from("matches")
-            .select("id", { count: 'exact', head: true })
-            .eq("tournament_id", tournamentId)
-            .gt("swiss_round_number", 1);
-
-        const isRoundOne = (roundTwoCount || 0) === 0;
+        const matchesData = res.matches;
+        const partsData = res.participants;
 
         setMatches(matchesData || []);
         setParticipants(partsData || []);
-        // Mutate tournament object locally to add 'isRoundOne' without re-fetching everything?
-        // Actually, we can just pass isRoundOne down or store it.
-        // Let's store isRoundOne in state or merge it.
-        // For simplicity, we'll attach it to the tournament object passed to children if possible, 
-        // OR just pass it as a separate prop.
-        // But 'tournament' comes from hook now. 
-        // Let's create a local extendedTournament.
+
+        // Derive Round 1 Status locally
+        // Check if any match has swiss_round_number > 1
+        const hasRoundTwo = matchesData ? matchesData.some(m => m.swiss_round_number > 1) : false;
+        const isRoundOne = !hasRoundTwo;
+
         setIsRoundOne(isRoundOne);
+        setLoadingData(false);
     }
 
-    // Extended logic to handle "isRoundOne" which is dynamic and not in the hook
-    // We can just query it and use a state.
+    // Extended logic to handle "isRoundOne" which is dynamic and now derived
     const [isRoundOne, setIsRoundOne] = useState(true);
 
-    useEffect(() => {
-        if (participants.length > 0) setLoadingData(false);
-    }, [participants]);
+    // Removed the participant length check for loading because we set it false in fetchData
 
 
     if (tError) return <div className="p-8 text-center text-red-500">Error: {tError}</div>;

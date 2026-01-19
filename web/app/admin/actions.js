@@ -1,0 +1,60 @@
+"use server";
+
+import { stackServerApp } from "../../lib/stack";
+import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
+
+// Private Admin Client to bypass RLS
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+        auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+        },
+    }
+);
+
+export async function createStoreAction(prevState, formData) {
+    const user = await stackServerApp.getUser();
+    const email = user?.primaryEmail;
+
+    if (email !== process.env.SUPERADMIN_EMAIL) {
+        return { success: false, error: "Unauthorized" };
+    }
+
+    const ownerId = formData.get("owner_id");
+    const name = formData.get("name");
+    const slug = formData.get("slug");
+    const contact = formData.get("contact");
+    const address = formData.get("address");
+
+    if (!ownerId || !name || !slug) {
+        return { success: false, error: "Missing required fields" };
+    }
+
+    // Basic validation
+    if (ownerId.length < 5) {
+        return { success: false, error: "Invalid User ID format." };
+    }
+
+    const { error } = await supabaseAdmin.from("stores").insert({
+        owner_id: ownerId,
+        name,
+        slug,
+        contact_number: contact,
+        address,
+    });
+
+    if (error) {
+        if (error.code === '23505') { // Unique violation
+            if (error.message.includes('owner_id')) return { success: false, error: "This User already owns a store." };
+            if (error.message.includes('slug')) return { success: false, error: "This Store URL (slug) is already taken." };
+        }
+        return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin");
+    return { success: true, error: null };
+}
