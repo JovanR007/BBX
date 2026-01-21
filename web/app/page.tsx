@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import Image from "next/image";
 import { Store as StoreIcon, MapPin, Phone, Loader2, ArrowRight, Trophy, Users } from "lucide-react";
 import { UserButton, useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
@@ -116,11 +117,13 @@ function StoreCard({ store }: { store: Store }) {
     >
       <div className="relative h-48 bg-muted">
         {store.image_url && !imgError ? (
-          <img
+          <Image
             src={store.image_url}
             alt={store.name}
             className="w-full h-full object-cover transition-transform group-hover:scale-105"
             onError={() => setImgError(true)}
+            fill
+            unoptimized
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">

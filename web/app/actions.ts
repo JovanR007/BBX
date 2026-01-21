@@ -47,9 +47,9 @@ export async function getTournamentDataAction(tournamentId: string) {
 
     try {
         const results = await Promise.all([
-            supabaseAdmin.from("tournaments").select("*").eq("id", tournamentId).single(),
-            supabaseAdmin.from("matches").select("*").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
-            supabaseAdmin.from("participants").select("*").eq("tournament_id", tournamentId),
+            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds").eq("id", tournamentId).single(),
+            supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
+            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
         ]);
         const args = results; // Alias for minimal change to getRes or just use results directly

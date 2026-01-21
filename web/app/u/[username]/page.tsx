@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { User, Trophy, Calendar, Swords, Medal } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -85,7 +86,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 p-1">
                         <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
                             {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                                <Image src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" fill unoptimized />
                             ) : (
                                 <User className="w-16 h-16 text-slate-700" />
                             )}
