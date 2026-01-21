@@ -64,7 +64,7 @@ export default function ProfileEditor({ user }: { user: any }) {
                         name="username"
                         defaultValue={profile.username}
                         className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
-                        placeholder="e.g. JovanR007"
+                        placeholder="e.g. BladeStorm99"
                         required
                         pattern="[a-zA-Z0-9_]{3,20}"
                         data-lpignore="true"
@@ -78,7 +78,7 @@ export default function ProfileEditor({ user }: { user: any }) {
                         name="display_name"
                         defaultValue={profile.display_name}
                         className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
-                        placeholder="e.g. Jovan R."
+                        placeholder="e.g. Storm B."
                         data-lpignore="true"
                     />
                 </div>
