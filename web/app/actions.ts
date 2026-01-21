@@ -1,0 +1,1097 @@
+"use server";
+
+import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { advanceBracket } from "@/lib/bracket-logic";
+import { generateSwissRound } from "@/lib/swiss_round";
+import { generateTopCut } from "@/lib/top_cut";
+import { stackServerApp } from "@/lib/stack";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- HELPER: Verify Ownership ---
+async function verifyTournamentOwner(tournamentId: string) {
+    const user = await stackServerApp.getUser();
+    if (!user) return null;
+
+    const { data: tourney } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (!tourney) return null;
+
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", tourney.store_id)
+        .single();
+
+    return store && store.owner_id === user.id ? user : null;
+}
+
+// --- HELPER: Verify PIN ---
+function verifyAdminPin(formData: FormData) {
+    const pin = formData.get("admin_pin");
+    const correctPin = process.env.ADMIN_PIN;
+    return pin === correctPin;
+}
+
+export async function getTournamentDataAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "No ID provided" };
+
+    try {
+        const results = await Promise.all([
+            supabaseAdmin.from("tournaments").select("*").eq("id", tournamentId).single(),
+            supabaseAdmin.from("matches").select("*").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
+            supabaseAdmin.from("participants").select("*").eq("tournament_id", tournamentId),
+            supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
+        ]);
+        const args = results; // Alias for minimal change to getRes or just use results directly
+
+        if (results[0].error) throw results[0].error;
+        if (results[1].error) throw results[1].error;
+        if (results[2].error) throw results[2].error;
+        // jRes error might be ignored if we want to be robust, but strict is fine.
+
+        return {
+            success: true,
+            tournament: results[0].data,
+            matches: results[0].data ? results[1].data || [] : [], // Only return matches if tournament found
+            participants: results[2].data || [],
+            judges: (results[3].data) || [] // Safe access if promise array logic differs
+        };
+
+        function getRes(idx: number) { return args[idx] || { data: [], error: null } }
+        // Actually, let's fix the destructuring above
+
+    } catch (e: unknown) {
+        console.error("Fetch Error:", e);
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+export async function addParticipantAction(formData: FormData) {
+    const name = formData.get("name") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+
+    if (!name || !tournamentId) return { success: false, error: "Name and Tournament ID required" };
+
+    // 1. Check Tournament Status FIRST (to enforce PIN before DB writes)
+    const { data: tourney } = await supabase
+        .from("tournaments")
+        .select("status")
+        .eq("id", tournamentId)
+        .single();
+
+    // Context: Who is adding?
+    const ownerUser = await verifyTournamentOwner(tournamentId);
+
+    if (tourney?.status === "started") {
+        // Late Entry: strictly Requires Admin PIN or Owner
+        if (!ownerUser) {
+            if (!verifyAdminPin(formData)) {
+                return { success: false, error: "Late entry requires Admin PIN or Owner permission." };
+            }
+        }
+    } else {
+        // Draft/Pending:
+        // If we want to allow PUBLIC registration, we can leave it open.
+        // But if we want to restrict to owner?
+        // Current requirement: "Anyone can spam".
+        // FIX: If it's a "Local" tournament app, usually valid. 
+        // But to be safe, let's require Owner OR a "registration_open" flag (not yet implemented).
+        // For now, we'll allow public add in Draft, but secure Delete.
+    }
+
+    // 2. Insert Participant
+    let userId = formData.get("user_id"); // Optional User Link
+
+    // Auto-Link: If no userId provided, check if 'name' matches a registered username
+    if (!userId) {
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("id")
+            .ilike("username", name) // Case-insensitive match
+            .single();
+
+        if (profile) userId = profile.id;
+    }
+
+
+    const { data: newPart, error } = await supabaseAdmin
+        .from("participants")
+        .insert({
+            display_name: name,
+            tournament_id: tournamentId,
+            user_id: userId || null
+        })
+        .select()
+        .single();
+
+    if (error) return { success: false, error: error.message };
+
+    // 3. Round Logic (if started)
+    if (tourney?.status === "started") {
+        // Check if we are past Round 1
+
+        // Check if we are past Round 1
+        const { count: roundTwoCount } = await supabase
+            .from("matches")
+            .select("id", { count: 'exact', head: true })
+            .eq("tournament_id", tournamentId)
+            .gt("swiss_round_number", 1);
+
+        const isRoundOne = (roundTwoCount || 0) === 0;
+
+        if (isRoundOne) {
+            // Logic: Find if there's an existing BYE match (participant_b_id is null)
+            const { data: byeMatch } = await supabase
+                .from("matches")
+                .select("id")
+                .eq("tournament_id", tournamentId)
+                .eq("swiss_round_number", 1)
+                .is("participant_b_id", null)
+                .single();
+
+            if (byeMatch) {
+                // Determine target points (default 4)
+                const result = await supabaseAdmin
+                    .from("matches")
+                    .update({
+                        participant_b_id: newPart.id,
+                        status: 'pending',
+                        score_a: 0,
+                        score_b: 0,
+                        winner_id: null,
+                        is_bye: false // No longer a bye match
+                    })
+                    .eq("id", byeMatch.id);
+
+                if (result.error) return { success: false, error: "Error updating Bye: " + result.error.message };
+            } else {
+                // No Bye match available. Create a new pairing P_new vs BYE.
+                // We need to know the next match number?
+                const { count: matchCount } = await supabase
+                    .from("matches")
+                    .select("id", { count: 'exact', head: true })
+                    .eq("tournament_id", tournamentId)
+                    .eq("swiss_round_number", 1);
+
+                // Fetch Swiss Round ID to satisfy DB constraints
+                const { data: roundData } = await supabase
+                    .from("swiss_rounds")
+                    .select("id")
+                    .eq("tournament_id", tournamentId)
+                    .eq("round_number", 1)
+                    .single();
+
+                if (!roundData) return { success: false, error: "Could not find Swiss Round 1" };
+
+                const err = await supabaseAdmin
+                    .from("matches")
+                    .insert({
+                        tournament_id: tournamentId,
+                        stage: 'swiss',
+                        swiss_round_id: roundData.id,
+                        swiss_round_number: 1,
+                        match_number: (matchCount || 0) + 1,
+                        participant_a_id: newPart.id,
+                        participant_b_id: null, // BYE
+
+                        // New Bye Match -> Auto Win 4-3
+                        status: 'complete',
+                        score_a: 4,
+                        score_b: 3,
+                        winner_id: newPart.id,
+                        is_bye: true,
+
+                        target_points: 4
+                    });
+
+                if (err.error) return { success: false, error: "Error creating match: " + err.error.message };
+            }
+        }
+    }
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    revalidatePath(`/t/${tournamentId}/bracket`);
+    return { success: true };
+}
+
+export async function deleteParticipantAction(formData: FormData) {
+    const participantId = formData.get("participant_id") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+
+    if (!participantId) return { success: false, error: "Participant ID required" };
+
+    // SECURE: Only Owner can delete
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized: Only tournament owner can delete participants." };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .delete()
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function updateParticipantAction(formData: FormData) {
+    const participantId = formData.get("participant_id") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+    const name = formData.get("name") as string;
+
+    if (!participantId || !name) return { success: false, error: "ID and Name required" };
+
+    // SECURE: Only Owner can update
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ display_name: name })
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function toggleRegistrationAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const isOpen = formData.get("is_open") === "true"; // current state
+
+    // If currently open (draft), we are locking (pending).
+    // If currently locked (pending), we are opening (draft).
+    const newStatus = isOpen ? "pending" : "draft";
+
+    const { error } = await supabaseAdmin
+        .from("tournaments")
+        .update({ status: newStatus })
+        .eq("id", tournamentId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function startTournamentAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const cutSize = Number(formData.get("cut_size"));
+
+    if (!tournamentId || !cutSize) return { success: false, error: "Missing ID or Cut Size" };
+
+    try {
+        // 1. Update tournament settings & status
+        const { error } = await supabaseAdmin
+            .from("tournaments")
+            .update({
+                cut_size: cutSize,
+                status: "started" // Transition to active Swiss stage
+            })
+            .eq("id", tournamentId);
+
+        if (error) throw error;
+
+        // 2. Generate Swiss Round 1
+        await generateSwissRound(tournamentId, 1);
+
+        revalidatePath(`/t/${tournamentId}/admin`);
+        revalidatePath(`/t/${tournamentId}`);
+        return { success: true };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+export async function createTournamentAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    // 1. Get Store ID
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
+
+    if (!store) return { success: false, error: "You must own a store to create tournaments." };
+
+    const name = formData.get("name") as string;
+    const cutSize = Number(formData.get("cut_size"));
+    let slug = formData.get("slug") as string | null;
+
+    if (!name) return { success: false, error: "Name required" };
+
+    // Slug validation and normalization
+    if (slug) {
+        slug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        if (slug.length < 3) return { success: false, error: "Slug must be at least 3 characters" };
+    } else {
+        slug = null; // Ensure null if empty
+    }
+
+    const { data, error } = await supabaseAdmin
+        .from("tournaments")
+        .insert({
+            name,
+            cut_size: cutSize || 16,
+            status: "draft",
+            slug,
+            store_id: store.id
+        })
+        .select()
+        .single();
+
+    if (error) {
+        if (error.code === '23505') { // Unique constraint violation (likely on slug)
+            return { success: false, error: "URL Slug is already taken. Please choose another." };
+        }
+        return { success: false, error: error.message };
+    }
+
+    // Redirect to slug if available, else ID
+    redirect(`/t/${data.slug || data.id}`);
+}
+
+export async function seedTournamentAction(tournamentId: string, count = 16) {
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    // 1. Verify Draft Mode
+    const { data: tourney } = await supabase.from("tournaments").select("status").eq("id", tournamentId).single();
+    if (tourney?.status !== "draft") return { success: false, error: "Can only seed in Draft mode." };
+
+    // 2. Generate Players using Realistic Names
+    const firstNames = ["Kai", "Tyson", "Ray", "Max", "Kyoya", "Gingka", "Ryuga", "Rago", "Valt", "Shu", "Free", "Lui", "Dante", "Hikaru", "Hyuga", "Bel", "Phenomeno", "Ekusu", "Bird", "Multi", "Queen", "King", "Jack", "Zeo", "Toby", "Masamune", "Nile", "Damian", "Faust"];
+    const lastNames = ["Hiwatari", "Granger", "Kon", "Mizuhara", "Tategami", "Hagane", "Kishatu", "Aoi", "Kurenai", "De La Hoya", "Shirosagi", "Koryu", "Hizashi", "Daikokuten", "Payne", "Kurosu", "Kazami", "Nanairo", "Manzon", "Star", "Atlas", "Abyss", "Dread", "Slayer", "Breaker"];
+
+    const players = [];
+    for (let i = 1; i <= count; i++) {
+        const f = firstNames[Math.floor(Math.random() * firstNames.length)];
+        const l = lastNames[Math.floor(Math.random() * lastNames.length)];
+        const suffix = Math.floor(Math.random() * 999);
+
+        // Ensure somewhat unique display names
+        players.push({
+            tournament_id: tournamentId,
+            display_name: `${f} ${l} ${suffix}`
+        });
+    }
+
+    // 3. Bulk Insert using ADMIN client to bypass RLS
+    const { error } = await supabaseAdmin.from("participants").insert(players);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function proceedToTopCutAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "Missing Tournament ID" };
+
+    try {
+        await generateTopCut(tournamentId, 0); // Pass 0 to let function fetch cut_size from DB
+        revalidatePath(`/t/${tournamentId}/admin`);
+        revalidatePath(`/t/${tournamentId}/bracket`);
+        return { success: true };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+export async function advanceBracketAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "Missing Tournament ID" };
+
+    try {
+        // Determine current stage based on latest matches
+        const { data: latestMatches } = await supabase
+            .from("matches")
+            .select("stage, swiss_round_number, bracket_round")
+            .eq("tournament_id", tournamentId)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+        const lastMatch = latestMatches?.[0];
+
+        if (!lastMatch) {
+            return { success: false, error: "No existing matches found to advance from." };
+        }
+
+        if (lastMatch.stage === 'swiss') {
+            const currentRound = lastMatch.swiss_round_number;
+
+            // 1. Verify all matches in current round are complete
+            const { data: incompleteMatches } = await supabase
+                .from("matches")
+                .select("id")
+                .eq("tournament_id", tournamentId)
+                .eq("swiss_round_number", currentRound)
+                .neq("status", "complete");
+
+            if (incompleteMatches && incompleteMatches.length > 0) {
+                return { success: false, error: "Not all matches in the current round are complete." };
+            }
+
+            // 2. Mark current round as complete
+            await supabaseAdmin
+                .from("swiss_rounds")
+                .update({ status: "complete" })
+                .eq("tournament_id", tournamentId)
+                .eq("round_number", currentRound);
+
+            const nextRound = (currentRound || 0) + 1;
+            const res = await generateSwissRound(tournamentId, nextRound);
+            // DO NOT call advanceBracket here.
+        } else if (lastMatch.stage === 'top_cut') {
+            // Handle Top Cut Advancement
+            await advanceBracket(tournamentId);
+        } else {
+            return { success: false, error: "Unknown tournament stage." };
+        }
+
+        revalidatePath(`/t/${tournamentId}/admin`);
+        revalidatePath(`/t/${tournamentId}/bracket`);
+        return { success: true };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+export async function reportMatchAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const matchId = formData.get("match_id") as string;
+    const scoreA = Number(formData.get("score_a"));
+    const scoreB = Number(formData.get("score_b"));
+    const finishType = formData.get("finish_type") as string;
+    const pA = formData.get("p_a") as string;
+    const pB = formData.get("p_b") as string;
+
+    // 1. Permission Check (Owner or Judge)
+    // Fetch match to get tournament_id
+    const { data: match, error: fetchErr } = await supabaseAdmin
+        .from("matches")
+        .select("tournament_id")
+        .eq("id", matchId)
+        .single();
+
+    if (fetchErr) return { success: false, error: "DB Error (Match): " + fetchErr.message };
+    if (!match) return { success: false, error: "Match not found" };
+
+    // Fetch tournament to get store_id
+    const { data: tourney, error: tErr } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", match.tournament_id)
+        .single();
+
+    if (tErr) return { success: false, error: "DB Error (Tourney): " + tErr.message };
+
+    // Fetch store to get owner_id
+    const { data: store, error: sErr } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", tourney.store_id)
+        .single();
+
+    if (sErr) return { success: false, error: "DB Error (Store): " + sErr.message };
+
+    const ownerId = store.owner_id;
+    let isAuthorized = ownerId === user.id;
+
+    if (!isAuthorized) {
+        // Check Judge
+        const { data: judge } = await supabaseAdmin
+            .from("tournament_judges")
+            .select("user_id") // Changed select to be simple
+            .eq("tournament_id", match.tournament_id)
+            .eq("user_id", user.id)
+            .maybeSingle(); // Use maybeSingle to avoid error if not found
+
+        if (judge) isAuthorized = true;
+    }
+
+    if (!isAuthorized) return { success: false, error: "Unauthorized: You are not a judge or owner." };
+
+    // Validation
+    let winnerId = null;
+    if (scoreA > scoreB) winnerId = pA;
+    else if (scoreB > scoreA) winnerId = pB;
+
+    // Finish Points
+    const FINISH_POINTS: Record<string, number> = { spin: 1, over: 2, burst: 2, xtreme: 3 };
+    const points = FINISH_POINTS[finishType] || 0;
+
+    // 1. Insert Event
+    const { error: evErr } = await supabaseAdmin.from("match_events").insert({
+        match_id: matchId,
+        winner_participant_id: winnerId,
+        finish: finishType,
+        points_awarded: points
+    });
+
+    if (evErr) return { success: false, error: evErr.message };
+
+    // 2. Update Match
+    const { error: mErr } = await supabaseAdmin.from("matches").update({
+        score_a: scoreA,
+        score_b: scoreB,
+        winner_id: winnerId,
+        status: "complete"
+    }).eq("id", matchId);
+
+    if (mErr) return { success: false, error: mErr.message };
+
+    revalidatePath("/", "layout");
+    return { success: true };
+}
+
+export async function autoScoreRoundAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "Missing Tournament ID" };
+
+    try {
+        // 1. Get all pending matches
+        const { data: matches, error: fetchErr } = await supabaseAdmin
+            .from("matches")
+            .select("*")
+            .eq("tournament_id", tournamentId)
+            .eq("status", "pending");
+
+        if (fetchErr) throw fetchErr;
+        if (!matches || matches.length === 0) return { success: false, error: "No pending matches to score." };
+
+        const updates: any[] = [];
+        const events: any[] = [];
+
+        for (const m of matches) {
+            // Randomly decide winner (0 or 1)
+            const winA = Math.random() > 0.5;
+            const scoreA = winA ? 4 : Math.floor(Math.random() * 3);
+            const scoreB = winA ? Math.floor(Math.random() * 3) : 4;
+            const winnerId = winA ? m.participant_a_id : m.participant_b_id;
+
+            // Update Match Object
+            updates.push({
+                matchId: m.id,
+                score_a: scoreA,
+                score_b: scoreB,
+                winner_id: winnerId,
+                status: "complete"
+            });
+
+            // Create Event Object (Simulate a "Burst Finish" or something for the win)
+            events.push({
+                match_id: m.id,
+                winner_participant_id: winnerId,
+                finish: "auto-debug",
+                points_awarded: 4 // Just a dummy value
+            });
+        }
+
+        // Perform Updates
+        // Supabase doesn't support bulk update with different values easily in one query without RPC.
+        // So we'll loop parallel promises.
+        await Promise.all(updates.map(u =>
+            supabaseAdmin.from("matches").update({
+                score_a: u.score_a,
+                score_b: u.score_b,
+                winner_id: u.winner_id,
+                status: "complete"
+            }).eq("id", u.matchId)
+        ));
+
+        // Insert Events (bulk insert is fine)
+        if (events.length > 0) {
+            await supabaseAdmin.from("match_events").insert(events);
+        }
+
+        revalidatePath(`/t/${tournamentId}/bracket`);
+        revalidatePath(`/t/${tournamentId}/admin`);
+        return { success: true, count: matches.length };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+
+export async function resetRoundAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "Missing Tournament ID" };
+
+    try {
+        // 1. Find the latest Top Cut round
+        const { data: rounds, error: rErr } = await supabase
+            .from('matches')
+            .select('bracket_round')
+            .eq('tournament_id', tournamentId)
+            .eq('stage', 'top_cut')
+            .order('bracket_round', { ascending: false })
+            .limit(1);
+
+        if (rErr) throw rErr;
+        if (!rounds || rounds.length === 0) return { success: false, error: "No Top Cut rounds found to reset." };
+
+        const maxRound = rounds[0].bracket_round;
+
+        // 2. Delete matches in that round
+        const { error: dErr } = await supabaseAdmin
+            .from('matches')
+            .delete()
+            .eq('tournament_id', tournamentId)
+            .eq('stage', 'top_cut')
+            .eq('bracket_round', maxRound);
+
+        if (dErr) throw dErr;
+
+        revalidatePath(`/t/${tournamentId}/bracket`);
+        revalidatePath(`/t/${tournamentId}/admin`);
+        return { success: true, message: `Reset Round ${maxRound}` };
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown Error";
+        return { success: false, error: msg };
+    }
+}
+
+export async function forceUpdateMatchScoreAction(formData: FormData) {
+    const matchId = formData.get("match_id") as string;
+    const scoreA = Number(formData.get("score_a"));
+    const scoreB = Number(formData.get("score_b"));
+
+    if (!matchId) return { success: false, error: "Match ID required" };
+
+    // SECURE: Check PIN
+    if (!verifyAdminPin(formData)) return { success: false, error: "Invalid Admin PIN" };
+
+    // 1. Fetch Match & Tournament Info
+    const { data: match, error: mErr } = await supabase
+        .from("matches")
+        .select("*, tournament_id")
+        .eq("id", matchId)
+        .single();
+
+    if (mErr || !match) return { success: false, error: "Match not found" };
+
+    // 2. Verify it's the CURRENT round (Top Cut or Swiss)
+    // For Swiss, check if it's the latest round.
+    if (match.stage === 'swiss') {
+        const { data: latestRound } = await supabase
+            .from("swiss_rounds")
+            .select("round_number")
+            .eq("tournament_id", match.tournament_id)
+            .order("round_number", { ascending: false })
+            .limit(1)
+            .single();
+
+        if (latestRound && match.swiss_round_number !== latestRound.round_number) {
+            return { success: false, error: "Can only edit matches in the current active round." };
+        }
+    }
+
+    // 3. Determine Winner
+    const pA = match.participant_a_id;
+    const pB = match.participant_b_id;
+    let winnerId = null;
+    let status = 'complete';
+
+    if (scoreA > scoreB) winnerId = pA;
+    else if (scoreB > scoreA) winnerId = pB;
+    else status = 'draw';
+
+    // 4. Update
+    const { error: upErr } = await supabaseAdmin
+        .from("matches")
+        .update({
+            score_a: scoreA,
+            score_b: scoreB,
+            winner_id: winnerId,
+            status: status
+        })
+        .eq("id", matchId);
+
+    if (upErr) return { success: false, error: upErr.message };
+
+    revalidatePath(`/t/${match.tournament_id}/bracket`);
+    revalidatePath(`/t/${match.tournament_id}/standings`);
+    return { success: true };
+}
+
+export async function endTournamentAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+    if (!verifyAdminPin(formData)) return { success: false, error: "Invalid Admin PIN" };
+
+    const { error } = await supabaseAdmin
+        .from("tournaments")
+        .update({ status: "completed" })
+        .eq("id", tournamentId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    revalidatePath(`/`);
+    return { success: true };
+}
+
+export async function addJudgeAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const tournamentId = formData.get("tournament_id") as string;
+    const code = formData.get("code") as string;
+
+    if (!tournamentId || !code) return { success: false, error: "Missing information" };
+
+    // 1. Verify Code
+    const { data: tourney } = await supabaseAdmin
+        .from("tournaments")
+        .select("judge_code, id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (!tourney || !tourney.judge_code) return { success: false, error: "Invalid Tournament or no code set." };
+    if (tourney.judge_code !== code) return { success: false, error: "Invalid Judge Code" };
+
+    // 2. Add as Judge
+    const { error } = await supabaseAdmin
+        .from("tournament_judges")
+        .insert({
+            tournament_id: tournamentId,
+            user_id: user.id
+        });
+
+    if (error) {
+        if (error.code === '23505') return { success: true, message: "Already a judge." };
+        return { success: false, error: error.message };
+    }
+
+    revalidatePath(`/t/${tournamentId}`);
+    return { success: true };
+}
+
+export async function dropParticipantAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const tournamentId = formData.get("tournament_id") as string;
+    const participantId = formData.get("participant_id") as string;
+
+    if (!tournamentId || !participantId) return { success: false, error: "Missing info" };
+
+    // Verify Owner
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    // 1. Check for Active Match to Auto-Forfeit
+    const { data: activeMatches, error: matchError } = await supabaseAdmin
+        .from("matches")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .eq("stage", "swiss")
+        .eq("status", "pending")
+        .or(`participant_a_id.eq.${participantId},participant_b_id.eq.${participantId}`);
+
+    if (matchError) console.error("Error finding active match:", matchError);
+
+    if (activeMatches && activeMatches.length > 0) {
+        for (const match of activeMatches) {
+            const isA = match.participant_a_id === participantId;
+            const opponentId = isA ? match.participant_b_id : match.participant_a_id;
+            const target = match.target_points || 4;
+
+            // If opponent exists, they get a win (BYE style 4-3 or full win?)
+            // User requested "4-3(BYE)". Logic suggests: Winner gets target, Loser gets target-1, marked as BYE.
+            const updates = {
+                status: 'complete',
+                winner_id: opponentId || participantId, // If BYE match, dropping player wins? No, if BYE match, they already have a bye.
+                // Wait, if I am playing a BYE, and I drop, does it matter? I guess I forfeit the bye?
+                // Let's assume standard opponent scenario.
+                score_a: isA ? target - 1 : target,
+                score_b: isA ? target : target - 1
+            };
+
+            if (!opponentId) {
+                // Pending BYE match... unlikely to be pending if it's a bye?
+                // Usually byes are auto-completed. But if manual, just complete it.
+                updates.winner_id = participantId;
+                updates.score_a = 4;
+            }
+
+            await supabaseAdmin.from("matches").update(updates).eq("id", match.id);
+        }
+    }
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ dropped: true })
+        .eq("id", participantId)
+        .eq("tournament_id", tournamentId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}`);
+    return { success: true };
+}
+
+export async function removeJudgeAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const tournamentId = formData.get("tournament_id");
+    const userIdToRemove = formData.get("user_id");
+
+    if (!tournamentId || !userIdToRemove) return { success: false, error: "Missing ID" };
+
+    // 1. Verify Ownership
+    // Fetch tournament to get store_id
+    const { data: tourney, error: fetchError } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (fetchError) return { success: false, error: "DB Error: " + fetchError.message };
+    if (!tourney) return { success: false, error: "Tournament not found" };
+
+    // Fetch store to get owner_id
+    const { data: store, error: storeError } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", tourney.store_id)
+        .single();
+
+    if (storeError) return { success: false, error: "DB Error (Store): " + storeError.message };
+
+    if (store.owner_id !== user.id) {
+        return { success: false, error: "Unauthorized: Only the owner can remove judges." };
+    }
+
+    // 2. Remove
+    const { error } = await supabaseAdmin
+        .from("tournament_judges")
+        .delete()
+        .eq("tournament_id", tournamentId)
+        .eq("user_id", userIdToRemove);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function updateTournamentAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const tournamentId = formData.get("tournament_id");
+    const name = formData.get("name");
+    const judgeCode = formData.get("judge_code");
+    const status = formData.get("status"); // Optional status update
+
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    // 1. Verify Ownership
+    // Fetch tournament to get store_id
+    const { data: tourney, error: fetchError } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (fetchError) return { success: false, error: "DB Error: " + fetchError.message };
+    if (!tourney) return { success: false, error: "Tournament not found" };
+
+    // Fetch store to get owner_id
+    const { data: store, error: storeError } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", tourney.store_id)
+        .single();
+
+    if (storeError) return { success: false, error: "DB Error (Store): " + storeError.message };
+
+    if (store.owner_id !== user.id) {
+        return { success: false, error: `Unauthorized: You do not own this tournament. (User: ${user.id}, Owner: ${store.owner_id})` };
+    }
+
+    // 2. Update
+    const updates: Record<string, any> = {};
+    if (name) updates.name = name;
+    if (judgeCode !== undefined) updates.judge_code = judgeCode || null;
+    if (status) updates.status = status;
+
+    const { error } = await supabaseAdmin
+        .from("tournaments")
+        .update(updates)
+        .eq("id", tournamentId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    revalidatePath(`/t/${tournamentId}`);
+    return { success: true };
+}
+
+export async function deleteTournamentAction(tournamentId: string) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    // 1. Verify Ownership
+    // Fetch tournament to get store_id
+    const { data: tourney, error: fetchError } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (fetchError) return { success: false, error: "DB Error: " + fetchError.message };
+    if (!tourney) return { success: false, error: "Tournament not found" };
+
+    // Fetch store to get owner_id
+    const { data: store, error: storeError } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", tourney.store_id)
+        .single();
+
+    if (storeError) return { success: false, error: "DB Error (Store): " + storeError.message };
+
+    if (store.owner_id !== user.id) {
+        return { success: false, error: `Unauthorized: You do not own this tournament. (User: ${user.id}, Owner: ${store.owner_id})` };
+    }
+
+    // 2. Delete
+    // Cascade should handle matches/participants if configured, otherwise might error.
+    // Assuming DB cascade or we manually delete matches?
+    // Let's assume manual deletion if cascade isn't robust, but "on delete cascade" is common.
+    // Given the migration, let's trust Supabase cascade or do a direct delete.
+
+    // Safety: Delete children first
+    await supabaseAdmin.from("matches").delete().eq("tournament_id", tournamentId);
+    await supabaseAdmin.from("participants").delete().eq("tournament_id", tournamentId);
+
+    const { error } = await supabaseAdmin
+        .from("tournaments")
+        .delete()
+        .eq("id", tournamentId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard");
+    return { success: true };
+}
+
+
+export async function updateLiveScoreAction(matchId: string, scoreA: number, scoreB: number) {
+    if (!matchId) return { success: false, error: "Match ID required" };
+
+    const { error } = await supabaseAdmin
+        .from("matches")
+        .update({
+            score_a: scoreA,
+            score_b: scoreB
+        })
+        .eq("id", matchId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function updateStoreAction(previousState: any, formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    const storeId = formData.get("store_id") as string;
+    if (!storeId) return { success: false, error: "Store ID required" };
+
+    const name = formData.get("name") as string;
+    const description = formData.get("description") as string;
+    const address = formData.get("address") as string;
+    const contact = formData.get("contact") as string;
+    const imageUrl = formData.get("image_url") as string;
+
+    // 1. Verify Ownership
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("owner_id")
+        .eq("id", storeId)
+        .single();
+
+    if (!store || store.owner_id !== user.id) {
+        return { success: false, error: "Unauthorized: You do not own this store." };
+    }
+
+    // 2. Update
+    const { error } = await supabaseAdmin
+        .from("stores")
+        .update({
+            name,
+            description,
+            address,
+            contact_number: contact,
+            image_url: imageUrl
+        })
+        .eq("id", storeId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard");
+    revalidatePath(`/`);
+    return { success: true, message: "Store updated successfully." };
+}
+
+// --- PROFILE ACTIONS ---
+
+export async function updateProfileAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    const username = formData.get("username") as string;
+    const displayName = formData.get("display_name") as string;
+    const bio = formData.get("bio") as string;
+
+    if (!username) return { success: false, error: "Username is required" };
+
+    // Validate Username (Simple regex)
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return { success: false, error: "Username must be 3-20 characters, alphanumeric or underscore." };
+    }
+
+    // Upsert Profile
+    const { error } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+            id: user.id,
+            username: username,
+            display_name: displayName || username,
+            bio: bio,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'id' }); // Conflict on ID means update
+
+    if (error) {
+        if (error.code === '23505') return { success: false, error: "Username already taken." };
+        return { success: false, error: error.message };
+    }
+
+    revalidatePath(`/u/${username}`);
+    return { success: true };
+}
