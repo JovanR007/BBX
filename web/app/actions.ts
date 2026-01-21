@@ -110,6 +110,31 @@ export async function addParticipantAction(formData: FormData) {
         // For now, we'll allow public add in Draft, but secure Delete.
     }
 
+    // 2. Check subscription tier for player limits
+    const { data: storeData } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id, stores(subscription_tier)")
+        .eq("id", tournamentId)
+        .single();
+
+    const tier = (storeData?.stores as any)?.subscription_tier || 'free';
+    const maxPlayers = tier === 'pro' ? Infinity : 16;
+
+    // Count existing participants
+    const { count: currentCount } = await supabaseAdmin
+        .from("participants")
+        .select("*", { count: "exact", head: true })
+        .eq("tournament_id", tournamentId)
+        .eq("dropped", false);
+
+    if ((currentCount || 0) >= maxPlayers) {
+        return {
+            success: false,
+            error: `Player limit reached (${maxPlayers}). Upgrade to Pro for unlimited players.`,
+            upgradeRequired: true
+        };
+    }
+
     // 2. Insert Participant
     let userId = formData.get("user_id"); // Optional User Link
 
