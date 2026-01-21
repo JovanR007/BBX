@@ -231,7 +231,7 @@ export default function ProjectorPage() {
             <div className="hidden lg:flex absolute top-48 right-8 bottom-8 w-60 flex-col justify-end gap-6 z-50 pointer-events-none">
 
                 {/* Stats Cards (Fills the top space) */}
-                <div className="flex-1 flex flex-col gap-4 pt-4">
+                <div className="flex-1 flex flex-col gap-4 pt-4 justify-center">
                     {/* Current Round Card - HIDDEN if showing Standings during Elimination */}
                     {!(view === 'standings' && data?.matches?.some((m: any) => m.stage === 'top_cut')) && (
                         <div className="bg-slate-900/90 border-l-4 border-blue-500 p-4 rounded-xl shadow-lg animate-in slide-in-from-right-10 duration-700 delay-100 backdrop-blur-sm">
