@@ -69,7 +69,12 @@ export default async function Dashboard() {
                 {/* 1. Store Management OR Profile Editor */}
                 {store ? (
                     <>
-                        {/* Store Owners: Hide Profile Editor, Show Store Tools */}
+                        {/* Store Owners: Show Profile + Store Tools */}
+                        <section>
+                            <h2 className="text-2xl font-bold mb-4">My Blader Profile</h2>
+                            <ProfileEditor user={{ id: user.id }} />
+                        </section>
+
                         <section>
                             <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
                             <StoreSettings store={store} />

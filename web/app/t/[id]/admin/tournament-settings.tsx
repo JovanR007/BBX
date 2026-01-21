@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { updateTournamentAction, deleteTournamentAction, removeJudgeAction } from "@/app/actions";
 import { Settings, Save, Trash2, AlertTriangle, Loader2, Users, X } from "lucide-react";
 import { useToast } from "@/components/ui/toaster";
@@ -9,9 +10,11 @@ import { ConfirmationModal } from "@/components/ui/modal";
 
 export default function TournamentSettings({ tournament, judges = [], refresh }: { tournament: any, judges?: any[], refresh: any }) {
     const { toast } = useToast();
+    const router = useRouter();
     const [name, setName] = useState(tournament.name);
     const [judgeCode, setJudgeCode] = useState(tournament.judge_code || "");
     const [loading, setLoading] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     async function handleUpdate(e: React.FormEvent) {
@@ -33,15 +36,14 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
     }
 
     async function handleDelete() {
-        setLoading(true);
+        setDeleting(true);
         const res = await deleteTournamentAction(tournament.id);
         if (res.success) {
-            toast({ title: "Tournament Deleted", description: "Redirecting...", variant: "default" });
-            // Redirect handled by server action usually, but we might need client routing
-            // window.location.href = "/dashboard"; 
+            toast({ title: "Tournament Deleted", description: "Redirecting to dashboard...", variant: "success" });
+            router.push("/dashboard");
         } else {
             toast({ title: "Delete Failed", description: parseError(res.error), variant: "destructive" });
-            setLoading(false);
+            setDeleting(false);
             setShowDeleteModal(false);
         }
     }
@@ -149,12 +151,13 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
 
             <ConfirmationModal
                 isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
+                onClose={() => !deleting && setShowDeleteModal(false)}
                 title="Delete Tournament?"
                 description="This action cannot be undone. Are you absolutely sure?"
-                confirmText="Yes, Delete Everything"
+                confirmText={deleting ? "Deleting..." : "Yes, Delete Everything"}
                 onConfirm={handleDelete}
                 variant="destructive"
+                isLoading={deleting}
             />
         </section>
     );
