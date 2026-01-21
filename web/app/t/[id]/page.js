@@ -3,8 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import { Trophy, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Trophy, Users, GitBranch, ArrowLeft, Loader2, Timer } from "lucide-react";
 import { useTournament } from "@/hooks/use-tournament";
+import { JudgeJoin } from "@/components/judge-join";
 
 
 export default function TournamentDashboard({ params }) {
@@ -96,6 +97,17 @@ export default function TournamentDashboard({ params }) {
                             <p className="text-sm text-muted-foreground">Report results and manage rounds.</p>
                         </div>
                     </Link>
+                    {/* Card 4: Match Timer */}
+                    <Link href={`/t/${tournamentId}/timer`} target="_blank" className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative flex flex-col items-center space-y-4">
+                            <div className="p-3 bg-primary/10 rounded-full text-primary">
+                                <Timer className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-xl font-bold">Match Timer</h3>
+                            <p className="text-sm text-muted-foreground">3-minute clock + Go Shoot.</p>
+                        </div>
+                    </Link>
                 </div>
 
                 <div className="grid grid-cols-2 gap-8 pt-8">
@@ -108,6 +120,8 @@ export default function TournamentDashboard({ params }) {
                         <span className="text-sm text-muted-foreground uppercase tracking-wider">Matches Played</span>
                     </div>
                 </div>
+
+                <JudgeJoin tournamentId={tournamentId} />
             </div>
         </div>
     );

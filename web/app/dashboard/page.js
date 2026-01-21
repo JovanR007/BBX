@@ -3,7 +3,8 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import TournamentList from "./tournament-list";
 import StoreSettings from "./store-settings";
-import { Store } from "lucide-react";
+import ProfileEditor from "./profile-editor";
+import { Store, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -27,55 +28,83 @@ export default async function Dashboard() {
         .eq("owner_id", user.id)
         .single();
 
-    if (!store) {
-        return (
-            <div className="container mx-auto py-24 px-4 max-w-2xl">
-                <div className="bg-card border rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Store className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h1 className="text-2xl font-bold mb-2">No Store Found</h1>
-                    <p className="text-muted-foreground mb-8">
-                        You don't have a store linked to your account yet.
-                        Please contact the Superadmin to provision your store.
-                    </p>
-                    <div className="bg-muted/50 p-4 rounded-lg text-left text-sm font-mono">
-                        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your User ID</p>
-                        <p>{user.id}</p>
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    // Store check handled below
 
-    // 2. Fetch Tournaments for this store
-    const { data: tournaments } = await supabaseAdmin
-        .from("tournaments")
-        .select("*")
-        .eq("store_id", store.id)
-        .order("created_at", { ascending: false });
+    // 2. Fetch Tournaments for this store (if exists)
+    // We moved the !store check down so we can still render the dashboard for non-store owners.
+
+    let tournaments = [];
+    if (store) {
+        const { data } = await supabaseAdmin
+            .from("tournaments")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false });
+        tournaments = data || [];
+    }
 
     return (
         <div className="container mx-auto py-12 px-4">
+            <div className="mb-6">
+                <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+                </Link>
+            </div>
+
             <header className="mb-8 flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">{store.name}</h1>
-                    <p className="text-muted-foreground">Manage your tournaments.</p>
+                    <h1 className="text-3xl font-bold">{store ? store.name : "My Dashboard"}</h1>
+                    <p className="text-muted-foreground">{store ? "Manage your tournaments." : "Welcome back, Blader."}</p>
                 </div>
-                <div>
-                    <Link href="/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-colors">
-                        Create Tournament
-                    </Link>
-                </div>
+                {store && (
+                    <div>
+                        <Link href="/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-colors">
+                            Create Tournament
+                        </Link>
+                    </div>
+                )}
             </header>
 
-            <StoreSettings store={store} />
+            <div className="flex flex-col gap-12">
+                {/* 1. Store Management OR Profile Editor */}
+                {store ? (
+                    <>
+                        {/* Store Owners: Hide Profile Editor, Show Store Tools */}
+                        <section>
+                            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
+                            <StoreSettings store={store} />
+                        </section>
 
-            <TournamentList tournaments={tournaments || []} />
+                        <section>
+                            <h2 className="text-2xl font-bold mb-4">Tournaments</h2>
+                            <TournamentList tournaments={tournaments} />
+                        </section>
 
-            <div className="mt-12 pt-8 border-t text-sm text-muted-foreground">
-                <p>Store ID: {store.id}</p>
-                <p>Slug: {store.slug}</p>
+                        <div className="mt-8 pt-8 border-t text-sm text-muted-foreground">
+                            <p>Store ID: {store.id}</p>
+                            <p>Slug: {store.slug}</p>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* Regular Users: Show Profile Editor + Become Organizer CTA */}
+                        <section>
+                            <ProfileEditor user={{ id: user.id }} />
+                        </section>
+
+                        <section className="bg-muted/30 p-8 rounded-xl border border-dashed text-center">
+                            <Store className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                            <h2 className="text-xl font-bold mb-2">Become a Tournament Organizer</h2>
+                            <p className="text-muted-foreground mb-4">
+                                Want to host your own events? Contact the admin to set up a Store Profile.
+                            </p>
+                            <div className="bg-muted p-4 rounded-lg inline-block text-left text-sm font-mono">
+                                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your User ID</p>
+                                <p>{user.id}</p>
+                            </div>
+                        </section>
+                    </>
+                )}
             </div>
         </div >
     );

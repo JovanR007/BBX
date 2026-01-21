@@ -250,7 +250,7 @@ export default function BracketPage({ params }) {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 overflow-x-auto min-h-screen">
+        <div className="container mx-auto px-4 py-8 min-h-screen">
             <div className="flex justify-between items-center mb-8">
                 <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
@@ -360,30 +360,32 @@ export default function BracketPage({ params }) {
                 </div>
             </div>
 
-            {
-                loading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground"><div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div> Loading tournament data...</div>
-                ) : viewMode === "empty" ? (
-                    <div className="p-12 border border-dashed rounded-xl text-center text-muted-foreground">
-                        <Info className="w-8 h-8 mx-auto mb-4 opacity-50" />
-                        <p>No matches found yet.</p>
-                        <p className="text-sm">The tournament hasn't started.</p>
-                    </div>
-                ) : viewMode === "swiss" ? (
-                    <SwissView
-                        matches={matches.filter(m => m.stage === "swiss")}
-                        participants={participants}
-                        onMatchClick={setSelectedMatch}
-                    />
-                ) : (
-                    <TopCutView
-                        matches={matches.filter(m => m.stage === "top_cut")}
-                        participants={participants}
-                        cutSize={tournament?.cut_size}
-                        onMatchClick={setSelectedMatch}
-                    />
-                )
-            }
+            <div className="overflow-x-auto pb-6">
+                {
+                    loading ? (
+                        <div className="flex items-center gap-2 text-muted-foreground"><div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div> Loading tournament data...</div>
+                    ) : viewMode === "empty" ? (
+                        <div className="p-12 border border-dashed rounded-xl text-center text-muted-foreground">
+                            <Info className="w-8 h-8 mx-auto mb-4 opacity-50" />
+                            <p>No matches found yet.</p>
+                            <p className="text-sm">The tournament hasn't started.</p>
+                        </div>
+                    ) : viewMode === "swiss" ? (
+                        <SwissView
+                            matches={matches.filter(m => m.stage === "swiss")}
+                            participants={participants}
+                            onMatchClick={setSelectedMatch}
+                        />
+                    ) : (
+                        <TopCutView
+                            matches={matches.filter(m => m.stage === "top_cut")}
+                            participants={participants}
+                            cutSize={tournament?.cut_size}
+                            onMatchClick={setSelectedMatch}
+                        />
+                    )
+                }
+            </div>
 
             <MatchScoringModal
                 isOpen={!!selectedMatch}
@@ -603,7 +605,9 @@ function MatchCard({ match, participants, onClick, label, isSwissKing }) {
                     "flex justify-between items-center p-2 rounded transition-colors",
                     winnerId === match.participant_a_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50"
                 )}>
-                    <span className="text-sm truncate w-[140px]" title={pA?.display_name || "BYE"}>{pA?.display_name || "BYE"}</span>
+                    <span className="text-sm truncate w-[140px]" title={pA?.display_name || "BYE"}>
+                        {pA?.display_name || "BYE"} {pA?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}
+                    </span>
                     <span className="font-mono text-sm">{match.score_a}</span>
                 </div>
 
@@ -612,7 +616,9 @@ function MatchCard({ match, participants, onClick, label, isSwissKing }) {
                     "flex justify-between items-center p-2 rounded transition-colors",
                     winnerId === match.participant_b_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50"
                 )}>
-                    <span className="text-sm truncate w-[140px]" title={pB?.display_name || "BYE"}>{pB?.display_name || "BYE"}</span>
+                    <span className="text-sm truncate w-[140px]" title={pB?.display_name || "BYE"}>
+                        {pB?.display_name || "BYE"} {pB?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}
+                    </span>
                     <span className="font-mono text-sm">{match.score_b}</span>
                 </div>
             </div>

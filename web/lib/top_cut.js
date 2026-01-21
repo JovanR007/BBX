@@ -1,10 +1,10 @@
-import { supabase } from "./supabase.js";
+import { supabaseAdmin } from "./supabase-admin.js";
 
 /**
  * Get active participants ranked by swiss standings.
  */
 async function loadActiveStandings(tournamentId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from("swiss_standings")
         .select(
             "participant_id, display_name, participant_status, match_wins, buchholz, point_diff"
@@ -25,7 +25,7 @@ function makeByeMatch({ tournamentId, roundId, matchNumber, aId, target }) {
     return {
         tournament_id: tournamentId,
         stage: "top_cut",
-        bracket_round: 1, // First round of elimination // First round of elimination
+        bracket_round: 1, // First round of elimination
         match_number: matchNumber,
         participant_a_id: aId,
         participant_b_id: null,
@@ -46,7 +46,7 @@ export async function generateTopCut(tournamentId, requestedCutSize) {
     // 1. Get current tournament settings if cutSize not provided
     let cutSize = requestedCutSize;
     if (!cutSize) {
-        const { data: t, error: tErr } = await supabase
+        const { data: t, error: tErr } = await supabaseAdmin
             .from("tournaments")
             .select("cut_size, match_target_points")
             .eq("id", tournamentId)
@@ -121,7 +121,7 @@ export async function generateTopCut(tournamentId, requestedCutSize) {
     }
 
     // 6. Check for duplicates
-    const { data: existing, error: eErr } = await supabase
+    const { data: existing, error: eErr } = await supabaseAdmin
         .from("matches")
         .select("id")
         .eq("tournament_id", tournamentId)
@@ -135,7 +135,7 @@ export async function generateTopCut(tournamentId, requestedCutSize) {
     }
 
     // 7. Insert
-    const { data: inserted, error: iErr } = await supabase
+    const { data: inserted, error: iErr } = await supabaseAdmin
         .from("matches")
         .insert(matchesToInsert)
         .select();

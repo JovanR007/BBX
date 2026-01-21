@@ -3,8 +3,9 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction } from "@/app/actions";
-import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2 } from "lucide-react";
+import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction } from "@/app/actions";
+import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban } from "lucide-react";
+import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
 import { MatchScoringModal } from "@/components/match-scoring-modal";
 import { useToast } from "@/components/ui/toaster";
@@ -22,6 +23,7 @@ export default function AdminPage({ params }) {
 
     const [matches, setMatches] = useState([]);
     const [participants, setParticipants] = useState([]);
+    const [judges, setJudges] = useState([]);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     // const [cutSize, setCutSize] = useState(16); // Derived from tournament object now
     const [isSeeding, setIsSeeding] = useState(false);
@@ -51,9 +53,11 @@ export default function AdminPage({ params }) {
 
         const matchesData = res.matches;
         const partsData = res.participants;
+        const judgesData = res.judges;
 
         setMatches(matchesData || []);
         setParticipants(partsData || []);
+        setJudges(judgesData || []);
 
         // Derive Round 1 Status locally
         // Check if any match has swiss_round_number > 1
@@ -185,6 +189,9 @@ export default function AdminPage({ params }) {
                     </section>
                 )}
 
+                {/* General Settings */}
+                <TournamentSettings tournament={tournament} judges={judges} refresh={fetchData} />
+
                 {/* Pending Matches Section Removed as per User Request (Scoring moved to Bracket) */}
 
                 {/* Dangerous Zone Removed as per User Request (Advance moved to Bracket) */}
@@ -291,11 +298,12 @@ function MatchReportCard({ match, refresh }) {
     );
 }
 
-function ParticipantRow({ participant, index, tournamentId, refresh, readOnly }) {
+function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, isStarted }) {
     const { toast } = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState(participant.display_name);
     const [loading, setLoading] = useState(false);
+    const [showDropModal, setShowDropModal] = useState(false);
 
     async function handleUpdate(e) {
         e.preventDefault();
@@ -333,6 +341,23 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly })
         setLoading(false);
     }
 
+    async function confirmDrop() {
+        setLoading(true);
+        const formData = new FormData();
+        formData.append("participant_id", participant.id);
+        formData.append("tournament_id", tournamentId);
+
+        const res = await dropParticipantAction(formData);
+        if (res.success) {
+            refresh();
+            toast({ title: "Player Dropped", description: "Participant removed from future pairings.", variant: "default" });
+            setShowDropModal(false);
+        } else {
+            toast({ title: "Drop Failed", description: parseError(res.error), variant: "destructive" });
+        }
+        setLoading(false);
+    }
+
     if (isEditing) {
         return (
             <form onSubmit={handleUpdate} className="flex items-center gap-2 p-1 rounded bg-muted/40 text-sm">
@@ -354,29 +379,54 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly })
     }
 
     return (
-        <div className="flex items-center justify-between p-2 rounded bg-muted/40 hover:bg-muted/60 transition-colors group">
-            <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-muted-foreground w-6">{index + 1}.</span>
-                <span className="font-medium text-sm">{participant.display_name}</span>
+        <>
+            <div className={`flex items-center justify-between p-2 rounded transition-colors group ${participant.dropped ? "bg-red-500/10 hover:bg-red-500/20" : "bg-muted/40 hover:bg-muted/60"}`}>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-muted-foreground w-6">{index + 1}.</span>
+                    <span className={`font-medium text-sm ${participant.dropped ? "text-muted-foreground line-through" : ""}`}>
+                        {participant.display_name}
+                    </span>
+                    {participant.dropped && <span className="text-[10px] bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded uppercase font-bold">Dropped</span>}
+                </div>
+
+                {!readOnly && !participant.dropped && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
+                            title="Edit Name"
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                        {isStarted ? (
+                            <button
+                                onClick={() => setShowDropModal(true)}
+                                className="p-1.5 text-muted-foreground hover:text-orange-500 hover:bg-background rounded-md transition-colors"
+                                title="Drop Player"
+                            >
+                                <Ban className="w-3 h-3" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleDelete}
+                                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-background rounded-md transition-colors"
+                                title="Delete (Remove from DB)"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {!readOnly && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={() => setIsEditing(true)}
-                        className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
-                    >
-                        <Pencil className="w-3 h-3" />
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-background rounded-md transition-colors"
-                    >
-                        <Trash2 className="w-3 h-3" />
-                    </button>
-                </div>
-            )}
-        </div>
+            <DropPlayerModal
+                isOpen={showDropModal}
+                onClose={() => setShowDropModal(false)}
+                onConfirm={confirmDrop}
+                playerName={participant.display_name}
+                loading={loading}
+            />
+        </>
     );
 }
 
@@ -489,7 +539,7 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                         </p>
                     )}
 
-                    <ParticipantList participants={participants} tournamentId={tournamentId} refresh={fetchData} readOnly={true} />
+                    <ParticipantList participants={participants} tournamentId={tournamentId} refresh={fetchData} readOnly={false} isStarted={isStarted} />
                 </div>
             )}
         </section>
@@ -575,7 +625,38 @@ function LateEntryForm({ tournamentId, refresh }) {
     );
 }
 
-function ParticipantList({ participants, tournamentId, refresh, readOnly }) {
+function DropPlayerModal({ isOpen, onClose, onConfirm, playerName, loading }) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+            <div className="bg-card border rounded-lg shadow-lg max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95">
+                <div className="space-y-2 text-center">
+                    <div className="mx-auto w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-2">
+                        <Ban className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold">Drop {playerName}?</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Are you sure? This will:
+                    </p>
+                    <ul className="text-xs text-left text-muted-foreground list-disc pl-8 space-y-1">
+                        <li>Forfeit any active match (Score 4-3 BYE).</li>
+                        <li>Exclude them from future round pairings.</li>
+                        <li>Mark them as "Dropped" in standings.</li>
+                    </ul>
+                </div>
+                <div className="flex gap-2">
+                    <button onClick={onClose} disabled={loading} className="flex-1 bg-muted hover:bg-muted/80 py-2 rounded text-sm font-medium">Cancel</button>
+                    <button onClick={onConfirm} disabled={loading} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded text-sm font-bold flex items-center justify-center gap-2">
+                        {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                        Drop Player
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function ParticipantList({ participants, tournamentId, refresh, readOnly, isStarted }) {
     return (
         <div className="max-h-[300px] overflow-y-auto space-y-2 pr-2">
             {participants.length === 0 ? (
@@ -588,6 +669,7 @@ function ParticipantList({ participants, tournamentId, refresh, readOnly }) {
                     tournamentId={tournamentId}
                     refresh={refresh}
                     readOnly={readOnly}
+                    isStarted={isStarted}
                 />
             ))}
         </div>

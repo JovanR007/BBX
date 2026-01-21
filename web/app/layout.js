@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "BBX Tournament System",
-  description: "Advanced Beyblade X Tournament Manager",
+  title: "BeyBracket",
+  description: "The Ultimate Beyblade X Tournament Manager",
 };
 
 export default function RootLayout({ children }) {

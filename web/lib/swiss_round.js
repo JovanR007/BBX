@@ -43,7 +43,7 @@ async function loadActiveStandings(tournamentId) {
     const { data, error } = await supabaseAdmin
         .from("swiss_standings")
         .select(
-            "participant_id, display_name, participant_status, match_wins, buchholz, point_diff"
+            "participant_id, display_name, participant_status, match_wins, buchholz, point_diff, dropped"
         )
         .eq("tournament_id", tournamentId);
 
@@ -194,11 +194,17 @@ export async function generateSwissRound(tournamentId, roundNumber) {
                 match_number: matchNumber++,
                 participant_a_id: a.participant_id,
                 participant_b_id: b.participant_id,
-                score_a: 0,
-                score_b: 0,
+                score_a: (a.dropped || b.dropped)
+                    ? (a.dropped && b.dropped ? target : (a.dropped ? target - 1 : target))
+                    : 0,
+                score_b: (a.dropped || b.dropped)
+                    ? (a.dropped && b.dropped ? 0 : (b.dropped ? target - 1 : target))
+                    : 0,
                 target_points: target,
-                status: "pending",
-                winner_id: null,
+                status: (a.dropped || b.dropped) ? "complete" : "pending",
+                winner_id: (a.dropped || b.dropped)
+                    ? (a.dropped && b.dropped ? a.participant_id : (a.dropped ? b.participant_id : a.participant_id))
+                    : null,
                 is_bye: false,
             });
         }

@@ -49,7 +49,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
     if (!isOpen || !match) return null;
 
-    const WINNING_SCORE = 4;
+    const WINNING_SCORE = match?.target_points || 4;
     const isGameOver = scoreA >= WINNING_SCORE || scoreB >= WINNING_SCORE;
 
     const pA = participants ? participants[match?.participant_a_id] : match?.participant_a;
