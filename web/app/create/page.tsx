@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { createTournamentAction } from "@/app/actions";
 import { ArrowLeft, Rocket } from "lucide-react";
 import Link from "next/link";

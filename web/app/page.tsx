@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
-import { Store as StoreIcon, MapPin, Phone, Loader2, ArrowRight, Trophy, Users } from "lucide-react";
-import { UserButton, useUser } from "@stackframe/stack";
+import { Store as StoreIcon, MapPin, Phone, Loader2, ArrowRight } from "lucide-react";
+import { useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
-import LiveMatchTicker from "@/components/features/live-match-ticker";
 import { Store } from "@/types";
 
 export default function LandingPage() {
@@ -46,12 +45,9 @@ export default function LandingPage() {
       {/* Background Grid */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-      <LiveMatchTicker />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       <div className="container mx-auto px-4 py-8 md:py-16 relative flex-1">
-        <div className="absolute top-4 right-4">
-          <UserButton />
-        </div>
 
         <div className="flex flex-col items-center justify-center space-y-8 text-center mb-12 md:mb-16 pt-12 relative z-10">
 

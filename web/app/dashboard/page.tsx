@@ -5,6 +5,7 @@ import TournamentList from "./tournament-list";
 import StoreSettings from "./store-settings";
 import ProfileEditor from "./profile-editor";
 import { Store, ArrowLeft } from "lucide-react";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -21,18 +22,31 @@ export default async function Dashboard() {
         );
     }
 
-    // 1. Fetch Store owned by this user (Admin Client to bypass RLS)
+    // 1. Fetch Store owned by this user
     const { data: store } = await supabaseAdmin
         .from("stores")
         .select("*")
         .eq("owner_id", user.id)
         .single();
 
-    // Store check handled below
+    // 2. If NOT a store owner, redirect to their public profile
+    if (!store) {
+        // Fetch profile to get username
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("username")
+            .eq("id", user.id)
+            .single();
 
-    // 2. Fetch Tournaments for this store (if exists)
-    // We moved the !store check down so we can still render the dashboard for non-store owners.
+        if (profile?.username) {
+            redirect(`/u/${profile.username}`);
+        } else {
+            // No username set? Go to account settings to set it
+            redirect("/account");
+        }
+    }
 
+    // 3. Store Dashboard Logic
     let tournaments = [];
     if (store) {
         const { data } = await supabaseAdmin
@@ -53,58 +67,31 @@ export default async function Dashboard() {
 
             <header className="mb-8 flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold">{store ? store.name : "My Dashboard"}</h1>
-                    <p className="text-muted-foreground">{store ? "Manage your tournaments." : "Welcome back, Blader."}</p>
+                    <h1 className="text-3xl font-bold">{store.name}</h1>
+                    <p className="text-muted-foreground">Manage your tournaments.</p>
                 </div>
-                {store && (
-                    <div>
-                        <Link href="/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-colors">
-                            Create Tournament
-                        </Link>
-                    </div>
-                )}
+                <div>
+                    <Link href="/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-colors">
+                        Create Tournament
+                    </Link>
+                </div>
             </header>
 
             <div className="flex flex-col gap-12">
-                {/* 1. Store Management OR Profile Editor */}
-                {store ? (
-                    <>
-                        {/* Store Owners: Show Store Management Tools Only */}
-                        <section>
-                            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
-                            <StoreSettings store={store} />
-                        </section>
+                <section>
+                    <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
+                    <StoreSettings store={store} />
+                </section>
 
-                        <section>
-                            <h2 className="text-2xl font-bold mb-4">Tournaments</h2>
-                            <TournamentList tournaments={tournaments} />
-                        </section>
+                <section>
+                    <h2 className="text-2xl font-bold mb-4">Tournaments</h2>
+                    <TournamentList tournaments={tournaments} />
+                </section>
 
-                        <div className="mt-8 pt-8 border-t text-sm text-muted-foreground">
-                            <p>Store ID: {store.id}</p>
-                            <p>Slug: {store.slug}</p>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        {/* Regular Users: Show Profile Editor + Become Organizer CTA */}
-                        <section>
-                            <ProfileEditor user={{ id: user.id }} />
-                        </section>
-
-                        <section className="bg-muted/30 p-8 rounded-xl border border-dashed text-center">
-                            <Store className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                            <h2 className="text-xl font-bold mb-2">Become a Tournament Organizer</h2>
-                            <p className="text-muted-foreground mb-4">
-                                Want to host your own events? Contact the admin to set up a Store Profile.
-                            </p>
-                            <div className="bg-muted p-4 rounded-lg inline-block text-left text-sm font-mono">
-                                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Your User ID</p>
-                                <p>{user.id}</p>
-                            </div>
-                        </section>
-                    </>
-                )}
+                <div className="mt-8 pt-8 border-t text-sm text-muted-foreground">
+                    <p>Store ID: {store.id}</p>
+                    <p>Slug: {store.slug}</p>
+                </div>
             </div>
         </div >
     );

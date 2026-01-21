@@ -3,6 +3,8 @@ import AdminForm from "./form";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
     const user = await stackServerApp.getUser();
     const email = user?.primaryEmail;

@@ -45,6 +45,12 @@ export const metadata: Metadata = {
   },
 };
 
+import Link from "next/link"; // Not used but keeps imports valid
+import { SiteHeader } from "@/components/layout/site-header";
+import LiveMatchTicker from "@/components/features/live-match-ticker";
+
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
@@ -53,6 +59,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <StackTheme>
             <ToastProvider>
               <div className="relative flex min-h-screen flex-col">
+                <SiteHeader />
+                <LiveMatchTicker />
                 <main className="flex-1">{children}</main>
               </div>
             </ToastProvider>
