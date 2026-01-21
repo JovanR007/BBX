@@ -45,6 +45,7 @@ export const metadata: Metadata = {
   },
 };
 
+import { Suspense } from "react";
 import Link from "next/link"; // Not used but keeps imports valid
 import { SiteHeader } from "@/components/layout/site-header";
 import LiveMatchTicker from "@/components/features/live-match-ticker";
@@ -59,7 +60,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <StackTheme>
             <ToastProvider>
               <div className="relative flex min-h-screen flex-col">
-                <SiteHeader />
+                <Suspense fallback={<div className="h-14 border-b bg-background/95" />}>
+                  <SiteHeader />
+                </Suspense>
                 <LiveMatchTicker />
                 <main className="flex-1">{children}</main>
               </div>
