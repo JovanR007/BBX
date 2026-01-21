@@ -7,9 +7,42 @@ import { cn } from "@/lib/utils";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
-  title: "BeyBracket",
-  description: "The Ultimate Beyblade X Tournament Manager",
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: {
+    default: "BeyBracket",
+    template: "%s | BeyBracket",
+  },
+  description: "The Ultimate Beyblade X Tournament Manager. Create, manage, and share your tournaments with ease.",
+  keywords: ["Beyblade", "Beyblade X", "Tournament", "Bracket", "Swiss", "Competition", "Manager"],
+  authors: [{ name: "BeyBracket Team" }],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://beybracket.com",
+    siteName: "BeyBracket",
+    title: "BeyBracket - Beyblade X Tournament Manager",
+    description: "Create and manage Beyblade X tournaments with Swiss rounds and elimination brackets.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "BeyBracket - Tournament Manager",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BeyBracket - Beyblade X Tournament Manager",
+    description: "Create and manage Beyblade X tournaments with Swiss rounds and elimination brackets.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.36.0",
     "@stackframe/stack": "^2.8.58",
     "@supabase/supabase-js": "^2.90.1",
     "class-variance-authority": "^0.7.1",
@@ -24,6 +27,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^25.0.9",
     "@types/react": "^19.2.9",
