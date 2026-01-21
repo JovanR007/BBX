@@ -19,7 +19,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
 
     // Next.js 15+ / React 19: params is a Promise
     const { id: paramId } = use(params);
-    const { tournament, tournamentId, loading: tLoading, error: tError } = useTournament(paramId);
+    const { tournament, tournamentId, loading: tLoading, error: tError, isOwner } = useTournament(paramId);
 
     const [matches, setMatches] = useState<any[]>([]);
     const [participants, setParticipants] = useState<any[]>([]);
@@ -104,6 +104,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                     loading={loading}
                     fetchData={fetchData}
                     tournamentId={tournamentId}
+                    isOwner={isOwner}
                 />
 
                 {/* Configuration Section */}
@@ -430,7 +431,7 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
     );
 }
 
-function RegistrationSection({ tournament, participants, loading, fetchData, tournamentId }: { tournament: any, participants: any, loading: any, fetchData: any, tournamentId: any }) {
+function RegistrationSection({ tournament, participants, loading, fetchData, tournamentId, isOwner }: { tournament: any, participants: any, loading: any, fetchData: any, tournamentId: any, isOwner: boolean }) {
     const { toast } = useToast();
     const isDraft = tournament?.status === "draft";
     const isStarted = tournament?.status === "started" || tournament?.status === "completed";
@@ -511,7 +512,7 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
 
                         {/* Debug Seed Button */}
                         <div className="pt-4 border-t border-dashed">
-                            <DebugSeedButton tournamentId={tournamentId} />
+                            {isOwner && <DebugSeedButton tournamentId={tournamentId} />}
                         </div>
                     </div>
 

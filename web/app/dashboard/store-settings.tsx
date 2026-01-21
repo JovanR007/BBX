@@ -1,12 +1,20 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { updateStoreAction } from "@/app/actions"; // Ensure this matches export location
+import { updateStoreAction } from "@/app/actions";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { ImageUpload } from "@/components/ui/image-upload";
 
-export default function StoreSettings({ store }: { store: any }) {
+export default function StoreSettings({ store: initialStore }: { store: any }) {
     const [state, action, isPending] = useActionState(updateStoreAction, null);
     const [isOpen, setIsOpen] = useState(false);
+    const [store, setStore] = useState<{ name: string, description: string, image_url: string | null, contact_number: string, address: string }>({
+        name: initialStore?.name || "",
+        description: initialStore?.description || "",
+        image_url: initialStore?.image_url || null,
+        contact_number: initialStore?.contact_number || "",
+        address: initialStore?.address || ""
+    });
 
     return (
         <div className="bg-card border rounded-xl mb-8 overflow-hidden">
@@ -24,7 +32,7 @@ export default function StoreSettings({ store }: { store: any }) {
             {isOpen && (
                 <div className="px-6 pb-6 border-t pt-6">
                     <form action={action} className="space-y-4 max-w-lg">
-                        <input type="hidden" name="store_id" value={store.id} />
+                        <input type="hidden" name="store_id" value={initialStore.id} />
 
                         {state?.error && (
                             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm">
@@ -48,16 +56,15 @@ export default function StoreSettings({ store }: { store: any }) {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Image URL</label>
-                            <input
-                                name="image_url"
-                                defaultValue={store.image_url || ""}
-                                placeholder="https://example.com/logo.png"
-                                className="w-full bg-background border px-3 py-2 rounded-md"
+                            <label className="text-sm font-medium">Store Logo</label>
+                            <ImageUpload
+                                value={store.image_url}
+                                onChange={(url) => setStore(s => ({ ...s, image_url: url }))}
+                                bucketName="store-logos"
+                                label="Change Store Logo"
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Provide a direct link to your store logo or banner.
-                            </p>
+                            {/* Hidden input to submit the URL */}
+                            <input type="hidden" name="image_url" value={store.image_url || ''} />
                         </div>
 
                         <div className="space-y-2">

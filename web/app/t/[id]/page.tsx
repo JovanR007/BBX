@@ -11,7 +11,7 @@ import { JudgeJoin } from "@/components/features/judge-join";
 export default function TournamentDashboard({ params }: { params: Promise<{ id: string }> }) {
     // Next.js 15+ / React 19: params is a Promise
     const { id: paramId } = use(params);
-    const { tournament, tournamentId, loading: tLoading, error } = useTournament(paramId);
+    const { tournament, tournamentId, loading: tLoading, error, isOwner, isJudge } = useTournament(paramId);
 
     const [stats, setStats] = useState({ players: 0, matches: 0 });
     const [loadingStats, setLoadingStats] = useState(true);
@@ -60,7 +60,7 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-8">
+                <div className="flex flex-wrap justify-center gap-6 w-full max-w-4xl mt-8">
                     {/* Card 1: Standings */}
                     <Link href={`/t/${tournamentId}/standings`} className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -86,28 +86,32 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
                     </Link>
 
                     {/* Card 3: Admin */}
-                    {/* Card 3: Admin */}
-                    <Link href={`/t/${tournamentId}/admin`} className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative flex flex-col items-center space-y-4">
-                            <div className="p-3 bg-primary/10 rounded-full text-primary">
-                                <Trophy className="w-8 h-8" />
+                    {(isOwner || isJudge) && (
+                        <Link href={`/t/${tournamentId}/admin`} className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative flex flex-col items-center space-y-4">
+                                <div className="p-3 bg-primary/10 rounded-full text-primary">
+                                    <Trophy className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-xl font-bold">Admin Console</h3>
+                                <p className="text-sm text-muted-foreground">Report results and manage rounds.</p>
                             </div>
-                            <h3 className="text-xl font-bold">Admin Console</h3>
-                            <p className="text-sm text-muted-foreground">Report results and manage rounds.</p>
-                        </div>
-                    </Link>
+                        </Link>
+                    )}
+
                     {/* Card 4: Match Timer */}
-                    <Link href={`/t/${tournamentId}/timer`} target="_blank" className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative flex flex-col items-center space-y-4">
-                            <div className="p-3 bg-primary/10 rounded-full text-primary">
-                                <Timer className="w-8 h-8" />
+                    {isOwner && (
+                        <Link href={`/t/${tournamentId}/timer`} target="_blank" className="group relative overflow-hidden rounded-xl border bg-card p-6 shadow-md transition-all hover:shadow-lg hover:border-primary/50">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="relative flex flex-col items-center space-y-4">
+                                <div className="p-3 bg-primary/10 rounded-full text-primary">
+                                    <Timer className="w-8 h-8" />
+                                </div>
+                                <h3 className="text-xl font-bold">Match Timer</h3>
+                                <p className="text-sm text-muted-foreground">3-minute clock + Go Shoot.</p>
                             </div>
-                            <h3 className="text-xl font-bold">Match Timer</h3>
-                            <p className="text-sm text-muted-foreground">3-minute clock + Go Shoot.</p>
-                        </div>
-                    </Link>
+                        </Link>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-8 pt-8">

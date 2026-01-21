@@ -84,9 +84,14 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
             <div className="bg-slate-900 border-b border-white/10 p-8">
                 <div className="container mx-auto flex flex-col md:flex-row items-center gap-8">
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 p-1">
-                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
+                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden relative">
                             {profile.avatar_url ? (
-                                <Image src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" fill unoptimized />
+                                <Image
+                                    src={profile.avatar_url}
+                                    alt={profile.username}
+                                    className="object-cover w-full h-full"
+                                    fill
+                                />
                             ) : (
                                 <User className="w-16 h-16 text-slate-700" />
                             )}

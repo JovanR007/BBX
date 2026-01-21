@@ -32,6 +32,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
         participants,
         refresh,
         derived: {
+            // ... (other derived props assumed, just destructure needed ones)
             swissMatches,
             maxSwissRound,
             currentSwissMatches,
@@ -44,9 +45,14 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             isTournamentComplete,
             winner,
             runnerUp,
-            thirdPlace
+            thirdPlace,
+            permissions
         }
     } = useBracketData(tournamentId);
+
+    // Helpers
+    const { isOwner, isJudge } = permissions || { isOwner: false, isJudge: false };
+    const canEdit = isOwner || isJudge;
 
     // Actions Hook
     const {
@@ -84,11 +90,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         maxSwissRound={maxSwissRound}
                         advancing={advancing}
                         onAdvance={handleAdvanceCheck}
+                        canAdvance={canEdit}
                     />
                 )}
 
                 {/* Swiss Finished -> Proceed */}
-                {viewMode === "swiss" && isSwissFinished && (
+                {viewMode === "swiss" && isSwissFinished && canEdit && (
                     <button onClick={handleProceedCheck} className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded font-bold shadow-lg animate-pulse flex items-center gap-2">
                         <Trophy className="w-4 h-4" /> Proceed to Elimination Stage
                     </button>
@@ -106,6 +113,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         onAdvance={handleAdvanceCheck}
                         onShowVictory={() => setShowVictoryModal(true)}
                         onConclude={() => setConcludePinOpen(true)}
+                        canAdvance={canEdit}
                     />
                 )}
             </div>
@@ -115,14 +123,16 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                 <h1 className="text-3xl font-bold">
                     {viewMode === "top_cut" ? "Elimination Bracket" : "Swiss Standings & Matches"}
                 </h1>
-                <div className="ml-auto flex items-center gap-2">
-                    <button onClick={handleAutoScore} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-purple-500 hover:text-purple-400 border border-purple-500/20 hover:border-purple-500/50 bg-purple-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Randomly score all pending matches">
-                        <Wand2 className="w-3 h-3" /> Auto-Resolve
-                    </button>
-                    <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
-                        <Trash2 className="w-3 h-3" /> Reset Round
-                    </button>
-                </div>
+                {isOwner && (
+                    <div className="ml-auto flex items-center gap-2">
+                        <button onClick={handleAutoScore} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-purple-500 hover:text-purple-400 border border-purple-500/20 hover:border-purple-500/50 bg-purple-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Randomly score all pending matches">
+                            <Wand2 className="w-3 h-3" /> Auto-Resolve
+                        </button>
+                        <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
+                            <Trash2 className="w-3 h-3" /> Reset Round
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Main Content */}
@@ -140,10 +150,10 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <div className="mb-8 overflow-x-auto">
                             <BracketConnector matches={swissMatches} match_target_points={tournament?.match_target_points ?? 4} />
                         </div>
-                        <SwissView matches={swissMatches} participants={participants} onMatchClick={setSelectedMatch} />
+                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
                     </>
                 ) : (
-                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={setSelectedMatch} />
+                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
                 )}
             </div>
 
@@ -158,7 +168,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
 
 // --- Sub-Components ---
 
-function SwissControls({ isRoundComplete, currentSwissMatches, maxSwissRound, advancing, onAdvance }: { isRoundComplete: boolean; currentSwissMatches: Match[]; maxSwissRound: number; advancing: boolean; onAdvance: (r: number) => void }) {
+function SwissControls({ isRoundComplete, currentSwissMatches, maxSwissRound, advancing, onAdvance, canAdvance = false }: { isRoundComplete: boolean; currentSwissMatches: Match[]; maxSwissRound: number; advancing: boolean; onAdvance: (r: number) => void; canAdvance?: boolean }) {
     if (!isRoundComplete) {
         return (
             <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-4 py-2 rounded-lg border border-yellow-500/20 text-sm font-bold animate-pulse">
@@ -167,6 +177,7 @@ function SwissControls({ isRoundComplete, currentSwissMatches, maxSwissRound, ad
             </div>
         );
     }
+    if (!canAdvance) return null;
     return (
         <button onClick={() => onAdvance(maxSwissRound)} disabled={advancing} className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.5)] flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100">
             {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
@@ -175,7 +186,7 @@ function SwissControls({ isRoundComplete, currentSwissMatches, maxSwissRound, ad
     );
 }
 
-function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentBracketMatches, maxBracketRound, advancing, tournamentStatus, onAdvance, onShowVictory, onConclude }: { isBracketRoundComplete: boolean; isTournamentComplete: boolean; currentBracketMatches: Match[]; maxBracketRound: number; advancing: boolean; tournamentStatus?: string; onAdvance: (r: number) => void; onShowVictory: () => void; onConclude: () => void }) {
+function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentBracketMatches, maxBracketRound, advancing, tournamentStatus, onAdvance, onShowVictory, onConclude, canAdvance = false }: { isBracketRoundComplete: boolean; isTournamentComplete: boolean; currentBracketMatches: Match[]; maxBracketRound: number; advancing: boolean; tournamentStatus?: string; onAdvance: (r: number) => void; onShowVictory: () => void; onConclude: () => void; canAdvance?: boolean }) {
     if (!isBracketRoundComplete) {
         return (
             <div className="flex items-center gap-2 text-yellow-500 bg-yellow-500/10 px-4 py-2 rounded-lg border border-yellow-500/20 text-sm font-bold animate-pulse">
@@ -185,6 +196,7 @@ function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentB
         );
     }
     if (!isTournamentComplete) {
+        if (!canAdvance) return null;
         return (
             <button onClick={() => onAdvance(maxBracketRound)} disabled={advancing} className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(var(--primary),0.5)] flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100">
                 {advancing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
@@ -202,7 +214,7 @@ function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentB
                 <button onClick={onShowVictory} className="text-xs flex items-center gap-1 text-primary hover:text-primary/80 bg-primary/10 px-3 py-1 rounded-full border border-primary/20 transition-all font-bold">
                     <Crown className="w-3 h-3" /> View Podium
                 </button>
-            ) : (
+            ) : canAdvance && (
                 <button onClick={onConclude} className="text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 px-3 py-1 rounded font-bold transition-colors">
                     Conclude Tournament
                 </button>

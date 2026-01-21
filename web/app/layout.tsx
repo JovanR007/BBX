@@ -60,10 +60,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <StackTheme>
             <ToastProvider>
               <div className="relative flex min-h-screen flex-col">
+                <LiveMatchTicker />
                 <Suspense fallback={<div className="h-14 border-b bg-background/95" />}>
                   <SiteHeader />
                 </Suspense>
-                <LiveMatchTicker />
                 <main className="flex-1">{children}</main>
               </div>
             </ToastProvider>

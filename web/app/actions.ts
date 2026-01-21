@@ -1093,6 +1093,7 @@ export async function updateProfileAction(formData: FormData) {
     const username = formData.get("username") as string;
     const displayName = formData.get("display_name") as string;
     const bio = formData.get("bio") as string;
+    const avatarUrl = formData.get("avatar_url") as string; // URL from client-side upload
 
     if (!username) return { success: false, error: "Username is required" };
 
@@ -1101,16 +1102,64 @@ export async function updateProfileAction(formData: FormData) {
         return { success: false, error: "Username must be 3-20 characters, alphanumeric or underscore." };
     }
 
+    // Check 30-day Limit if username is different
+    const { data: currentProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("username, username_updated_at, display_name, display_name_updated_at")
+        .eq("id", user.id)
+        .single();
+
+    if (currentProfile && currentProfile.username !== username) {
+        if (currentProfile.username_updated_at) {
+            const lastUpdate = new Date(currentProfile.username_updated_at);
+            const now = new Date();
+            const diffTime = Math.abs(now.getTime() - lastUpdate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 30) {
+                return { success: false, error: `You can update your username again in ${30 - diffDays} days.` };
+            }
+        }
+        // Will set username_updated_at below
+    }
+
+    // Check 30-day Limit for Display Name
+    if (currentProfile && currentProfile.display_name !== displayName) {
+        if (currentProfile.display_name_updated_at) {
+            const lastUpdate = new Date(currentProfile.display_name_updated_at);
+            const now = new Date();
+            const diffTime = Math.abs(now.getTime() - lastUpdate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays < 30) {
+                return { success: false, error: `You can update your display name again in ${30 - diffDays} days.` };
+            }
+        }
+    }
+
     // Upsert Profile
+    const updates: any = {
+        id: user.id,
+        username: username,
+        display_name: displayName || username,
+        bio: bio,
+        updated_at: new Date().toISOString()
+    };
+
+    if (avatarUrl) updates.avatar_url = avatarUrl;
+
+    // Only update timestamp if username changed
+    if (currentProfile && currentProfile.username !== username) {
+        updates.username_updated_at = new Date().toISOString();
+    }
+    // Only update timestamp if display_name changed
+    if (currentProfile && currentProfile.display_name !== displayName) {
+        updates.display_name_updated_at = new Date().toISOString();
+    }
+
     const { error } = await supabaseAdmin
         .from("profiles")
-        .upsert({
-            id: user.id,
-            username: username,
-            display_name: displayName || username,
-            bio: bio,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'id' }); // Conflict on ID means update
+        .upsert(updates, { onConflict: 'id' }); // Conflict on ID means update
 
     if (error) {
         if (error.code === '23505') return { success: false, error: "Username already taken." };

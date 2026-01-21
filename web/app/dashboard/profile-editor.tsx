@@ -12,7 +12,19 @@ export default function ProfileEditor({ user }: { user: any }) {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [profile, setProfile] = useState({ username: '', display_name: '', bio: '' });
+    const [profile, setProfile] = useState<{
+        username: string,
+        display_name: string,
+        bio: string,
+        avatar_url: string | null,
+        display_name_updated_at: string | null
+    }>({
+        username: '',
+        display_name: '',
+        bio: '',
+        avatar_url: null,
+        display_name_updated_at: null
+    });
 
     // Fetch existing profile on mount
     useEffect(() => {
@@ -20,10 +32,21 @@ export default function ProfileEditor({ user }: { user: any }) {
             if (!user?.id) return;
             const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
             if (data) {
+                // Sync avatar if missing in DB but present in Stack User (passed as prop?)
+                // Actually, accessing useUser hooks here is better or rely on passed user
+                let avatar = data.avatar_url;
+
+                // If local DB empty, use passed user image (which comes from Stack Server)
+                if (!avatar && user.profileImageUrl) {
+                    avatar = user.profileImageUrl;
+                }
+
                 setProfile({
                     username: data.username || '',
                     display_name: data.display_name || '',
-                    bio: data.bio || ''
+                    bio: data.bio || '',
+                    avatar_url: avatar || null,
+                    display_name_updated_at: data.display_name_updated_at || null
                 });
             }
         }
@@ -58,6 +81,9 @@ export default function ProfileEditor({ user }: { user: any }) {
                 )}
             </div>
             <form action={handleSubmit} className="space-y-4">
+                <AvatarUpload currentUrl={profile.avatar_url} onUploadComplete={(url) => setProfile(p => ({ ...p, avatar_url: url }))} />
+                <input type="hidden" name="avatar_url" value={profile.avatar_url || ''} />
+
                 <div>
                     <label className="block text-sm font-medium mb-1">Username (Unique)</label>
                     <input
@@ -77,10 +103,16 @@ export default function ProfileEditor({ user }: { user: any }) {
                     <input
                         name="display_name"
                         defaultValue={profile.display_name}
-                        className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
+                        className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         placeholder="e.g. Storm B."
                         data-lpignore="true"
+                        disabled={!!profile.display_name_updated_at && (new Date().getTime() - new Date(profile.display_name_updated_at).getTime() < 30 * 24 * 60 * 60 * 1000)}
                     />
+                    {profile.display_name_updated_at && (new Date().getTime() - new Date(profile.display_name_updated_at).getTime() < 30 * 24 * 60 * 60 * 1000) && (
+                        <p className="text-xs text-red-400 mt-1">
+                            You can change your display name again in {Math.ceil(30 - (new Date().getTime() - new Date(profile.display_name_updated_at).getTime()) / (1000 * 60 * 60 * 24))} days.
+                        </p>
+                    )}
                 </div>
 
                 <div>
@@ -103,6 +135,65 @@ export default function ProfileEditor({ user }: { user: any }) {
                     Save Profile
                 </button>
             </form>
+        </div>
+    );
+}
+
+function AvatarUpload({ currentUrl, onUploadComplete }: { currentUrl: string | null, onUploadComplete: (url: string) => void }) {
+    const { toast } = useToast();
+    const [uploading, setUploading] = useState(false);
+    const [preview, setPreview] = useState(currentUrl);
+
+    async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+        if (!e.target.files || e.target.files.length === 0) return;
+
+        const file = e.target.files[0];
+        setUploading(true);
+
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            toast({ title: "Upload Failed", description: uploadError.message, variant: "destructive" });
+            setUploading(false);
+            return;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(filePath);
+
+        setPreview(publicUrl);
+        onUploadComplete(publicUrl);
+        setUploading(false);
+    }
+
+    return (
+        <div className="flex items-center gap-4 mb-4">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-800 border border-slate-700">
+                {preview ? (
+                    <img src={preview} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">No Img</div>
+                )}
+                {uploading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="animate-spin w-6 h-6 text-white" />
+                    </div>
+                )}
+            </div>
+            <div>
+                <label className="block text-sm font-medium mb-1 cursor-pointer text-cyan-400 hover:text-cyan-300">
+                    Change Avatar
+                    <input type="file" className="hidden" accept="image/*" onChange={handleFile} disabled={uploading} />
+                </label>
+                <p className="text-xs text-muted-foreground">Max 2MB. JPG/PNG.</p>
+            </div>
         </div>
     );
 }

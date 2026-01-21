@@ -1,64 +1,88 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Tournament } from "@/types";
+import { useUser } from "@stackframe/stack";
 
 interface UseTournamentResult {
     tournament: Tournament | null;
     tournamentId: string | null;
     loading: boolean;
     error: string | null;
+    isOwner: boolean;
+    isJudge: boolean;
 }
 
 export function useTournament(paramId: string | Promise<{ id: string }>): UseTournamentResult {
-    // If paramId is a promise (from Next.js params), we might need to await it or strict checking.
-    // However, the caller usually unwraps params before passing here?
-    // In Page components: const { id } = use(params); so paramId is string.
-
-    // But let's assume paramId is string.
+    const user = useUser();
     const [tournamentId, setTournamentId] = useState<string | null>(null);
     const [tournament, setTournament] = useState<Tournament | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false });
+
+    // Handle paramId unwrapping if needed (though typically handled by caller for simple hooks)
+    // We assume string for simplicity as per existing pattern
+    const idToResolve = paramId as string;
 
     useEffect(() => {
-        async function resolveTournament() {
-            if (!paramId) {
+        async function fetchTournamentAndPermissions() {
+            if (!idToResolve) {
                 setLoading(false);
                 return;
             }
 
-            // Handle if paramId is still a promise? No, hook rules prevent awaiting inside body.
-            // Caller must pass string.
-
             try {
-                // Determine if paramId is UUID or Slug to avoid Postgres errors (invalid input syntax for type uuid)
-                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramId as string);
-
+                // 1. Fetch Tournament
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idToResolve);
                 let query = supabase.from("tournaments").select("*");
+                if (isUUID) query = query.or(`id.eq.${idToResolve},slug.eq.${idToResolve}`);
+                else query = query.eq("slug", idToResolve);
 
-                if (isUUID) {
-                    query = query.or(`id.eq.${paramId},slug.eq.${paramId}`);
-                } else {
-                    query = query.eq("slug", paramId);
+                const { data: tourney, error: tError } = await query.single();
+                if (tError) throw tError;
+                if (!tourney) throw new Error("Tournament not found");
+
+                setTournament(tourney);
+                setTournamentId(tourney.id);
+
+                // 2. Check Permissions (if user logged in)
+                if (user && tourney) {
+                    // Check ownership via Store
+                    const { data: store } = await supabase
+                        .from("stores")
+                        .select("owner_id")
+                        .eq("id", tourney.store_id)
+                        .single();
+
+                    const isOwner = store?.owner_id === user.id;
+
+                    // Check Judge
+                    const { count: judgeCount } = await supabase
+                        .from("tournament_judges")
+                        .select("*", { count: 'exact', head: true })
+                        .eq("tournament_id", tourney.id)
+                        .eq("user_id", user.id);
+
+                    setPermissions({ isOwner, isJudge: (judgeCount || 0) > 0 });
                 }
 
-                const { data, error } = await query.single();
-
-                if (error) throw error;
-                if (!data) throw new Error("Tournament not found");
-
-                setTournament(data);
-                setTournamentId(data.id);
             } catch (err: any) {
-                console.error("useTournament Error:", err);
                 setError(err.message);
             } finally {
                 setLoading(false);
             }
         }
 
-        resolveTournament();
-    }, [paramId]);
+        fetchTournamentAndPermissions();
+    }, [idToResolve, user]);
 
-    return { tournament, tournamentId, loading, error };
+    return {
+        tournament,
+        tournamentId,
+        loading,
+        error,
+        isOwner: permissions.isOwner,
+        isJudge: permissions.isJudge
+    };
 }
+

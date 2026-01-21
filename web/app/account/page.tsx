@@ -4,6 +4,7 @@ import ProfileEditor from "@/app/dashboard/profile-editor";
 import Link from "next/link";
 import { ArrowLeft, User } from "lucide-react";
 import { redirect } from "next/navigation";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export const dynamic = "force-dynamic";
 
@@ -22,14 +23,17 @@ export default async function AccountPage() {
                 </Link>
             </div>
 
-            <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-primary/10 rounded-full">
-                    <User className="w-8 h-8 text-primary" />
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary/10 rounded-full">
+                        <User className="w-8 h-8 text-primary" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl font-bold">Account Settings</h1>
+                        <p className="text-muted-foreground">Manage your public profile and preferences.</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="text-3xl font-bold">Account Settings</h1>
-                    <p className="text-muted-foreground">Manage your public profile and preferences.</p>
-                </div>
+                <SignOutButton />
             </div>
 
             <div className="bg-card border rounded-xl p-8 shadow-sm">

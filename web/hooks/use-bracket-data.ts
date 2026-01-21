@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Match, Participant, Tournament } from "@/types";
 import { getTournamentDataAction } from "@/app/actions";
 import { useToast } from "@/components/ui/toaster";
+import { useUser } from "@stackframe/stack";
+import { supabase } from "@/lib/supabase";
 
 export function useBracketData(tournamentId: string | undefined) {
     const { toast } = useToast();
@@ -12,6 +14,10 @@ export function useBracketData(tournamentId: string | undefined) {
     const [matches, setMatches] = useState<Match[]>([]);
     const [participants, setParticipants] = useState<Record<string, Participant>>({});
     const [isSwissFinished, setIsSwissFinished] = useState(false);
+
+    // Permissions
+    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false });
+    const user = useUser();
 
     const fetchData = useCallback(async () => {
         if (!tournamentId) return;
@@ -28,14 +34,29 @@ export function useBracketData(tournamentId: string | undefined) {
         const tourney = res.tournament;
         const fetchedMatches = res.matches;
         const parts = res.participants;
+        const fetchedJudges = res.judges;
 
-        setTournament(tourney as Tournament); // explicit cast if needed, though type asserts safe
+        setTournament(tourney as Tournament);
+
+        // Check Permissions
+        if (user && tourney) {
+            const { data: store } = await supabase
+                .from("stores")
+                .select("owner_id")
+                .eq("id", tourney.store_id)
+                .single();
+
+            const isOwner = store?.owner_id === user.id;
+            const isJudge = fetchedJudges?.some((j: any) => j.user_id === user.id) || false;
+
+            setPermissions({ isOwner, isJudge });
+        }
 
         // Ensure fetchedMatches is typed or fallback
         const safeMatches = fetchedMatches || [];
 
         const pMap: Record<string, Participant> = {};
-        parts?.forEach((p: any) => { pMap[p.id] = p; }); // 'p' inferred type issue fix
+        parts?.forEach((p: any) => { pMap[p.id] = p; });
         setParticipants(pMap);
 
         if (safeMatches.length === 0) {
@@ -71,7 +92,7 @@ export function useBracketData(tournamentId: string | undefined) {
         else setViewMode("empty");
 
         setLoading(false);
-    }, [tournamentId, toast]);
+    }, [tournamentId, toast, user]);
 
     useEffect(() => {
         fetchData();
@@ -124,7 +145,8 @@ export function useBracketData(tournamentId: string | undefined) {
             isTournamentComplete,
             winner,
             runnerUp,
-            thirdPlace
+            thirdPlace,
+            permissions
         }
     };
 }
