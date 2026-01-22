@@ -168,16 +168,12 @@ export async function addParticipantAction(formData: FormData) {
     const isSuper = await isSuperAdmin(ownerUser);
     const maxPlayers = (plan === 'pro' || isSuper) ? Infinity : 64;
 
-    console.log(`[SUBSCRIPTION DEBUG] Tournament: ${tournamentId} | Store: ${tourneyData?.store_id} | Plan: ${plan} | Super: ${isSuper} | Max: ${maxPlayers}`);
-
     // Count existing participants
     const { count: currentCount } = await supabaseAdmin
         .from("participants")
         .select("*", { count: "exact", head: true })
         .eq("tournament_id", tournamentId)
         .eq("dropped", false);
-
-    console.log(`[SUBSCRIPTION DEBUG] Current participants count: ${currentCount}`);
 
     if ((currentCount || 0) >= maxPlayers) {
         return {
