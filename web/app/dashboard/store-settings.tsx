@@ -25,7 +25,7 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
         getCountriesAction().then(setCountries);
     }, []);
 
-    // 2. Sync state when Prop OR Countries change
+    // 2. Sync state when Prop OR Countries change - RESTORE saved state/city
     useEffect(() => {
         if (countries.length === 0) return;
 
@@ -45,8 +45,26 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                     const stateList = await getStatesAction(countryParams.code);
                     if (stateList && stateList.length > 0) {
                         setStates(stateList);
-                        // Optional: clear cities or keep them empty until state selected
-                        setCities([]);
+
+                        // RESTORE: If we have a saved city, find its state and load cities
+                        if (initialStore.city) {
+                            // Try to find which state contains this city
+                            let foundStateCode = "";
+                            for (const state of stateList) {
+                                const citiesInState = await getCitiesAction(countryParams.code, state.code);
+                                if (citiesInState.some(c => c.name === initialStore.city)) {
+                                    foundStateCode = state.code;
+                                    setCities(citiesInState);
+                                    break;
+                                }
+                            }
+                            if (foundStateCode) {
+                                setSelectedStateCode(foundStateCode);
+                            }
+                        } else {
+                            // Optional: clear cities or keep them empty until state selected
+                            setCities([]);
+                        }
                     } else {
                         // No states
                         const cityList = await getCitiesAction(countryParams.code);
@@ -56,7 +74,7 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
             }
         }
         syncData();
-    }, [initialStore.country, countries]);
+    }, [initialStore.country, initialStore.city, countries]);
 
     // Handle Country Change
     const handleCountryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
