@@ -15,6 +15,8 @@ export interface Store {
     image_url: string | null;
     address: string | null;
     contact_number: string | null;
+    city: string | null;
+    country: string | null;
 }
 
 export interface Tournament {

@@ -1074,6 +1074,8 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
     const address = formData.get("address") as string;
     const contact = formData.get("contact") as string;
     const imageUrl = formData.get("image_url") as string;
+    const city = formData.get("city") as string;
+    const country = formData.get("country") as string;
 
     // 1. Verify Ownership
     const { data: store } = await supabaseAdmin
@@ -1087,15 +1089,20 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
     }
 
     // 2. Update
+    const updates: any = {
+        name,
+        description,
+        address,
+        contact_number: contact,
+        image_url: imageUrl
+    };
+
+    if (city) updates.city = city;
+    if (country) updates.country = country;
+
     const { error } = await supabaseAdmin
         .from("stores")
-        .update({
-            name,
-            description,
-            address,
-            contact_number: contact,
-            image_url: imageUrl
-        })
+        .update(updates)
         .eq("id", storeId);
 
     if (error) return { success: false, error: error.message };
@@ -1130,8 +1137,17 @@ export async function updateProfileAction(formData: FormData) {
         .eq("id", user.id)
         .single();
 
+    // LOCKED USERNAME LOGIC:
+    // If a username is ALREADY set in the DB, we do NOT allow changing it.
+    // The user can only set it once.
+    if (currentProfile?.username && currentProfile.username !== username) {
+        return { success: false, error: "Username cannot be changed once set." };
+    }
+
     if (currentProfile && currentProfile.username !== username) {
         if (currentProfile.username_updated_at) {
+            // Keep existing 30-day logic just in case we ever revert, 
+            // but the above block effectively disables updates.
             const lastUpdate = new Date(currentProfile.username_updated_at);
             const now = new Date();
             const diffTime = Math.abs(now.getTime() - lastUpdate.getTime());
@@ -1198,11 +1214,12 @@ export async function claimParticipantHistoryAction() {
     // 1. Get current specific display name
     const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("display_name, username")
+        .select("display_name, username, history_synced")
         .eq("id", user.id)
         .single();
 
     if (!profile || !profile.display_name) return { success: false, error: "Profile not found or no display name set." };
+    if (profile.history_synced) return { success: false, error: "You have already synced your past history." };
 
     const targetName = profile.display_name;
 
@@ -1230,9 +1247,112 @@ export async function claimParticipantHistoryAction() {
 
     if (updateErr) return { success: false, error: updateErr.message };
 
+    // 4. Mark history as synced
+    await supabaseAdmin
+        .from("profiles")
+        .update({ history_synced: true })
+        .eq("id", user.id);
+
     revalidatePath(`/u/${profile.username || user.id}`);
     revalidatePath("/dashboard");
 
     return { success: true, count: count || matches.length, message: `Successfully linked ${count || matches.length} tournament entries!` };
+}
+
+export async function uploadAvatarAction(formData: FormData) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    const file = formData.get("file") as File;
+    if (!file) return { success: false, error: "No file provided" };
+
+    if (file.size > 2 * 1024 * 1024) {
+        return { success: false, error: "File too large (Max 2MB)" };
+    }
+
+    // --- AUTO-FIX: Ensure Bucket Exists & is Public ---
+    try {
+        const { data: bucket, error: bucketError } = await supabaseAdmin.storage.getBucket('avatars');
+
+        if (bucketError && bucketError.message.includes("not found")) {
+            console.log("Bucket 'avatars' not found. Creating...");
+            await supabaseAdmin.storage.createBucket('avatars', { public: true });
+        } else if (bucket && !bucket.public) {
+            console.log("Bucket 'avatars' is private. Updating to public...");
+            await supabaseAdmin.storage.updateBucket('avatars', { public: true });
+        }
+    } catch (err) {
+        console.error("Bucket Check Error (Non-fatal):", err);
+        // Continue anyway, maybe it works
+    }
+    // --------------------------------------------------
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+        .from('avatars')
+        .upload(filePath, file, {
+            contentType: file.type,
+            upsert: true
+        });
+
+    if (uploadError) {
+        console.error("Upload Error:", uploadError);
+        return { success: false, error: "Upload failed: " + uploadError.message };
+    }
+
+    const { data } = supabaseAdmin.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+    console.log("Avatar Upload Success. Path:", filePath, "Public URL:", data.publicUrl);
+
+    return { success: true, url: data.publicUrl };
+}
+
+
+// --- STORE DISCOVERY ACTIONS ---
+
+export async function getStoresAction(city?: string) {
+    let query = supabase.from("stores").select("*").order("created_at", { ascending: false });
+
+    if (city && city !== "all") {
+        query = query.ilike("city", city);
+    }
+
+    const { data, error } = await query;
+    if (error) return { success: false, error: error.message };
+    return { success: true, data };
+}
+
+export async function getLiveTournamentsAction(city?: string) {
+    // 1. Base Query: Active Tournaments (draft, pending, started)
+    let query = supabase
+        .from("tournaments")
+        .select(`
+            *,
+            stores!inner (
+                name,
+                city,
+                image_url
+            )
+        `)
+        .neq("status", "completed")
+        .order("created_at", { ascending: false });
+
+    // 2. Apply City Filter on the joined Store table
+    if (city && city !== "all") {
+        query = query.ilike("stores.city", city);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        console.error("Live Feed Error:", error);
+        return { success: false, error: error.message };
+    }
+    return { success: true, data: data || [] };
 }
 

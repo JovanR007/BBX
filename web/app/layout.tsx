@@ -52,6 +52,8 @@ import LiveMatchTicker from "@/components/features/live-match-ticker";
 
 export const dynamic = "force-dynamic";
 
+import { AuthGuard } from "@/components/auth/auth-guard";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
@@ -59,6 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <StackProvider app={stackServerApp}>
           <StackTheme>
             <ToastProvider>
+              <Suspense fallback={null}>
+                <AuthGuard />
+              </Suspense>
               <div className="relative flex min-h-screen flex-col">
                 <LiveMatchTicker />
                 <Suspense fallback={<div className="h-14 border-b bg-background/95" />}>
