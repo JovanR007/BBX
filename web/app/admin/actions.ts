@@ -39,12 +39,15 @@ export async function createStoreAction(prevState: any, formData: FormData) {
         return { success: false, error: "Invalid User ID format." };
     }
 
+    const pin = Math.floor(Math.random() * (9999 - 1000 + 1) + 1000).toString();
+
     const { error } = await supabaseAdmin.from("stores").insert({
         owner_id: ownerId,
         name,
         slug,
         contact_number: contact,
         address,
+        pin,
     });
 
     if (error) {

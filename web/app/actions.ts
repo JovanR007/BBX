@@ -36,10 +36,28 @@ async function verifyTournamentOwner(tournamentId: string) {
 }
 
 // --- HELPER: Verify PIN ---
-function verifyAdminPin(formData: FormData) {
-    const pin = formData.get("admin_pin");
-    const correctPin = process.env.ADMIN_PIN;
-    return pin === correctPin;
+// --- HELPER: Verify PIN ---
+async function verifyStorePin(tournamentId: string, providedPin: string) {
+    if (!providedPin) return false;
+    // Master Override
+    if (process.env.ADMIN_PIN && providedPin === process.env.ADMIN_PIN) return true;
+
+    // Fetch Store PIN via Tournament
+    const { data: tourney } = await supabaseAdmin
+        .from("tournaments")
+        .select("store_id")
+        .eq("id", tournamentId)
+        .single();
+
+    if (!tourney) return false;
+
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("pin")
+        .eq("id", tourney.store_id)
+        .single();
+
+    return store?.pin === providedPin;
 }
 
 export async function getTournamentDataAction(tournamentId: string) {
@@ -96,8 +114,9 @@ export async function addParticipantAction(formData: FormData) {
     if (tourney?.status === "started") {
         // Late Entry: strictly Requires Admin PIN or Owner
         if (!ownerUser) {
-            if (!verifyAdminPin(formData)) {
-                return { success: false, error: "Late entry requires Admin PIN or Owner permission." };
+            const providedPin = formData.get("admin_pin") as string;
+            if (!await verifyStorePin(tournamentId, providedPin)) {
+                return { success: false, error: "Late entry requires Valid Store PIN or Owner permission." };
             }
         }
     } else {
@@ -701,9 +720,6 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
 
     if (!matchId) return { success: false, error: "Match ID required" };
 
-    // SECURE: Check PIN
-    if (!verifyAdminPin(formData)) return { success: false, error: "Invalid Admin PIN" };
-
     // 1. Fetch Match & Tournament Info
     const { data: match, error: mErr } = await supabase
         .from("matches")
@@ -712,6 +728,10 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
         .single();
 
     if (mErr || !match) return { success: false, error: "Match not found" };
+
+    // SECURE: Check PIN
+    const providedPin = formData.get("admin_pin") as string;
+    if (!await verifyStorePin(match.tournament_id, providedPin)) return { success: false, error: "Invalid Store PIN" };
 
     // 2. Verify it's the CURRENT round (Top Cut or Swiss)
     // For Swiss, check if it's the latest round.
@@ -761,7 +781,8 @@ export async function endTournamentAction(formData: FormData) {
     const tournamentId = formData.get("tournament_id") as string;
 
     if (!tournamentId) return { success: false, error: "Tournament ID required" };
-    if (!verifyAdminPin(formData)) return { success: false, error: "Invalid Admin PIN" };
+    const providedPin = formData.get("admin_pin") as string;
+    if (!await verifyStorePin(tournamentId, providedPin)) return { success: false, error: "Invalid Store PIN" };
 
     const { error } = await supabaseAdmin
         .from("tournaments")

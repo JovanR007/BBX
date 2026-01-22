@@ -55,6 +55,14 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                             />
                         </div>
 
+                        <div className="p-4 bg-muted/50 border rounded-lg flex items-center justify-between">
+                            <div>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Store Security PIN</label>
+                                <div className="text-xl font-mono font-bold text-primary mt-1">{initialStore.pin || "----"}</div>
+                                <p className="text-xs text-muted-foreground mt-1">Use this code to authorize sensitive tournament actions.</p>
+                            </div>
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Store Logo</label>
                             <ImageUpload
