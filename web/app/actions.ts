@@ -1226,7 +1226,7 @@ export async function claimParticipantHistoryAction() {
         .from("participants")
         .update({ user_id: user.id })
         .in("id", idsToUpdate)
-        .select("id", { count: "exact" });
+        .select("id");
 
     if (updateErr) return { success: false, error: updateErr.message };
 
