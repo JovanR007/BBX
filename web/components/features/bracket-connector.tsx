@@ -32,7 +32,7 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                             <svg className="absolute inset-0 w-full h-full" overflow="visible">
                                 {isTop && (
                                     <path
-                                        d="M0,50% H50% V100% H100%"
+                                        d="M0,50% C50%,50% 50%,100% 100%,100%"
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="3"
@@ -42,7 +42,7 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                 )}
                                 {isBottom && (
                                     <path
-                                        d="M0,50% H50% V0"
+                                        d="M0,50% C50%,50% 50%,0 100%,0"
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="3"
