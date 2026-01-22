@@ -30,6 +30,10 @@ export interface Tournament {
     judge_code: string | null;
     match_target_points: number | null;
     swiss_rounds: number | null;
+    stores?: {
+        primary_color: string | null;
+        secondary_color: string | null;
+    };
 }
 
 export interface Participant {

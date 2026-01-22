@@ -18,6 +18,7 @@ import { ConfirmationModal } from "@/components/ui/modal";
 import { BracketConnector } from "@/components/features/bracket-connector";
 import { VictoryModal } from "@/components/features/victory-modal";
 import { ConcludeModal } from "@/components/features/conclude-modal";
+import { BrandedContainer } from "@/components/features/branded-container";
 
 // --- Page Component ---
 export default function BracketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,7 +76,11 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
     return (
-        <div className="container mx-auto px-4 py-8 min-h-screen">
+        <BrandedContainer
+            primaryColor={tournament?.stores?.primary_color}
+            secondaryColor={tournament?.stores?.secondary_color}
+            className="container mx-auto px-4 py-8 min-h-screen"
+        >
             {/* Header */}
             <div className="flex justify-between items-center mb-8">
                 <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
@@ -162,7 +167,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
             <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.store_id || ""} />
             <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} />
-        </div>
+        </BrandedContainer>
     );
 }
 

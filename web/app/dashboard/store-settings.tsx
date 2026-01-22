@@ -122,13 +122,17 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
         }
     };
 
-    const [store, setStore] = useState<{ name: string, description: string, image_url: string | null, contact_number: string, address: string }>({
+    const [store, setStore] = useState<{ name: string, description: string, image_url: string | null, contact_number: string, address: string, primary_color?: string, secondary_color?: string }>({
         name: initialStore?.name || "",
         description: initialStore?.description || "",
         image_url: initialStore?.image_url || null,
         contact_number: initialStore?.contact_number || "",
-        address: initialStore?.address || ""
+        address: initialStore?.address || "",
+        primary_color: initialStore?.primary_color || "#22d3ee", // Default cyan
+        secondary_color: initialStore?.secondary_color || "#a855f7" // Default purple
     });
+
+    const isPro = initialStore.plan === 'pro';
 
     return (
         <div className="bg-card border rounded-xl mb-8 overflow-hidden">
@@ -271,6 +275,72 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                                     ))}
                                 </select>
                             </div>
+                        </div>
+
+                        {/* Custom Branding (Pro Only) */}
+                        <div className="border-t pt-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center">
+                                    Custom Branding
+                                    {!isPro && (
+                                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-600 text-[10px] text-white rounded font-black">PRO FEATURE</span>
+                                    )}
+                                </h3>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium flex items-center">
+                                        Primary Color
+                                        <div
+                                            className="w-4 h-4 rounded-full ml-auto border border-white/10"
+                                            style={{ backgroundColor: store.primary_color }}
+                                        />
+                                    </label>
+                                    <div className="relative group">
+                                        <input
+                                            type="color"
+                                            name="primary_color"
+                                            value={store.primary_color}
+                                            onChange={(e) => setStore(s => ({ ...s, primary_color: e.target.value }))}
+                                            disabled={!isPro}
+                                            className="w-full h-10 rounded-md cursor-pointer border-none bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        {!isPro && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-md pointer-events-none">
+                                                <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Locked</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium flex items-center">
+                                        Secondary Color
+                                        <div
+                                            className="w-4 h-4 rounded-full ml-auto border border-white/10"
+                                            style={{ backgroundColor: store.secondary_color }}
+                                        />
+                                    </label>
+                                    <div className="relative group">
+                                        <input
+                                            type="color"
+                                            name="secondary_color"
+                                            value={store.secondary_color}
+                                            onChange={(e) => setStore(s => ({ ...s, secondary_color: e.target.value }))}
+                                            disabled={!isPro}
+                                            className="w-full h-10 rounded-md cursor-pointer border-none bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                        {!isPro && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-md pointer-events-none">
+                                                <span className="text-[10px] font-bold text-white uppercase tracking-tighter">Locked</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            {!isPro && (
+                                <p className="text-xs text-muted-foreground italic">Upgrade to Pro to unlock custom colors for your store and tournament pages.</p>
+                            )}
                         </div>
 
                         <div className="pt-2">

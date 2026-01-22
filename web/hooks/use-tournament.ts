@@ -34,7 +34,7 @@ export function useTournament(paramId: string | Promise<{ id: string }>): UseTou
             try {
                 // 1. Fetch Tournament
                 const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idToResolve);
-                let query = supabase.from("tournaments").select("*");
+                let query = supabase.from("tournaments").select("*, stores(primary_color, secondary_color)");
                 if (isUUID) query = query.or(`id.eq.${idToResolve},slug.eq.${idToResolve}`);
                 else query = query.eq("slug", idToResolve);
 

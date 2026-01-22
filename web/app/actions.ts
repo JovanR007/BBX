@@ -81,7 +81,7 @@ export async function getTournamentDataAction(tournamentId: string) {
 
     try {
         const results = await Promise.all([
-            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds").eq("id", tournamentId).single(),
+            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(primary_color, secondary_color)").eq("id", tournamentId).single(),
             supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
             supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
@@ -1111,11 +1111,13 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
     const imageUrl = formData.get("image_url") as string;
     const city = formData.get("city") as string;
     const country = formData.get("country") as string;
+    const primaryColor = formData.get("primary_color") as string;
+    const secondaryColor = formData.get("secondary_color") as string;
 
     // 1. Verify Ownership
     const { data: store } = await supabaseAdmin
         .from("stores")
-        .select("owner_id")
+        .select("owner_id, plan")
         .eq("id", storeId)
         .single();
 
@@ -1134,6 +1136,12 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
 
     if (city) updates.city = city;
     if (country) updates.country = country;
+
+    // Branding only for Pro stores
+    if (store.plan === 'pro') {
+        if (primaryColor !== undefined) updates.primary_color = primaryColor;
+        if (secondaryColor !== undefined) updates.secondary_color = secondaryColor;
+    }
 
     const { error } = await supabaseAdmin
         .from("stores")

@@ -36,7 +36,7 @@ export function useBracketData(tournamentId: string | undefined) {
         const parts = res.participants;
         const fetchedJudges = res.judges;
 
-        setTournament(tourney as Tournament);
+        setTournament(tourney as unknown as Tournament);
 
         // Check Permissions
         if (user && tourney) {
