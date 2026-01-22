@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { updateProfileAction } from "@/app/actions";
+import { updateProfileAction, claimParticipantHistoryAction } from "@/app/actions";
 import { useToast } from "@/components/ui/toaster";
-import { Loader2, Save, ExternalLink } from "lucide-react";
+import { Loader2, Save, ExternalLink, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -63,6 +63,22 @@ export default function ProfileEditor({ user }: { user: any }) {
             router.refresh(); // Refresh to update links if username changed
         } else {
             toast({ title: "Error", description: res.error, variant: "destructive" });
+        }
+    }
+
+    const [syncing, setSyncing] = useState(false);
+    async function handleSync() {
+        if (!confirm(`This will search for past tournaments where you played as "${profile.display_name}" and link them to your account. Continue?`)) return;
+
+        setSyncing(true);
+        const res = await claimParticipantHistoryAction();
+        setSyncing(false);
+
+        if (res.success) {
+            toast({ title: "Sync Complete", description: res.message, variant: "success" });
+            router.refresh();
+        } else {
+            toast({ title: "Sync Failed", description: res.error, variant: "destructive" });
         }
     }
 
@@ -135,6 +151,24 @@ export default function ProfileEditor({ user }: { user: any }) {
                     Save Profile
                 </button>
             </form>
+
+            <div className="mt-8 pt-8 border-t">
+                <h3 className="text-lg font-bold mb-2">Account Actions</h3>
+                <div className="bg-muted/30 rounded-lg p-4 border border-dashed border-slate-700">
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Did you participate in tournaments as a guest before creating an account?
+                        Sync your past stats by matching your current Display Name.
+                    </p>
+                    <button
+                        onClick={handleSync}
+                        disabled={syncing || !profile.display_name}
+                        className="w-full bg-secondary text-secondary-foreground py-2 rounded font-medium hover:bg-secondary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {syncing ? <Loader2 className="animate-spin w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
+                        Sync Past Tournaments
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

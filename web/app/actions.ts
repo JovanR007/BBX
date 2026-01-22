@@ -1190,3 +1190,49 @@ export async function updateProfileAction(formData: FormData) {
     revalidatePath(`/u/${username}`);
     return { success: true };
 }
+
+export async function claimParticipantHistoryAction() {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    // 1. Get current specific display name
+    const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .single();
+
+    if (!profile || !profile.display_name) return { success: false, error: "Profile not found or no display name set." };
+
+    const targetName = profile.display_name;
+
+    // 2. Find and Link Guest Participants
+    // "Guest" means user_id is NULL
+    const { data: matches, error: fetchErr } = await supabaseAdmin
+        .from("participants")
+        .select("id")
+        .is("user_id", null)
+        .ilike("display_name", targetName); // Case insensitive match
+
+    if (fetchErr) return { success: false, error: fetchErr.message };
+
+    if (!matches || matches.length === 0) {
+        return { success: true, count: 0, message: `No guest history found for "${targetName}".` };
+    }
+
+    // 3. Update them
+    const idsToUpdate = matches.map(m => m.id);
+    const { error: updateErr, count } = await supabaseAdmin
+        .from("participants")
+        .update({ user_id: user.id })
+        .in("id", idsToUpdate)
+        .select("id", { count: "exact" });
+
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    revalidatePath(`/u/${profile.username || user.id}`);
+    revalidatePath("/dashboard");
+
+    return { success: true, count: count || matches.length, message: `Successfully linked ${count || matches.length} tournament entries!` };
+}
+
