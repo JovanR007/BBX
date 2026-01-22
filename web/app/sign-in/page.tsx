@@ -38,7 +38,14 @@ export default function SignInPage() {
             emailToUse = resolveRes.email!;
 
             // 2. Stack Sign In
-            await stackApp.signInWithCredential({ email: emailToUse, password });
+            const signInResult = await stackApp.signInWithCredential({ email: emailToUse, password });
+
+            // Check if sign-in failed
+            if (signInResult.status === "error") {
+                toast({ title: "Login Failed", description: "Invalid password.", variant: "destructive" });
+                setLoading(false);
+                return;
+            }
 
             // 3. Success Redirect (refresh to ensure session is loaded)
             router.refresh();
@@ -46,9 +53,7 @@ export default function SignInPage() {
 
         } catch (error: any) {
             console.error("Login Error:", error);
-            // Stack specific error codes?
-            toast({ title: "Login Failed", description: "Invalid credentials.", variant: "destructive" });
-        } finally {
+            toast({ title: "Login Failed", description: error.message || "Authentication error.", variant: "destructive" });
             setLoading(false);
         }
     }
