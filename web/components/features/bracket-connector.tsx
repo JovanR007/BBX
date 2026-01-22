@@ -22,7 +22,7 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
     if (previousRoundCount !== undefined) {
         // Grid-based connector to align perfectly with the match grid
         return (
-            <div className="hidden md:grid w-12 shrink-0 relative" style={{ gridTemplateRows: `repeat(${previousRoundCount}, 1fr)` }}>
+            <div className="grid w-10 shrink-0 relative" style={{ gridTemplateRows: `repeat(${previousRoundCount}, 1fr)` }}>
                 {Array.from({ length: previousRoundCount }).map((_, i) => {
                     const isTop = i % 2 === 0;
                     const isBottom = i % 2 === 1;
@@ -36,7 +36,6 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                         fill="none"
                                         stroke="white"
                                         strokeWidth="2"
-                                        className="opacity-80"
                                         vectorEffect="non-scaling-stroke"
                                     />
                                 )}
@@ -46,7 +45,6 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                         fill="none"
                                         stroke="white"
                                         strokeWidth="2"
-                                        className="opacity-80"
                                         vectorEffect="non-scaling-stroke"
                                     />
                                 )}
