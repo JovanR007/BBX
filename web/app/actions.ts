@@ -154,18 +154,21 @@ export async function addParticipantAction(formData: FormData) {
 
     let plan = 'free';
     if (tourneyData?.store_id) {
+        // Try to check both columns just in case of schema discrepancy
         const { data: store } = await supabaseAdmin
             .from("stores")
-            .select("plan")
+            .select("plan, subscription_tier")
             .eq("id", tourneyData.store_id)
             .single();
-        plan = store?.plan || 'free';
+
+        // Use 'pro' if either column says so
+        plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
     }
 
     const isSuper = await isSuperAdmin(ownerUser);
     const maxPlayers = (plan === 'pro' || isSuper) ? Infinity : 64;
 
-    console.log(`[DEBUG] addParticipant: Tournament ${tournamentId}, Plan: ${plan}, isSuper: ${isSuper}, maxPlayers: ${maxPlayers}`);
+    console.log(`[SUBSCRIPTION DEBUG] Tournament: ${tournamentId} | Store: ${tourneyData?.store_id} | Plan: ${plan} | Super: ${isSuper} | Max: ${maxPlayers}`);
 
     // Count existing participants
     const { count: currentCount } = await supabaseAdmin
@@ -174,7 +177,7 @@ export async function addParticipantAction(formData: FormData) {
         .eq("tournament_id", tournamentId)
         .eq("dropped", false);
 
-    console.log(`[DEBUG] addParticipant: Current Count: ${currentCount}`);
+    console.log(`[SUBSCRIPTION DEBUG] Current participants count: ${currentCount}`);
 
     if ((currentCount || 0) >= maxPlayers) {
         return {
