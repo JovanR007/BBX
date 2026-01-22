@@ -34,9 +34,9 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                     <path
                                         d="M0,50% C50%,50% 50%,100% 100%,100%"
                                         fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="3"
-                                        className="text-slate-400"
+                                        stroke="white"
+                                        strokeWidth="2"
+                                        className="opacity-80"
                                         vectorEffect="non-scaling-stroke"
                                     />
                                 )}
@@ -44,9 +44,9 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                     <path
                                         d="M0,50% C50%,50% 50%,0 100%,0"
                                         fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="3"
-                                        className="text-slate-400"
+                                        stroke="white"
+                                        strokeWidth="2"
+                                        className="opacity-80"
                                         vectorEffect="non-scaling-stroke"
                                     />
                                 )}
