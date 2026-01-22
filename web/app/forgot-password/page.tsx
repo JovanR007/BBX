@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
         try {
             const res = await stackApp.sendForgotPasswordEmail(email);
 
-            if (res.error) {
+            if (res.status === "error") {
                 toast({ title: "Error", description: res.error.message, variant: "destructive" });
             } else {
                 setSent(true);
