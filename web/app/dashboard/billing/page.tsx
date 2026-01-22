@@ -17,7 +17,7 @@ export default async function BillingPage() {
     // Get user's store
     const { data: store } = await supabaseAdmin
         .from("stores")
-        .select("id, name, subscription_tier, lemonsqueezy_customer_id")
+        .select("id, name, plan, lemonsqueezy_customer_id")
         .eq("owner_id", user.id)
         .single();
 
@@ -25,7 +25,7 @@ export default async function BillingPage() {
         redirect("/dashboard");
     }
 
-    const currentTier = store.subscription_tier || TIERS.FREE;
+    const currentTier = store.plan || TIERS.FREE;
     const isPro = currentTier === TIERS.PRO;
 
     return (
@@ -69,7 +69,7 @@ export default async function BillingPage() {
                     <p className="text-3xl font-black mb-4">$0<span className="text-sm font-normal text-muted-foreground">/month</span></p>
                     <ul className="space-y-3 mb-6">
                         <li className="flex items-center gap-2 text-sm">
-                            <Check className="w-4 h-4 text-green-500" /> Up to 16 players
+                            <Check className="w-4 h-4 text-green-500" /> Up to 64 players
                         </li>
                         <li className="flex items-center gap-2 text-sm">
                             <Check className="w-4 h-4 text-green-500" /> Unlimited tournaments

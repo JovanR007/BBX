@@ -143,7 +143,7 @@ export const TIERS = {
 
 export const TIER_LIMITS = {
     [TIERS.FREE]: {
-        maxPlayers: 16,
+        maxPlayers: 64,
     },
     [TIERS.PRO]: {
         maxPlayers: Infinity,

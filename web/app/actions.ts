@@ -148,12 +148,13 @@ export async function addParticipantAction(formData: FormData) {
     // 2. Check subscription tier for player limits
     const { data: storeData } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id, stores(subscription_tier)")
+        .select("store_id, stores(plan)")
         .eq("id", tournamentId)
         .single();
 
-    const tier = (storeData?.stores as any)?.subscription_tier || 'free';
-    const maxPlayers = tier === 'pro' ? Infinity : 16;
+    const plan = (storeData?.stores as any)?.plan || 'free';
+    const isSuper = await isSuperAdmin(ownerUser);
+    const maxPlayers = (plan === 'pro' || isSuper) ? Infinity : 64;
 
     // Count existing participants
     const { count: currentCount } = await supabaseAdmin
@@ -433,7 +434,7 @@ export async function createTournamentAction(formData: FormData) {
     redirect(`/t/${data.slug || data.id}`);
 }
 
-export async function seedTournamentAction(tournamentId: string, count = 16) {
+export async function seedTournamentAction(tournamentId: string, count = 64) {
     if (!tournamentId) return { success: false, error: "Tournament ID required" };
 
     // 1. Verify Draft Mode
