@@ -1198,7 +1198,7 @@ export async function claimParticipantHistoryAction() {
     // 1. Get current specific display name
     const { data: profile } = await supabaseAdmin
         .from("profiles")
-        .select("display_name")
+        .select("display_name, username")
         .eq("id", user.id)
         .single();
 
