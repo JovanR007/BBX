@@ -36,8 +36,6 @@ export function BrandedContainer({ primaryColor, secondaryColor, plan, children,
         <div
             style={style}
             className={className}
-            data-debug-plan={plan}
-            data-debug-primary={primaryColor}
         >
             {children}
         </div>
