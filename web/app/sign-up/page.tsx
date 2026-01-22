@@ -29,7 +29,7 @@ export default function SignUpPage() {
         try {
             const res = await stackApp.signUpWithCredential({ email, password });
 
-            if (res.error) {
+            if (res.status === "error") {
                 toast({ title: "Registration Failed", description: res.error.message, variant: "destructive" });
             } else {
                 // 2. Success - Authenticated
