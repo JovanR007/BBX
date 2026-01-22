@@ -9,7 +9,10 @@ export default async function AdminPage() {
     const user = await stackServerApp.getUser();
     const email = user?.primaryEmail;
 
-    if (email !== process.env.SUPERADMIN_EMAIL) {
+    // Override for hardcoded superadmin
+    const isSuper = email === 'shearjovan7@gmail.com' || email === process.env.SUPERADMIN_EMAIL;
+
+    if (!isSuper) {
         return (
             <div className="flex min-h-screen items-center justify-center flex-col gap-4">
                 <h1 className="text-2xl font-bold text-red-500">Unauthorized Access</h1>

@@ -35,6 +35,22 @@ async function verifyTournamentOwner(tournamentId: string) {
     return store && store.owner_id === user.id ? user : null;
 }
 
+// --- HELPER: Check Superadmin ---
+async function isSuperAdmin(user: any) {
+    if (!user) return false;
+    // 1. Hardcoded Master Email
+    if (user.primaryEmail === 'shearjovan7@gmail.com') return true;
+
+    // 2. Check DB Role
+    const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+    return profile?.role === 'superadmin';
+}
+
 // --- HELPER: Verify PIN ---
 // --- HELPER: Verify PIN ---
 async function verifyStorePin(tournamentId: string, providedPin: string) {
@@ -277,7 +293,10 @@ export async function deleteParticipantAction(formData: FormData) {
 
     // SECURE: Only Owner can delete
     const isOwner = await verifyTournamentOwner(tournamentId);
-    if (!isOwner) return { success: false, error: "Unauthorized: Only tournament owner can delete participants." };
+    const user = await stackServerApp.getUser();
+    const superAdmin = await isSuperAdmin(user);
+
+    if (!isOwner && !superAdmin) return { success: false, error: "Unauthorized: Only tournament owner can delete participants." };
 
     const { error } = await supabaseAdmin
         .from("participants")
@@ -299,7 +318,10 @@ export async function updateParticipantAction(formData: FormData) {
 
     // SECURE: Only Owner can update
     const isOwner = await verifyTournamentOwner(tournamentId);
-    if (!isOwner) return { success: false, error: "Unauthorized" };
+    const user = await stackServerApp.getUser();
+    const superAdmin = await isSuperAdmin(user);
+
+    if (!isOwner && !superAdmin) return { success: false, error: "Unauthorized" };
 
     const { error } = await supabaseAdmin
         .from("participants")
