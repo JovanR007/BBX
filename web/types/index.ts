@@ -33,6 +33,7 @@ export interface Tournament {
     stores?: {
         primary_color: string | null;
         secondary_color: string | null;
+        plan: 'free' | 'pro';
     };
 }
 

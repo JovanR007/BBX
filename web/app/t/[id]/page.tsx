@@ -47,6 +47,7 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
         <BrandedContainer
             primaryColor={tournament?.stores?.primary_color}
             secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
             className="container mx-auto px-4 py-8 md:py-16"
         >
             <div className="mb-8">

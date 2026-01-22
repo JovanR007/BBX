@@ -36,6 +36,7 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
         <BrandedContainer
             primaryColor={store.primary_color}
             secondaryColor={store.secondary_color}
+            plan={store.plan}
             className="min-h-screen bg-neutral-950 relative overflow-hidden"
         >
             {/* Tech Background */}

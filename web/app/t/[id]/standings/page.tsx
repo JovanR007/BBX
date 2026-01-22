@@ -101,6 +101,7 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
         <BrandedContainer
             primaryColor={tournament?.stores?.primary_color}
             secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
             className="container mx-auto px-4 py-8 min-h-screen bg-transparent"
         >
             <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground mb-8 transition-colors">
