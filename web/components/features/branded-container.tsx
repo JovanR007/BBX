@@ -33,7 +33,12 @@ export function BrandedContainer({ primaryColor, secondaryColor, plan, children,
     }, [primaryColor, secondaryColor, plan]);
 
     return (
-        <div style={style} className={className}>
+        <div
+            style={style}
+            className={className}
+            data-debug-plan={plan}
+            data-debug-primary={primaryColor}
+        >
             {children}
         </div>
     );
