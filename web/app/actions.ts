@@ -146,15 +146,26 @@ export async function addParticipantAction(formData: FormData) {
     }
 
     // 2. Check subscription tier for player limits
-    const { data: storeData } = await supabaseAdmin
+    const { data: tourneyData } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id, stores(plan)")
+        .select("store_id")
         .eq("id", tournamentId)
         .single();
 
-    const plan = (storeData?.stores as any)?.plan || 'free';
+    let plan = 'free';
+    if (tourneyData?.store_id) {
+        const { data: store } = await supabaseAdmin
+            .from("stores")
+            .select("plan")
+            .eq("id", tourneyData.store_id)
+            .single();
+        plan = store?.plan || 'free';
+    }
+
     const isSuper = await isSuperAdmin(ownerUser);
     const maxPlayers = (plan === 'pro' || isSuper) ? Infinity : 64;
+
+    console.log(`[DEBUG] addParticipant: Tournament ${tournamentId}, Plan: ${plan}, isSuper: ${isSuper}, maxPlayers: ${maxPlayers}`);
 
     // Count existing participants
     const { count: currentCount } = await supabaseAdmin
@@ -162,6 +173,8 @@ export async function addParticipantAction(formData: FormData) {
         .select("*", { count: "exact", head: true })
         .eq("tournament_id", tournamentId)
         .eq("dropped", false);
+
+    console.log(`[DEBUG] addParticipant: Current Count: ${currentCount}`);
 
     if ((currentCount || 0) >= maxPlayers) {
         return {
