@@ -269,22 +269,44 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                 const rNum = Number(rNumStr);
                 const isFinals = rNum === totalRounds;
                 const matchCount = rounds[rNum].length;
+
+                if (isFinals) {
+                    const grandFinals = rounds[rNum][0];
+                    const thirdPlace = rounds[rNum][1]; // Index 1 is 3rd place if exists
+
+                    return (
+                        <React.Fragment key={rNum}>
+                            <div className="flex flex-col min-w-[280px] z-10 w-80 relative">
+                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Grand Finals</div>
+                                <div className="flex-grow flex flex-col justify-center items-center px-2 relative">
+                                    <MatchCard match={grandFinals} participants={participants} onClick={() => onMatchClick(grandFinals)} label={null} />
+                                </div>
+                                {thirdPlace && (
+                                    <div className="absolute bottom-0 w-full pb-0 px-2 flex flex-col items-center">
+                                        <div className="text-center text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">3rd Place Match</div>
+                                        <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
+                                    </div>
+                                )}
+                            </div>
+                        </React.Fragment>
+                    );
+                }
+
                 return (
                     <React.Fragment key={rNum}>
                         <div className="flex flex-col min-w-[280px] z-10 w-80">
-                            <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">{isFinals ? "Grand Finals" : `Round ${rNum}`}</div>
-                            <div className={cn("grid flex-grow relative w-full", isFinals ? "gap-16" : "")} style={{ gridTemplateRows: isFinals ? "1fr 1fr" : `repeat(${matchCount}, minmax(0, 1fr))` }}>
-                                {(rounds[rNum] || []).map((m, idx) => (
-                                    <div key={m.id} className={cn("flex flex-col justify-center items-center w-full px-2", isFinals && idx === 1 ? "justify-start pt-8" : "")}>
+                            <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Round {rNum}</div>
+                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, minmax(0, 1fr))` }}>
+                                {(rounds[rNum] || []).map((m) => (
+                                    <div key={m.id} className="flex flex-col justify-center items-center w-full px-2">
                                         <div className="w-full relative">
-                                            {isFinals && idx === 1 && (<div className="absolute -top-10 left-0 w-full text-center text-xs font-bold text-muted-foreground uppercase tracking-widest">3rd Place Match</div>)}
                                             <MatchCard match={m} participants={participants} onClick={() => onMatchClick(m)} label={null} />
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                        {Number(rNum) < totalRounds && (<BracketConnector previousRoundCount={matchCount} isFinals={(Number(rNum) + 1) === totalRounds} />)}
+                        {Number(rNum) < totalRounds && (<BracketConnector matches={undefined} match_target_points={undefined} previousRoundCount={matchCount} isFinals={(Number(rNum) + 1) === totalRounds} />)}
                     </React.Fragment>
                 );
             })}
