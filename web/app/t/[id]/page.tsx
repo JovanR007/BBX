@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Trophy, Users, GitBranch, ArrowLeft, Loader2, Timer } from "lucide-react";
 import { useTournament } from "@/hooks/use-tournament";
 import { JudgeJoin } from "@/components/features/judge-join";
+import { BrandedContainer } from "@/components/features/branded-container";
 
 
 export default function TournamentDashboard({ params }: { params: Promise<{ id: string }> }) {
@@ -43,7 +44,12 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
     const loading = loadingStats; // adapt local variable for existing JSX usage
 
     return (
-        <div className="container mx-auto px-4 py-8 md:py-16">
+        <BrandedContainer
+            primaryColor={tournament?.stores?.primary_color}
+            secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
+            className="container mx-auto px-4 py-8 md:py-16"
+        >
             <div className="mb-8">
                 <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> All Tournaments
@@ -127,6 +133,6 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
 
                 <JudgeJoin tournamentId={tournamentId || ""} />
             </div>
-        </div>
+        </BrandedContainer>
     );
 }

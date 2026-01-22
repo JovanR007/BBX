@@ -744,15 +744,15 @@ function DebugSeedButton({ tournamentId }: { tournamentId: any }) {
     const [loading, setLoading] = useState(false);
 
     async function handleSeed() {
-        if (!confirm("Add 128 Test Players? This cannot be easily undone manually.")) return;
+        if (!confirm("Add 64 Test Players? This cannot be easily undone manually.")) return;
         setLoading(true);
         // Dynamic import to avoid server action import issues in client component if strictly separated
         const { seedTournamentAction } = await import("@/app/actions");
-        const res = await seedTournamentAction(tournamentId, 128);
+        const res = await seedTournamentAction(tournamentId, 64);
         setLoading(false);
 
         if (res.success) {
-            toast({ title: "Seeded 128 Players", description: "Ready for stress testing.", variant: "success" });
+            toast({ title: "Seeded 64 Players", description: "Ready for testing within limits.", variant: "success" });
             window.location.reload();
         } else {
             toast({ title: "Seed Failed", description: res.error, variant: "destructive" });
@@ -766,7 +766,7 @@ function DebugSeedButton({ tournamentId }: { tournamentId: any }) {
             className="w-full py-2 text-xs font-mono text-muted-foreground hover:text-foreground border border-dashed rounded hover:bg-muted/50 transition-colors flex items-center justify-center gap-2"
         >
             <Users className="w-3 h-3" />
-            {loading ? "Seeding..." : "Debug: Add 128 Test Players"}
+            {loading ? "Seeding..." : "Debug: Add 64 Test Players"}
         </button>
     )
 }

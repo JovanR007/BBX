@@ -6,8 +6,8 @@ import { ArrowLeft, Medal, Trophy } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+import { BrandedContainer } from "@/components/features/branded-container";
 import { useTournament } from "@/hooks/use-tournament";
-
 import { SwissStanding, MatchHistory } from "@/types";
 
 export default function StandingsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -98,7 +98,12 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
     }, [tournamentId]);
 
     return (
-        <div className="container mx-auto px-4 py-8 min-h-screen bg-transparent">
+        <BrandedContainer
+            primaryColor={tournament?.stores?.primary_color}
+            secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
+            className="container mx-auto px-4 py-8 min-h-screen bg-transparent"
+        >
             <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground mb-8 transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
             </Link>
@@ -172,7 +177,7 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                             </div>
                                         </td>
                                         <td className="p-4 md:p-6 align-middle text-center font-mono font-medium">
-                                            {player.match_wins}-{player.history.filter(h => h.result === 'L').length}
+                                            {player.match_wins}-{player.history.filter((h: MatchHistory) => h.result === 'L').length}
                                         </td>
                                         <td className="p-4 md:p-6 align-middle text-center">
                                             <span className={cn(
@@ -193,7 +198,7 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                         </td>
                                         <td className="p-4 md:p-6 align-middle">
                                             <div className="flex gap-1 flex-wrap w-[150px]">
-                                                {player.history.map((h, i) => (
+                                                {player.history.map((h: MatchHistory, i: number) => (
                                                     <div
                                                         key={i}
                                                         title={`Round ${h.round}: ${h.result === 'W' ? 'Win' : h.result === 'L' ? 'Loss' : 'Draw'}`}
@@ -273,7 +278,7 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                             <div className="grid grid-cols-2 gap-2 text-xs relative z-10 opacity-80">
                                 <div className="bg-muted/50 p-2 rounded flex justify-between items-center">
                                     <span className="uppercase tracking-wider font-bold opacity-70">Record</span>
-                                    <span className="font-mono font-bold">{player.match_wins}-{player.history.filter(h => h.result === 'L').length}</span>
+                                    <span className="font-mono font-bold">{player.match_wins}-{player.history.filter((h: MatchHistory) => h.result === 'L').length}</span>
                                 </div>
                                 <div className="bg-muted/50 p-2 rounded flex justify-between items-center">
                                     <span className="uppercase tracking-wider font-bold opacity-70">Buchholz</span>
@@ -284,6 +289,6 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                     )
                 })}
             </div>
-        </div >
+        </BrandedContainer>
     );
 }

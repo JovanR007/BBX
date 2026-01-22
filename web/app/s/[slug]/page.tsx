@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, MapPin, Phone, Store } from "lucide-react";
 import TournamentList from "../../dashboard/tournament-list";
 import StoreImage from "@/components/features/store-image";
+import { BrandedContainer } from "@/components/features/branded-container";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,12 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
         .order("created_at", { ascending: false });
 
     return (
-        <div className="min-h-screen bg-neutral-950 relative overflow-hidden">
+        <BrandedContainer
+            primaryColor={store.primary_color}
+            secondaryColor={store.secondary_color}
+            plan={store.plan}
+            className="min-h-screen bg-neutral-950 relative overflow-hidden"
+        >
             {/* Tech Background */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-neutral-950 to-black z-0" />
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#0833441a_1px,transparent_1px),linear-gradient(to_bottom,#0833441a_1px,transparent_1px)] bg-[size:40px_40px] z-0 pointer-events-none" />
@@ -115,6 +121,6 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
                     </div>
                 </div>
             </div>
-        </div>
+        </BrandedContainer>
     );
 }

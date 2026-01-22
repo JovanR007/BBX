@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { updateProfileAction, claimParticipantHistoryAction } from "@/app/actions";
+import { updateProfileAction, claimParticipantHistoryAction, uploadAvatarAction } from "@/app/actions";
 import { useToast } from "@/components/ui/toaster";
 import { Loader2, Save, ExternalLink, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,8 +32,6 @@ export default function ProfileEditor({ user }: { user: any }) {
             if (!user?.id) return;
             const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
             if (data) {
-                // Sync avatar if missing in DB but present in Stack User (passed as prop?)
-                // Actually, accessing useUser hooks here is better or rely on passed user
                 let avatar = data.avatar_url;
 
                 // If local DB empty, use passed user image (which comes from Stack Server)
@@ -51,7 +49,7 @@ export default function ProfileEditor({ user }: { user: any }) {
             }
         }
         load();
-    }, [user]);
+    }, [user?.id]); // Only re-run if user ID changes
 
     async function handleSubmit(formData: FormData) {
         setLoading(true);
@@ -105,12 +103,16 @@ export default function ProfileEditor({ user }: { user: any }) {
                     <input
                         name="username"
                         defaultValue={profile.username}
-                        className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
-                        placeholder="e.g. BladeStorm99"
                         required
                         pattern="[a-zA-Z0-9_]{3,20}"
                         data-lpignore="true"
+                        readOnly={!!profile.username}
+                        className={`w-full bg-slate-950 border border-slate-800 rounded p-2 text-white ${profile.username ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={profile.username ? "Username is permenant." : "Choose wisely, this is permanent."}
                     />
+                    {/* Ensure username is sent even if distinct from input logic, though readOnly sends it. */}
+                    {profile.username && <input type="hidden" name="username" value={profile.username} />}
+
                     <p className="text-xs text-muted-foreground mt-1">Public URL: /u/{profile.username || 'username'}</p>
                 </div>
 
@@ -176,7 +178,17 @@ export default function ProfileEditor({ user }: { user: any }) {
 function AvatarUpload({ currentUrl, onUploadComplete }: { currentUrl: string | null, onUploadComplete: (url: string) => void }) {
     const { toast } = useToast();
     const [uploading, setUploading] = useState(false);
-    const [preview, setPreview] = useState(currentUrl);
+    const [preview, setPreview] = useState<string | null>(currentUrl);
+
+    // Sync preview when currentUrl changes (e.g. after page load)
+    useEffect(() => {
+        // Only update from prop if it is NOT null (e.g. from DB) 
+        // OR if we don't have a preview yet.
+        // This prevents a null prop (from a race condition re-fetch) from wiping out our just-uploaded image.
+        if (currentUrl) {
+            setPreview(currentUrl);
+        }
+    }, [currentUrl]);
 
     async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -184,26 +196,25 @@ function AvatarUpload({ currentUrl, onUploadComplete }: { currentUrl: string | n
         const file = e.target.files[0];
         setUploading(true);
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const formData = new FormData();
+        formData.append("file", file);
 
-        const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, file);
+        const res = await uploadAvatarAction(formData);
 
-        if (uploadError) {
-            toast({ title: "Upload Failed", description: uploadError.message, variant: "destructive" });
+        if (!res.success) {
+            toast({ title: "Upload Failed", description: res.error, variant: "destructive" });
             setUploading(false);
             return;
         }
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(filePath);
+        const publicUrl = res.url as string;
+        console.log("Client Received URL:", publicUrl);
 
+        // Force state update
         setPreview(publicUrl);
         onUploadComplete(publicUrl);
+
+        toast({ title: "Avatar Uploaded", description: `Saved!`, variant: "success" });
         setUploading(false);
     }
 
@@ -213,7 +224,9 @@ function AvatarUpload({ currentUrl, onUploadComplete }: { currentUrl: string | n
                 {preview ? (
                     <img src={preview} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs">No Img</div>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[10px] text-center p-1">
+                        <span>No Img</span>
+                    </div>
                 )}
                 {uploading && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
@@ -55,6 +56,9 @@ export function SiteHeader() {
         };
     }, [user]);
 
+    const pathname = usePathname();
+    const isAuthPage = pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/forgot-password";
+
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
             <div className="container flex h-16 items-center justify-between px-6">
@@ -72,6 +76,16 @@ export function SiteHeader() {
                         </div>
                     </Link>
                 </div>
+
+                {/* Main Navigation */}
+                <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
+                        Directory
+                    </Link>
+                    <Link href="/dashboard" className="text-foreground/60 hover:text-foreground transition-colors">
+                        Dashboard
+                    </Link>
+                </nav>
 
                 <div className="flex items-center gap-6 pr-2">
                     {user ? (
@@ -124,9 +138,13 @@ export function SiteHeader() {
                             </div>
                         </div>
                     ) : (
-                        <Link href="/handler/sign-in" className="text-sm font-medium hover:text-primary transition-colors">
-                            Sign In
-                        </Link>
+                        !isAuthPage && (
+                            <div className="flex gap-4">
+                                <Link href="/sign-in" className="text-sm font-medium hover:text-primary transition-colors">
+                                    Sign In
+                                </Link>
+                            </div>
+                        )
                     )}
                 </div>
             </div>

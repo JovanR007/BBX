@@ -15,6 +15,8 @@ export interface Store {
     image_url: string | null;
     address: string | null;
     contact_number: string | null;
+    city: string | null;
+    country: string | null;
 }
 
 export interface Tournament {
@@ -28,6 +30,11 @@ export interface Tournament {
     judge_code: string | null;
     match_target_points: number | null;
     swiss_rounds: number | null;
+    stores?: {
+        primary_color: string | null;
+        secondary_color: string | null;
+        plan: 'free' | 'pro';
+    };
 }
 
 export interface Participant {
