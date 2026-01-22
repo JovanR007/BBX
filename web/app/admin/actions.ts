@@ -20,7 +20,20 @@ export async function createStoreAction(prevState: any, formData: FormData) {
     const user = await stackServerApp.getUser();
     const email = user?.primaryEmail;
 
-    if (email !== process.env.SUPERADMIN_EMAIL) {
+    // Unified Superadmin Check
+    let isSuper = false;
+    if (email === 'shearjovan7@gmail.com' || email === process.env.SUPERADMIN_EMAIL) {
+        isSuper = true;
+    } else if (user) {
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+        if (profile?.role === 'superadmin') isSuper = true;
+    }
+
+    if (!isSuper) {
         return { success: false, error: "Unauthorized" };
     }
 
