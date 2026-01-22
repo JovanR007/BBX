@@ -1,0 +1,224 @@
+{
+    "test_users": [
+        {
+            "country": "United States",
+            "city": "Los Angeles",
+            "store_name": "Beyblade Arena LA",
+            "store_slug": "beyblade-arena-la",
+            "owner_name": "Marcus Rodriguez",
+            "email": "marcus.rodriguez@test.com",
+            "password": "TestPass123!",
+            "contact": "+1-310-555-0142",
+            "address": "1250 Spring St, Los Angeles, CA 90012"
+        },
+        {
+            "country": "United States",
+            "city": "New York",
+            "store_name": "NYC Blade Masters",
+            "store_slug": "nyc-blade-masters",
+            "owner_name": "Sarah Chen",
+            "email": "sarah.chen@test.com",
+            "password": "TestPass123!",
+            "contact": "+1-212-555-0198",
+            "address": "456 Broadway, New York, NY 10013"
+        },
+        {
+            "country": "Japan",
+            "city": "Tokyo",
+            "store_name": "Akihabara Bey Shop",
+            "store_slug": "akihabara-bey-shop",
+            "owner_name": "Takeshi Yamamoto",
+            "email": "takeshi.yamamoto@test.com",
+            "password": "TestPass123!",
+            "contact": "+81-3-5555-1234",
+            "address": "3-15-1 Sotokanda, Chiyoda-ku, Tokyo 101-0021"
+        },
+        {
+            "country": "Japan",
+            "city": "Osaka",
+            "store_name": "Naniwa Battle Arena",
+            "store_slug": "naniwa-battle-arena",
+            "owner_name": "Yuki Tanaka",
+            "email": "yuki.tanaka@test.com",
+            "password": "TestPass123!",
+            "contact": "+81-6-5555-6789",
+            "address": "1-1-3 Namba, Chuo-ku, Osaka 542-0076"
+        },
+        {
+            "country": "United Kingdom",
+            "city": "London",
+            "store_name": "London Spin Arena",
+            "store_slug": "london-spin-arena",
+            "owner_name": "Oliver Thompson",
+            "email": "oliver.thompson@test.com",
+            "password": "TestPass123!",
+            "contact": "+44-20-5555-3344",
+            "address": "25 Oxford Street, London W1D 2DW"
+        },
+        {
+            "country": "Canada",
+            "city": "Toronto",
+            "store_name": "Toronto Beyblade Club",
+            "store_slug": "toronto-beyblade-club",
+            "owner_name": "Emma Wilson",
+            "email": "emma.wilson@test.com",
+            "password": "TestPass123!",
+            "contact": "+1-416-555-7890",
+            "address": "789 Yonge Street, Toronto, ON M4W 2G8"
+        },
+        {
+            "country": "Australia",
+            "city": "Sydney",
+            "store_name": "Sydney Burst Stadium",
+            "store_slug": "sydney-burst-stadium",
+            "owner_name": "Liam O'Brien",
+            "email": "liam.obrien@test.com",
+            "password": "TestPass123!",
+            "contact": "+61-2-5555-4567",
+            "address": "123 George Street, Sydney NSW 2000"
+        },
+        {
+            "country": "Germany",
+            "city": "Berlin",
+            "store_name": "Berlin Blade Factory",
+            "store_slug": "berlin-blade-factory",
+            "owner_name": "Hans Mueller",
+            "email": "hans.mueller@test.com",
+            "password": "TestPass123!",
+            "contact": "+49-30-5555-8901",
+            "address": "Alexanderplatz 1, 10178 Berlin"
+        },
+        {
+            "country": "France",
+            "city": "Paris",
+            "store_name": "Paris Spinning Elite",
+            "store_slug": "paris-spinning-elite",
+            "owner_name": "Sophie Dubois",
+            "email": "sophie.dubois@test.com",
+            "password": "TestPass123!",
+            "contact": "+33-1-5555-2345",
+            "address": "15 Rue de Rivoli, 75001 Paris"
+        },
+        {
+            "country": "South Korea",
+            "city": "Seoul",
+            "store_name": "Gangnam Battle Zone",
+            "store_slug": "gangnam-battle-zone",
+            "owner_name": "Min-jun Kim",
+            "email": "minjun.kim@test.com",
+            "password": "TestPass123!",
+            "contact": "+82-2-5555-6789",
+            "address": "456 Gangnam-daero, Gangnam-gu, Seoul 06000"
+        },
+        {
+            "country": "Brazil",
+            "city": "São Paulo",
+            "store_name": "São Paulo Bey Champions",
+            "store_slug": "sao-paulo-bey-champions",
+            "owner_name": "Carlos Silva",
+            "email": "carlos.silva@test.com",
+            "password": "TestPass123!",
+            "contact": "+55-11-5555-3456",
+            "address": "Rua Augusta 1234, São Paulo, SP 01304-001"
+        },
+        {
+            "country": "Mexico",
+            "city": "Mexico City",
+            "store_name": "Arena Beyblade CDMX",
+            "store_slug": "arena-beyblade-cdmx",
+            "owner_name": "Diego Martinez",
+            "email": "diego.martinez@test.com",
+            "password": "TestPass123!",
+            "contact": "+52-55-5555-7890",
+            "address": "Av. Paseo de la Reforma 222, CDMX 06600"
+        },
+        {
+            "country": "Singapore",
+            "city": "Singapore",
+            "store_name": "Marina Bay Bladers",
+            "store_slug": "marina-bay-bladers",
+            "owner_name": "Wei Zhang",
+            "email": "wei.zhang@test.com",
+            "password": "TestPass123!",
+            "contact": "+65-6555-1234",
+            "address": "10 Bayfront Avenue, Singapore 018956"
+        },
+        {
+            "country": "Italy",
+            "city": "Rome",
+            "store_name": "Colosseum Spin Arena",
+            "store_slug": "colosseum-spin-arena",
+            "owner_name": "Marco Rossi",
+            "email": "marco.rossi@test.com",
+            "password": "TestPass123!",
+            "contact": "+39-06-5555-4321",
+            "address": "Via dei Fori Imperiali 1, 00186 Roma"
+        },
+        {
+            "country": "Spain",
+            "city": "Barcelona",
+            "store_name": "Barcelona Bey Hub",
+            "store_slug": "barcelona-bey-hub",
+            "owner_name": "Isabel Garcia",
+            "email": "isabel.garcia@test.com",
+            "password": "TestPass123!",
+            "contact": "+34-93-555-6789",
+            "address": "La Rambla 45, 08002 Barcelona"
+        },
+        {
+            "country": "Philippines",
+            "city": "Manila",
+            "store_name": "Manila Legends Arena",
+            "store_slug": "manila-legends-arena",
+            "owner_name": "Josh Santos",
+            "email": "josh.santos@test.com",
+            "password": "TestPass123!",
+            "contact": "+63-2-555-8901",
+            "address": "EDSA corner Ortigas Ave, Mandaluyong, Metro Manila"
+        },
+        {
+            "country": "India",
+            "city": "Mumbai",
+            "store_name": "Mumbai Burst Center",
+            "store_slug": "mumbai-burst-center",
+            "owner_name": "Arjun Patel",
+            "email": "arjun.patel@test.com",
+            "password": "TestPass123!",
+            "contact": "+91-22-5555-2345",
+            "address": "Marine Drive, Mumbai, Maharashtra 400020"
+        },
+        {
+            "country": "Thailand",
+            "city": "Bangkok",
+            "store_name": "Bangkok Blade District",
+            "store_slug": "bangkok-blade-district",
+            "owner_name": "Somchai Wong",
+            "email": "somchai.wong@test.com",
+            "password": "TestPass123!",
+            "contact": "+66-2-555-6789",
+            "address": "Sukhumvit Road, Khlong Toei, Bangkok 10110"
+        },
+        {
+            "country": "Malaysia",
+            "city": "Kuala Lumpur",
+            "store_name": "KL Bey Masters",
+            "store_slug": "kl-bey-masters",
+            "owner_name": "Ahmad Hassan",
+            "email": "ahmad.hassan@test.com",
+            "password": "TestPass123!",
+            "contact": "+60-3-555-4567",
+            "address": "Jalan Ampang, 50450 Kuala Lumpur"
+        },
+        {
+            "country": "Netherlands",
+            "city": "Amsterdam",
+            "store_name": "Amsterdam Spin Lab",
+            "store_slug": "amsterdam-spin-lab",
+            "owner_name": "Lars van Dijk",
+            "email": "lars.vandijk@test.com",
+            "password": "TestPass123!",
+            "contact": "+31-20-555-7890",
+            "address": "Damrak 95, 1012 LP Amsterdam"
+        }
+    ]
+}

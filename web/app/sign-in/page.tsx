@@ -40,7 +40,8 @@ export default function SignInPage() {
             // 2. Stack Sign In
             await stackApp.signInWithCredential({ email: emailToUse, password });
 
-            // 3. Success Redirect
+            // 3. Success Redirect (refresh to ensure session is loaded)
+            router.refresh();
             router.push("/dashboard");
 
         } catch (error: any) {
