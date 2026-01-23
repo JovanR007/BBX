@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import React from 'react';
 import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown } from "lucide-react";
@@ -259,91 +259,148 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
 }
 
 function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, cutSize: number }) {
-    const rounds: Record<number, Match[]> = {};
-    matches.forEach(m => {
-        if (!rounds[m.bracket_round]) rounds[m.bracket_round] = [];
-        rounds[m.bracket_round].push(m);
+    // Import the library dynamically to avoid SSR issues
+    const [LibraryComponents, setLibraryComponents] = useState<any>(null);
+
+    useEffect(() => {
+        import('react-tournament-brackets').then(mod => {
+            setLibraryComponents(mod);
+        });
+    }, []);
+
+    // Transform our match data to the library's format
+    const transformedMatches = useMemo(() => {
+        if (!matches.length) return [];
+
+        // Sort matches by bracket_round and match_number
+        const sortedMatches = [...matches].sort((a, b) => {
+            if (a.bracket_round !== b.bracket_round) return a.bracket_round - b.bracket_round;
+            return a.match_number - b.match_number;
+        });
+
+        // Find max round (for finals detection)
+        const maxRound = Math.max(...sortedMatches.map(m => Number(m.bracket_round)));
+
+        return sortedMatches
+            .filter(m => {
+                // Exclude 3rd place match (match_number 2 in final round)
+                if (Number(m.bracket_round) === maxRound && m.match_number === 2) return false;
+                return true;
+            })
+            .map(m => {
+                const pA = m.participant_a_id ? participants[m.participant_a_id] : null;
+                const pB = m.participant_b_id ? participants[m.participant_b_id] : null;
+
+                // Calculate nextMatchId based on bracket logic
+                const nextRound = Number(m.bracket_round) + 1;
+                const nextMatchNumber = Math.ceil(m.match_number / 2);
+                const nextMatch = sortedMatches.find(nm =>
+                    Number(nm.bracket_round) === nextRound && nm.match_number === nextMatchNumber
+                );
+
+                return {
+                    id: m.id,
+                    name: `Match ${m.match_number}`,
+                    nextMatchId: nextMatch?.id ?? null,
+                    tournamentRoundText: `Round ${m.bracket_round}`,
+                    startTime: m.created_at,
+                    state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
+                    participants: [
+                        {
+                            id: m.participant_a_id || `bye-a-${m.id}`,
+                            resultText: m.score_a?.toString() ?? '',
+                            isWinner: m.winner_id === m.participant_a_id,
+                            status: m.status === 'complete' ? 'PLAYED' : null,
+                            name: pA?.display_name || 'TBD'
+                        },
+                        {
+                            id: m.participant_b_id || `bye-b-${m.id}`,
+                            resultText: m.score_b?.toString() ?? '',
+                            isWinner: m.winner_id === m.participant_b_id,
+                            status: m.status === 'complete' ? 'PLAYED' : null,
+                            name: pB?.display_name || 'TBD'
+                        }
+                    ]
+                };
+            });
+    }, [matches, participants]);
+
+    // Find 3rd place match
+    const thirdPlaceMatch = useMemo(() => {
+        if (!matches.length) return null;
+        const maxRound = Math.max(...matches.map(m => Number(m.bracket_round)));
+        return matches.find(m => Number(m.bracket_round) === maxRound && m.match_number === 2) || null;
+    }, [matches]);
+
+    // Store original match by ID for onClick handler
+    const matchById = useMemo(() => {
+        const map: Record<string, Match> = {};
+        matches.forEach(m => { map[m.id] = m; });
+        return map;
+    }, [matches]);
+
+    if (!LibraryComponents) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading bracket...</span>
+            </div>
+        );
+    }
+
+    const { SingleEliminationBracket, Match: LibMatch, SVGViewer, createTheme } = LibraryComponents;
+
+    // Create a dark Beyblade theme
+    const BeybladeTheme = createTheme({
+        textColor: { main: '#E2E8F0', highlighted: '#22D3EE', dark: '#64748B' },
+        matchBackground: { wonColor: '#0F172A', lostColor: '#0F172A' },
+        score: {
+            background: { wonColor: '#22D3EE', lostColor: '#334155' },
+            text: { highlightedWonColor: '#000000', highlightedLostColor: '#E2E8F0' },
+        },
+        border: {
+            color: '#334155',
+            highlightedColor: '#22D3EE',
+        },
+        roundHeader: { backgroundColor: '#1E293B', fontColor: '#94A3B8' },
+        connectorColor: '#334155',
+        connectorColorHighlight: '#22D3EE',
+        svgBackground: '#020617',
     });
-
-    const roundKeys = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
-    roundKeys.forEach(k => rounds[Number(k)].sort((a, b) => a.match_number - b.match_number));
-
-    const dataMaxRound = Math.max(...roundKeys.map(Number), 0);
-    const expectedMaxRound = Math.ceil(Math.log2(cutSize || 4));
-    const totalRounds = Math.max(dataMaxRound, expectedMaxRound);
-
-    const mainMatchesByRound: Record<number, Match[]> = {};
-    let thirdPlaceMatch: Match | null = null;
-
-    roundKeys.forEach(rNumStr => {
-        const rNum = Number(rNumStr);
-        const matchesInRound = rounds[rNum];
-        if (rNum === totalRounds || (rNum === dataMaxRound && rNum >= expectedMaxRound - 1)) {
-            mainMatchesByRound[rNum] = [matchesInRound[0]];
-            if (matchesInRound[1]) thirdPlaceMatch = matchesInRound[1];
-        } else {
-            mainMatchesByRound[rNum] = matchesInRound;
-        }
-    });
-
-    const [hoveredMatchId, setHoveredMatchId] = useState<string | null>(null);
 
     return (
-        <div className="flex flex-col gap-16 pb-24 h-full">
-            <div className="flex flex-row gap-4 items-stretch min-w-max pb-16 overflow-visible">
-                {roundKeys.map((rNumStr) => {
-                    const rNum = Number(rNumStr);
-                    const isFinals = rNum === totalRounds || (rNum === dataMaxRound && rNum >= expectedMaxRound - 1);
-                    const mainMatches = mainMatchesByRound[rNum] || [];
-                    const matchCount = mainMatches.length;
-                    const header = isFinals ? "Grand Finals" : `Round ${rNum}`;
-
-                    return (
-                        <div key={rNum} className="flex flex-col min-w-[340px] z-10 w-[340px] h-full">
-                            <div className="text-center font-bold text-muted-foreground uppercase tracking-[0.3em] text-[10px] mb-12 h-4 opacity-50">{header}</div>
-
-                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, 1fr)` }}>
-                                {mainMatches.map((m) => {
-                                    const nextMatchNum = rNum < totalRounds ? Math.ceil(m.match_number / 2) : null;
-
-                                    // Determine if this match is a "source" for the currently hovered match
-                                    const isSourceOfHovered = !!(hoveredMatchId && (() => {
-                                        const hoveredMatch = matches.find(hm => hm.id === hoveredMatchId);
-                                        if (!hoveredMatch) return false;
-                                        return Number(hoveredMatch.bracket_round) === rNum + 1 && Math.ceil(m.match_number / 2) === Number(hoveredMatch.match_number);
-                                    })());
-
-                                    // Determine if this match is the "target" for the currently hovered match
-                                    const isTargetOfHovered = !!(hoveredMatchId && (() => {
-                                        const hoveredMatch = matches.find(hm => hm.id === hoveredMatchId);
-                                        if (!hoveredMatch) return false;
-                                        return rNum === Number(hoveredMatch.bracket_round) + 1 && m.match_number === Math.ceil(Number(hoveredMatch.match_number) / 2);
-                                    })());
-
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            className="flex flex-col justify-center items-center w-full px-6 transition-all duration-300"
-                                            onMouseEnter={() => setHoveredMatchId(m.id)}
-                                            onMouseLeave={() => setHoveredMatchId(null)}
-                                        >
-                                            <MatchCard
-                                                match={m}
-                                                participants={participants}
-                                                onClick={() => onMatchClick(m)}
-                                                label={null}
-                                                nextMatchNumber={nextMatchNum}
-                                                isHighlighted={!!(isSourceOfHovered || isTargetOfHovered || hoveredMatchId === m.id)}
-                                                isSource={isSourceOfHovered}
-                                                isTarget={isTargetOfHovered}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })}
+        <div className="flex flex-col gap-16 pb-24">
+            <div className="overflow-auto">
+                <SingleEliminationBracket
+                    matches={transformedMatches}
+                    matchComponent={LibMatch}
+                    theme={BeybladeTheme}
+                    options={{
+                        style: {
+                            roundHeader: {
+                                backgroundColor: BeybladeTheme.roundHeader.backgroundColor,
+                                fontColor: BeybladeTheme.roundHeader.fontColor,
+                            },
+                            connectorColor: BeybladeTheme.connectorColor,
+                            connectorColorHighlight: BeybladeTheme.connectorColorHighlight,
+                        },
+                    }}
+                    onMatchClick={(match: any) => {
+                        const originalMatch = matchById[match.id];
+                        if (originalMatch) onMatchClick(originalMatch);
+                    }}
+                    svgWrapper={({ children, ...props }: any) => (
+                        <SVGViewer
+                            background={BeybladeTheme.svgBackground}
+                            SVGBackground={BeybladeTheme.svgBackground}
+                            width={Math.max(cutSize * 400, 800)}
+                            height={Math.max(cutSize * 100, 600)}
+                            {...props}
+                        >
+                            {children}
+                        </SVGViewer>
+                    )}
+                />
             </div>
 
             {thirdPlaceMatch && (
