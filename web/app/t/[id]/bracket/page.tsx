@@ -281,6 +281,14 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         // Find max round (for finals detection)
         const maxRound = Math.max(...sortedMatches.map(m => Number(m.bracket_round)));
 
+        // Get round names
+        const getRoundName = (round: number) => {
+            if (round === maxRound) return 'Finals';
+            if (round === maxRound - 1) return 'Semifinals';
+            if (round === maxRound - 2) return 'Quarterfinals';
+            return `Round ${round}`;
+        };
+
         return sortedMatches
             .filter(m => {
                 // Exclude 3rd place match (match_number 2 in final round)
@@ -300,22 +308,22 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
 
                 return {
                     id: m.id,
-                    name: `Match ${m.match_number}`,
+                    name: `M${m.match_number}`,
                     nextMatchId: nextMatch?.id ?? null,
-                    tournamentRoundText: `Round ${m.bracket_round}`,
-                    startTime: m.created_at,
+                    tournamentRoundText: getRoundName(Number(m.bracket_round)),
+                    startTime: null, // Remove timestamps
                     state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
                     participants: [
                         {
                             id: m.participant_a_id || `bye-a-${m.id}`,
-                            resultText: m.score_a?.toString() ?? '',
+                            resultText: m.score_a?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_a_id,
                             status: m.status === 'complete' ? 'PLAYED' : null,
                             name: pA?.display_name || 'TBD'
                         },
                         {
                             id: m.participant_b_id || `bye-b-${m.id}`,
-                            resultText: m.score_b?.toString() ?? '',
+                            resultText: m.score_b?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_b_id,
                             status: m.status === 'complete' ? 'PLAYED' : null,
                             name: pB?.display_name || 'TBD'
@@ -348,12 +356,12 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         );
     }
 
-    const { SingleEliminationBracket, Match: LibMatch, SVGViewer, createTheme } = LibraryComponents;
+    const { SingleEliminationBracket, createTheme } = LibraryComponents;
 
     // Create a dark Beyblade theme
     const BeybladeTheme = createTheme({
         textColor: { main: '#E2E8F0', highlighted: '#22D3EE', dark: '#64748B' },
-        matchBackground: { wonColor: '#0F172A', lostColor: '#0F172A' },
+        matchBackground: { wonColor: '#1E293B', lostColor: '#0F172A' },
         score: {
             background: { wonColor: '#22D3EE', lostColor: '#334155' },
             text: { highlightedWonColor: '#000000', highlightedLostColor: '#E2E8F0' },
@@ -365,42 +373,147 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         roundHeader: { backgroundColor: '#1E293B', fontColor: '#94A3B8' },
         connectorColor: '#334155',
         connectorColorHighlight: '#22D3EE',
-        svgBackground: '#020617',
+        svgBackground: 'transparent',
     });
+
+    // Custom match component with always-visible scores
+    const CustomMatch = ({
+        match,
+        onMatchClick: libOnMatchClick,
+        onPartyClick,
+        onMouseEnter,
+        onMouseLeave,
+        topParty,
+        bottomParty,
+        topWon,
+        bottomWon,
+        topHovered,
+        bottomHovered,
+        topText,
+        bottomText,
+        connectorColor,
+        computedStyles,
+        teamNameFallback,
+        resultFallback,
+    }: any) => (
+        <div
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                height: '100%',
+                background: '#0F172A',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                overflow: 'hidden',
+                cursor: 'pointer',
+            }}
+            onClick={() => {
+                const originalMatch = matchById[match.id];
+                if (originalMatch) onMatchClick(originalMatch);
+            }}
+        >
+            {/* Top Player */}
+            <div
+                onMouseEnter={() => onMouseEnter(topParty.id)}
+                onMouseLeave={onMouseLeave}
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: topWon ? '#164E63' : topHovered ? '#1E293B' : 'transparent',
+                    borderBottom: '1px solid #334155',
+                    transition: 'background 0.2s',
+                }}
+            >
+                <span style={{
+                    color: topWon ? '#22D3EE' : '#E2E8F0',
+                    fontSize: '12px',
+                    fontWeight: topWon ? 'bold' : 'normal',
+                    maxWidth: '140px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                }}>
+                    {topParty.name || teamNameFallback}
+                </span>
+                <span style={{
+                    color: topWon ? '#22D3EE' : '#94A3B8',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
+                    minWidth: '24px',
+                    textAlign: 'right',
+                }}>
+                    {topParty.resultText || '-'}
+                </span>
+            </div>
+            {/* Bottom Player */}
+            <div
+                onMouseEnter={() => onMouseEnter(bottomParty.id)}
+                onMouseLeave={onMouseLeave}
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 12px',
+                    background: bottomWon ? '#164E63' : bottomHovered ? '#1E293B' : 'transparent',
+                    transition: 'background 0.2s',
+                }}
+            >
+                <span style={{
+                    color: bottomWon ? '#22D3EE' : '#E2E8F0',
+                    fontSize: '12px',
+                    fontWeight: bottomWon ? 'bold' : 'normal',
+                    maxWidth: '140px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                }}>
+                    {bottomParty.name || teamNameFallback}
+                </span>
+                <span style={{
+                    color: bottomWon ? '#22D3EE' : '#94A3B8',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
+                    minWidth: '24px',
+                    textAlign: 'right',
+                }}>
+                    {bottomParty.resultText || '-'}
+                </span>
+            </div>
+        </div>
+    );
 
     return (
         <div className="flex flex-col gap-16 pb-24">
-            <div className="overflow-auto">
-                <SingleEliminationBracket
-                    matches={transformedMatches}
-                    matchComponent={LibMatch}
-                    theme={BeybladeTheme}
-                    options={{
-                        style: {
-                            roundHeader: {
-                                backgroundColor: BeybladeTheme.roundHeader.backgroundColor,
-                                fontColor: BeybladeTheme.roundHeader.fontColor,
+            {/* Scrollable bracket container - uses native horizontal scroll */}
+            <div
+                className="overflow-x-auto overflow-y-visible pb-4"
+                style={{
+                    cursor: 'grab',
+                    scrollBehavior: 'smooth',
+                }}
+            >
+                <div style={{ minWidth: 'max-content' }}>
+                    <SingleEliminationBracket
+                        matches={transformedMatches}
+                        matchComponent={CustomMatch}
+                        theme={BeybladeTheme}
+                        options={{
+                            style: {
+                                roundHeader: {
+                                    backgroundColor: BeybladeTheme.roundHeader.backgroundColor,
+                                    fontColor: BeybladeTheme.roundHeader.fontColor,
+                                },
+                                connectorColor: BeybladeTheme.connectorColor,
+                                connectorColorHighlight: BeybladeTheme.connectorColorHighlight,
                             },
-                            connectorColor: BeybladeTheme.connectorColor,
-                            connectorColorHighlight: BeybladeTheme.connectorColorHighlight,
-                        },
-                    }}
-                    onMatchClick={(match: any) => {
-                        const originalMatch = matchById[match.id];
-                        if (originalMatch) onMatchClick(originalMatch);
-                    }}
-                    svgWrapper={({ children, ...props }: any) => (
-                        <SVGViewer
-                            background={BeybladeTheme.svgBackground}
-                            SVGBackground={BeybladeTheme.svgBackground}
-                            width={Math.max(cutSize * 400, 800)}
-                            height={Math.max(cutSize * 100, 600)}
-                            {...props}
-                        >
-                            {children}
-                        </SVGViewer>
-                    )}
-                />
+                        }}
+                    />
+                </div>
             </div>
 
             {thirdPlaceMatch && (
