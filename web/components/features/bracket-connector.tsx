@@ -24,8 +24,10 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
         return (
             <div className="grid w-10 shrink-0 relative" style={{ gridTemplateRows: `repeat(${previousRoundCount}, 1fr)` }}>
                 {Array.from({ length: previousRoundCount }).map((_, i) => {
-                    const isTop = i % 2 === 0;
-                    const isBottom = i % 2 === 1;
+                    // If it's a single match round (e.g. Semi -> Finals), it should be a straight line
+                    const isSingleMatch = previousRoundCount === 1;
+                    const isTop = i % 2 === 0 && !isSingleMatch;
+                    const isBottom = i % 2 === 1 && !isSingleMatch;
 
                     return (
                         <div key={i} className="relative w-full h-full">
@@ -35,6 +37,15 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                 preserveAspectRatio="none"
                                 overflow="visible"
                             >
+                                {isSingleMatch && (
+                                    <line
+                                        x1="0" y1="50" x2="100" y2="50"
+                                        stroke="white"
+                                        strokeWidth="2"
+                                        vectorEffect="non-scaling-stroke"
+                                        opacity="0.3"
+                                    />
+                                )}
                                 {isTop && (
                                     <path
                                         d="M 0 50 C 50 50 50 100 100 100"
@@ -42,6 +53,7 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                         stroke="white"
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
+                                        opacity="0.3"
                                     />
                                 )}
                                 {isBottom && (
@@ -51,6 +63,7 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                         stroke="white"
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
+                                        opacity="0.3"
                                     />
                                 )}
                             </svg>

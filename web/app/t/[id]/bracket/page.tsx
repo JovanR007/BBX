@@ -267,49 +267,30 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         rounds[m.bracket_round].push(m);
     });
     const roundKeys = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
-    const totalRounds = Math.ceil(Math.log2(cutSize || 4));
+    // Dynamic total rounds based on data presence to handle non-standard cuts gracefully
+    const dataMaxRound = Math.max(...roundKeys.map(Number), 0);
+    const expectedMaxRound = Math.ceil(Math.log2(cutSize || 4));
+    const totalRounds = Math.max(dataMaxRound, expectedMaxRound);
 
     return (
-        <div className="flex flex-row gap-0 pb-12 min-w-max items-stretch">
+        <div className="flex flex-row gap-0 pb-48 min-w-max items-stretch overflow-visible">
             {roundKeys.map((rNumStr) => {
                 const rNum = Number(rNumStr);
-                const isFinals = rNum === totalRounds;
+                const isFinals = rNum === totalRounds || (rNum === dataMaxRound && rNum >= expectedMaxRound - 1);
                 const matchCount = rounds[rNum].length;
 
-                if (isFinals) {
-                    const grandFinals = rounds[rNum][0];
-                    const thirdPlace = rounds[rNum][1]; // Index 1 is 3rd place if exists
-
-                    return (
-                        <React.Fragment key={rNum}>
-                            <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full pb-[240px]">
-                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Grand Finals</div>
-
-                                <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(1, minmax(0, 1fr))` }}>
-                                    <div className="flex flex-col justify-center items-center w-full px-2">
-                                        <div className="w-full relative">
-                                            <MatchCard match={grandFinals} participants={participants} onClick={() => onMatchClick(grandFinals)} label={null} />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {thirdPlace && (
-                                    <div className="absolute bottom-10 left-0 right-0 border-t border-slate-800/50 pt-8 flex flex-col items-center px-2">
-                                        <div className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">3rd Place Match</div>
-                                        <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
-                                    </div>
-                                )}
-                            </div>
-                        </React.Fragment>
-                    );
-                }
+                // For the main winners' path grid, we want 1 row if it's the final match column
+                const gridMatchCount = isFinals ? 1 : matchCount;
+                const header = isFinals ? "Grand Finals" : `Round ${rNum}`;
 
                 return (
                     <React.Fragment key={rNum}>
-                        <div className="flex flex-col min-w-[280px] z-10 w-80">
-                            <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Round {rNum}</div>
-                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, minmax(0, 1fr))` }}>
-                                {(rounds[rNum] || []).map((m) => (
+                        <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full">
+                            <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">{header}</div>
+
+                            {/* Standard Grid for all rounds ensures vertical centering logic is identical */}
+                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${gridMatchCount}, minmax(0, 1fr))` }}>
+                                {(isFinals ? [rounds[rNum][0]] : rounds[rNum]).map((m) => (
                                     <div key={m.id} className="flex flex-col justify-center items-center w-full px-2">
                                         <div className="w-full relative">
                                             <MatchCard match={m} participants={participants} onClick={() => onMatchClick(m)} label={null} />
@@ -317,8 +298,18 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                                     </div>
                                 ))}
                             </div>
+
+                            {/* 3rd place match - absolute positioned below the main bracket line to avoid shifting winners path */}
+                            {isFinals && rounds[rNum][1] && (
+                                <div className="absolute bottom-[-180px] left-0 right-0 pt-8 border-t border-slate-800/50 flex flex-col items-center px-2">
+                                    <div className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">3rd Place Match</div>
+                                    <MatchCard match={rounds[rNum][1]} participants={participants} onClick={() => onMatchClick(rounds[rNum][1])} label={null} />
+                                </div>
+                            )}
                         </div>
-                        {Number(rNum) < totalRounds && (<BracketConnector matches={undefined} match_target_points={undefined} previousRoundCount={matchCount} isFinals={(Number(rNum) + 1) === totalRounds} />)}
+                        {rNum < totalRounds && (
+                            <BracketConnector previousRoundCount={matchCount} />
+                        )}
                     </React.Fragment>
                 );
             })}
