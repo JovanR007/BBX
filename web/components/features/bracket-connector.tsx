@@ -40,30 +40,30 @@ export function BracketConnector({ matches, match_target_points, previousRoundCo
                                 {isSingleMatch && (
                                     <line
                                         x1="0" y1="50" x2="100" y2="50"
-                                        stroke="white"
+                                        stroke="currentColor"
+                                        className="text-slate-700"
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
-                                        opacity="0.3"
                                     />
                                 )}
                                 {isTop && (
                                     <path
-                                        d="M 0 50 C 50 50 50 100 100 100"
+                                        d="M 0 50 L 50 50 L 50 100 L 100 100"
                                         fill="none"
-                                        stroke="white"
+                                        stroke="currentColor"
+                                        className="text-slate-700"
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
-                                        opacity="0.3"
                                     />
                                 )}
                                 {isBottom && (
                                     <path
-                                        d="M 0 50 C 50 50 50 0 100 0"
+                                        d="M 0 50 L 50 50 L 50 0 L 100 0"
                                         fill="none"
-                                        stroke="white"
+                                        stroke="currentColor"
+                                        className="text-slate-700"
                                         strokeWidth="2"
                                         vectorEffect="non-scaling-stroke"
-                                        opacity="0.3"
                                     />
                                 )}
                             </svg>
