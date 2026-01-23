@@ -282,7 +282,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
 
                     return (
                         <React.Fragment key={rNum}>
-                            <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full">
+                            <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full pb-[240px]">
                                 <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Grand Finals</div>
 
                                 <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(1, minmax(0, 1fr))` }}>
@@ -294,7 +294,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                                 </div>
 
                                 {thirdPlace && (
-                                    <div className="mt-8 border-t border-slate-800/50 pt-8 flex flex-col items-center px-2">
+                                    <div className="absolute bottom-10 left-0 right-0 border-t border-slate-800/50 pt-8 flex flex-col items-center px-2">
                                         <div className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">3rd Place Match</div>
                                         <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
                                     </div>
