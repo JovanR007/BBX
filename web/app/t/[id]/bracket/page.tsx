@@ -80,7 +80,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             primaryColor={tournament?.stores?.primary_color}
             secondaryColor={tournament?.stores?.secondary_color}
             plan={tournament?.stores?.plan}
-            className="container mx-auto px-4 py-8 min-h-screen"
+            className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
             {/* Header */}
             <div className="flex justify-between items-center mb-8">
@@ -142,7 +142,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {/* Main Content */}
-            <div className="overflow-x-auto pb-6">
+            <div className="flex-grow overflow-x-auto pb-6">
                 {loading ? (
                     <div className="flex items-center gap-2 text-muted-foreground"><div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div> Loading tournament data...</div>
                 ) : viewMode === "empty" ? (
@@ -264,14 +264,14 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         if (!rounds[m.bracket_round]) rounds[m.bracket_round] = [];
         rounds[m.bracket_round].push(m);
     });
-    const roundKeys = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
 
-    // Dynamic total rounds based on data presence to handle non-standard cuts gracefully
+    const roundKeys = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
+    roundKeys.forEach(k => rounds[Number(k)].sort((a, b) => a.match_number - b.match_number));
+
     const dataMaxRound = Math.max(...roundKeys.map(Number), 0);
     const expectedMaxRound = Math.ceil(Math.log2(cutSize || 4));
     const totalRounds = Math.max(dataMaxRound, expectedMaxRound);
 
-    // Filter out 3rd place match from main rounds for separate rendering
     const mainMatchesByRound: Record<number, Match[]> = {};
     let thirdPlaceMatch: Match | null = null;
 
@@ -288,7 +288,6 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
 
     return (
         <div className="flex flex-col gap-16 pb-24 h-full">
-            {/* Main Bracket Area */}
             <div className="flex flex-row gap-0 items-stretch min-w-max border-b border-white/5 pb-16 overflow-visible">
                 {roundKeys.map((rNumStr) => {
                     const rNum = Number(rNumStr);
@@ -298,28 +297,33 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     const header = isFinals ? "Grand Finals" : `Round ${rNum}`;
 
                     return (
-                        <React.Fragment key={rNum}>
-                            <div className="flex flex-col min-w-[320px] z-10 w-[320px] h-full">
-                                <div className="text-center font-bold text-muted-foreground uppercase tracking-[0.2em] text-[10px] mb-12 h-4">{header}</div>
+                        <div key={rNum} className="flex flex-col min-w-[380px] z-10 w-[380px] h-full">
+                            <div className="text-center font-bold text-muted-foreground uppercase tracking-[0.2em] text-[10px] mb-12 h-4">{header}</div>
 
-                                <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, 1fr)` }}>
-                                    {mainMatches.map((m) => (
-                                        <div key={m.id} className="flex flex-col justify-center items-center w-full px-6">
-                                            <MatchCard match={m} participants={participants} onClick={() => onMatchClick(m)} label={null} />
+                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, 1fr)` }}>
+                                {mainMatches.map((m, idx) => {
+                                    const nextMatchNum = rNum < totalRounds ? Math.ceil(m.match_number / 2) : null;
+                                    const flowType = rNum < totalRounds ? (m.match_number % 2 === 1 ? 'top' : 'bottom') : 'none';
+
+                                    return (
+                                        <div key={m.id} className="flex flex-col justify-center items-center w-full px-12">
+                                            <MatchCard
+                                                match={m}
+                                                participants={participants}
+                                                onClick={() => onMatchClick(m)}
+                                                label={null}
+                                                nextMatchNumber={nextMatchNum}
+                                                flowType={flowType as any}
+                                            />
                                         </div>
-                                    ))}
-                                </div>
+                                    );
+                                })}
                             </div>
-
-                            {rNum < totalRounds && (
-                                <BracketConnector previousRoundCount={matchCount} />
-                            )}
-                        </React.Fragment>
+                        </div>
                     );
                 })}
             </div>
 
-            {/* 3rd Place Section - Dedicated section like Challonge */}
             {thirdPlaceMatch && (
                 <div className="flex justify-start pl-8 pt-8">
                     <div className="w-[320px] flex flex-col items-center gap-6 p-8 bg-slate-900/40 rounded-3xl border border-slate-800/50 backdrop-blur-sm">
@@ -336,9 +340,17 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
     );
 }
 
-interface MatchCardProps { match: Match; participants: Record<string, Participant>; onClick?: () => void; label?: string | null; isSwissKing?: boolean; }
+interface MatchCardProps {
+    match: Match;
+    participants: Record<string, Participant>;
+    onClick?: () => void;
+    label?: string | null;
+    isSwissKing?: boolean;
+    nextMatchNumber?: number | null;
+    flowType?: 'top' | 'bottom' | 'straight' | 'none';
+}
 
-function MatchCard({ match, participants, onClick, label, isSwissKing }: MatchCardProps) {
+function MatchCard({ match, participants, onClick, label, isSwissKing, nextMatchNumber, flowType = 'none' }: MatchCardProps) {
     const winnerId = match.winner_id;
     const isCompleted = match.status === "complete";
     const pA = match.participant_a_id ? participants[match.participant_a_id] : null;
@@ -347,23 +359,75 @@ function MatchCard({ match, participants, onClick, label, isSwissKing }: MatchCa
     const showPulse = isIncomplete && match.stage === 'top_cut';
 
     return (
-        <div onClick={onClick} className={cn("border rounded-lg bg-card p-3 shadow-sm w-full relative transition-all group hover:border-primary cursor-pointer active:scale-[0.98]", match.stage === 'top_cut' ? "border-primary/20" : "border-border", showPulse ? "ring-1 ring-yellow-500/50 border-yellow-500/30 bg-yellow-500/5" : "", isSwissKing ? "border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] bg-gradient-to-br from-yellow-500/10 to-transparent" : "")}>
-            {showPulse && !isSwissKing && (<div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-ping" />)}
-            {isSwissKing && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider whitespace-nowrap z-10 shadow-lg flex items-center gap-1"><Crown className="w-3 h-3" /> Battle for Swiss King</div>)}
-            {label && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background border px-2 py-0.5 rounded text-[10px] text-muted-foreground uppercase font-bold tracking-wider whitespace-nowrap z-10">{label}</div>)}
-            <div className="flex flex-col gap-2">
-                <div className={cn("flex justify-between items-center p-2 rounded transition-colors", winnerId === match.participant_a_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50")}>
-                    <span className="text-sm truncate w-[140px]" title={pA?.display_name || "BYE"}>{pA?.display_name || "BYE"} {pA?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
-                    <span className="font-mono text-sm">{match.score_a}</span>
+        <div className="relative w-full group">
+            {/* Integrated Energy Beam */}
+            {flowType !== 'none' && (
+                <div className="absolute left-full top-1/2 -translate-y-1/2 w-24 h-24 pointer-events-none overflow-visible z-0">
+                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id={`grad-${match.id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="currentColor" stopOpacity="0.8" />
+                                <stop offset="100%" stopColor="currentColor" stopOpacity="0.2" />
+                            </linearGradient>
+                        </defs>
+                        {flowType === 'top' && (
+                            <path
+                                d="M 0 50 L 40 50 Q 60 50 60 80 L 60 150"
+                                fill="none"
+                                stroke={`url(#grad-${match.id})`}
+                                strokeWidth="3"
+                                className="text-primary animate-pulse"
+                            />
+                        )}
+                        {flowType === 'bottom' && (
+                            <path
+                                d="M 0 50 L 40 50 Q 60 50 60 20 L 60 -50"
+                                fill="none"
+                                stroke={`url(#grad-${match.id})`}
+                                strokeWidth="3"
+                                className="text-primary animate-pulse"
+                            />
+                        )}
+                        {flowType === 'straight' && (
+                            <line
+                                x1="0" y1="50" x2="100" y2="50"
+                                stroke={`url(#grad-${match.id})`}
+                                strokeWidth="3"
+                                className="text-primary animate-pulse"
+                            />
+                        )}
+                    </svg>
+
+                    {/* Routing Badge */}
+                    <div className={cn(
+                        "absolute left-12 bg-slate-950 border border-primary/40 px-2 py-0.5 rounded text-[8px] font-black text-primary uppercase tracking-tighter whitespace-nowrap shadow-[0_0_10px_rgba(var(--primary),0.3)]",
+                        flowType === 'top' ? "top-4" : "bottom-4"
+                    )}>
+                        TO M{nextMatchNumber}
+                    </div>
                 </div>
-                <div className={cn("flex justify-between items-center p-2 rounded transition-colors", winnerId === match.participant_b_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50")}>
-                    <span className="text-sm truncate w-[140px]" title={pB?.display_name || "BYE"}>{pB?.display_name || "BYE"} {pB?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
-                    <span className="font-mono text-sm">{match.score_b}</span>
+            )}
+
+            <div onClick={onClick} className={cn("border rounded-xl bg-slate-900/80 backdrop-blur-md p-3 shadow-xl w-full relative transition-all group-hover:border-primary/60 cursor-pointer active:scale-[0.98] z-10", match.stage === 'top_cut' ? "border-white/10" : "border-border", showPulse ? "ring-2 ring-primary/40 border-primary/40" : "", isSwissKing ? "border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)] bg-gradient-to-br from-yellow-500/10 to-transparent" : "")}>
+                {showPulse && !isSwissKing && (<div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-ping" />)}
+                {isSwissKing && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider whitespace-nowrap z-10 shadow-lg flex items-center gap-1"><Crown className="w-3 h-3" /> Battle for Swiss King</div>)}
+                {label && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background border px-2 py-0.5 rounded text-[10px] text-muted-foreground uppercase font-bold tracking-wider whitespace-nowrap z-10">{label}</div>)}
+
+                <div className="flex flex-col gap-1.5">
+                    <div className={cn("flex justify-between items-center p-2.5 rounded-lg transition-all", winnerId === match.participant_a_id && isCompleted ? "bg-primary/20 text-primary font-bold shadow-[inset_0_0_10px_rgba(var(--primary),0.1)]" : "bg-white/5 group-hover:bg-white/10")}>
+                        <span className="text-xs truncate w-[140px]" title={pA?.display_name || "BYE"}>{pA?.display_name || "BYE"} {pA?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
+                        <span className="font-mono text-xs">{match.score_a}</span>
+                    </div>
+                    <div className={cn("flex justify-between items-center p-2.5 rounded-lg transition-all", winnerId === match.participant_b_id && isCompleted ? "bg-primary/20 text-primary font-bold shadow-[inset_0_0_10px_rgba(var(--primary),0.1)]" : "bg-white/5 group-hover:bg-white/10")}>
+                        <span className="text-xs truncate w-[140px]" title={pB?.display_name || "BYE"}>{pB?.display_name || "BYE"} {pB?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
+                        <span className="font-mono text-xs">{match.score_b}</span>
+                    </div>
                 </div>
-            </div>
-            <div className="mt-2 text-[10px] text-muted-foreground flex justify-between uppercase items-center">
-                <span>M{match.match_number}</span>
-                {match.stage === 'top_cut' && isCompleted && (<span className="text-primary flex items-center gap-1 font-bold"><Trophy className="w-3 h-3" /> Winner</span>)}
+
+                <div className="mt-2 text-[9px] text-white/40 flex justify-between uppercase items-center font-bold tracking-widest">
+                    <span className="bg-white/5 px-1.5 py-0.5 rounded">M{match.match_number}</span>
+                    {match.stage === 'top_cut' && isCompleted && (<span className="text-primary flex items-center gap-1"><Trophy className="w-3 h-3" /> Winner</span>)}
+                </div>
             </div>
         </div>
     );
