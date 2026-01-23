@@ -1359,7 +1359,7 @@ export async function uploadAvatarAction(formData: FormData) {
 // --- STORE DISCOVERY ACTIONS ---
 
 export async function getStoresAction(city?: string) {
-    let query = supabase.from("stores").select("*").order("created_at", { ascending: false });
+    let query = supabase.from("stores").select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan").order("created_at", { ascending: false });
 
     if (city && city !== "all") {
         query = query.ilike("city", city);
@@ -1379,7 +1379,10 @@ export async function getLiveTournamentsAction(city?: string) {
             stores!inner (
                 name,
                 city,
-                image_url
+                image_url,
+                primary_color,
+                secondary_color,
+                plan
             )
         `)
         .neq("status", "completed")
