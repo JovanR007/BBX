@@ -285,31 +285,20 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                             <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full">
                                 <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Grand Finals</div>
 
-                                <div className="flex-grow flex flex-col justify-between relative">
-                                    {/* Spacer to balance 3rd place and ensure Grand Finals stays vertically centered */}
-                                    {thirdPlace && (
-                                        <div className="w-full pb-0 px-2 flex flex-col items-center opacity-0 pointer-events-none" aria-hidden="true">
-                                            <div className="text-center text-xs font-bold uppercase tracking-widest mb-2">3rd Place Match</div>
-                                            <MatchCard match={thirdPlace} participants={participants} onClick={() => { }} label={null} />
+                                <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(1, minmax(0, 1fr))` }}>
+                                    <div className="flex flex-col justify-center items-center w-full px-2">
+                                        <div className="w-full relative">
+                                            <MatchCard match={grandFinals} participants={participants} onClick={() => onMatchClick(grandFinals)} label={null} />
                                         </div>
-                                    )}
-
-                                    {/* The Main Event: Grand Finals - Centered by flex-grow / justify-between logic */}
-                                    <div className="flex flex-col justify-center items-center px-2 py-4">
-                                        <MatchCard match={grandFinals} participants={participants} onClick={() => onMatchClick(grandFinals)} label={null} />
                                     </div>
-
-                                    {/* Actual 3rd Place Match */}
-                                    {thirdPlace && (
-                                        <div className="w-full pb-0 px-2 flex flex-col items-center">
-                                            <div className="text-center text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">3rd Place Match</div>
-                                            <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
-                                        </div>
-                                    )}
-
-                                    {/* If no 3rd place, center using flex behavior (justify-between with 1 item puts it at start, so we need careful handling or just use justify-center if only 1 item) */}
-                                    {!thirdPlace && <div className="hidden" />}
                                 </div>
+
+                                {thirdPlace && (
+                                    <div className="mt-8 border-t border-slate-800/50 pt-8 flex flex-col items-center px-2">
+                                        <div className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">3rd Place Match</div>
+                                        <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
+                                    </div>
+                                )}
                             </div>
                         </React.Fragment>
                     );
