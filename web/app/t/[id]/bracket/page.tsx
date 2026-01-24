@@ -286,7 +286,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
             if (round === maxRound) return 'Finals';
             if (round === maxRound - 1) return 'Semifinals';
             if (round === maxRound - 2) return 'Quarterfinals';
-            return `Round ${round}`;
+            return `${round}`;
         };
 
         return sortedMatches
@@ -311,20 +311,20 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     name: `M${m.match_number}`,
                     nextMatchId: nextMatch?.id ?? null,
                     tournamentRoundText: getRoundName(Number(m.bracket_round)),
-                    startTime: null, // Remove timestamps
+                    startTime: null,
                     state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
                     participants: [
                         {
                             id: m.participant_a_id || `bye-a-${m.id}`,
                             resultText: m.score_a?.toString() ?? '-',
-                            isWinner: m.winner_id === m.participant_a_id,
+                            isWinner: m.winner_id === m.participant_a_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
                             name: pA?.display_name || 'TBD'
                         },
                         {
                             id: m.participant_b_id || `bye-b-${m.id}`,
                             resultText: m.score_b?.toString() ?? '-',
-                            isWinner: m.winner_id === m.participant_b_id,
+                            isWinner: m.winner_id === m.participant_b_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
                             name: pB?.display_name || 'TBD'
                         }
@@ -421,30 +421,33 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '8px 12px',
-                    background: topWon ? '#164E63' : topHovered ? '#1E293B' : 'transparent',
+                    padding: '4px 8px',
+                    background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
                     borderBottom: '1px solid #334155',
                     transition: 'background 0.2s',
                 }}
             >
                 <span style={{
-                    color: topWon ? '#22D3EE' : '#E2E8F0',
-                    fontSize: '12px',
+                    color: topWon ? '#000000' : '#E2E8F0',
+                    fontSize: '11px',
                     fontWeight: topWon ? 'bold' : 'normal',
-                    maxWidth: '140px',
+                    maxWidth: '120px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                 }}>
                     {topParty.name || teamNameFallback}
                 </span>
                 <span style={{
-                    color: topWon ? '#22D3EE' : '#94A3B8',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
+                    color: topWon ? '#000000' : '#94A3B8',
+                    fontSize: '12px',
+                    fontWeight: '900',
                     fontFamily: 'monospace',
-                    minWidth: '24px',
+                    minWidth: '20px',
                     textAlign: 'right',
+                    opacity: topWon ? 1 : 0.6,
                 }}>
                     {topParty.resultText || '-'}
                 </span>
@@ -458,28 +461,31 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 12px',
-                    background: bottomWon ? '#164E63' : bottomHovered ? '#1E293B' : 'transparent',
+                    background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
                     transition: 'background 0.2s',
                 }}
             >
                 <span style={{
-                    color: bottomWon ? '#22D3EE' : '#E2E8F0',
-                    fontSize: '12px',
+                    color: bottomWon ? '#000000' : '#E2E8F0',
+                    fontSize: '11px',
                     fontWeight: bottomWon ? 'bold' : 'normal',
-                    maxWidth: '140px',
+                    maxWidth: '120px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                 }}>
                     {bottomParty.name || teamNameFallback}
                 </span>
                 <span style={{
-                    color: bottomWon ? '#22D3EE' : '#94A3B8',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
+                    color: bottomWon ? '#000000' : '#94A3B8',
+                    fontSize: '12px',
+                    fontWeight: '900',
                     fontFamily: 'monospace',
-                    minWidth: '24px',
+                    minWidth: '20px',
                     textAlign: 'right',
+                    opacity: bottomWon ? 1 : 0.6,
                 }}>
                     {bottomParty.resultText || '-'}
                 </span>
@@ -491,10 +497,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         <div className="flex flex-col gap-16 pb-24">
             {/* Scrollable bracket container - uses native horizontal scroll */}
             <div
-                className="overflow-x-auto overflow-y-visible pb-4"
+                className="overflow-x-auto overflow-y-auto max-w-full pb-8 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40 text-left"
                 style={{
-                    cursor: 'grab',
+                    cursor: 'default',
                     scrollBehavior: 'smooth',
+                    maxHeight: '70vh',
                 }}
             >
                 <div style={{ minWidth: 'max-content' }}>
@@ -504,12 +511,21 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         theme={BeybladeTheme}
                         options={{
                             style: {
+                                width: 180,
+                                boxHeight: 60,
+                                spaceBetweenColumns: 60,
+                                spaceBetweenRows: 24,
+                                canvasPadding: 20,
                                 roundHeader: {
-                                    backgroundColor: BeybladeTheme.roundHeader.backgroundColor,
-                                    fontColor: BeybladeTheme.roundHeader.fontColor,
+                                    backgroundColor: 'transparent',
+                                    fontColor: '#94A3B8',
+                                    fontSize: 12,
+                                    height: 30,
+                                    marginBottom: 20,
+                                    fontFamily: 'inherit',
                                 },
-                                connectorColor: BeybladeTheme.connectorColor,
-                                connectorColorHighlight: BeybladeTheme.connectorColorHighlight,
+                                connectorColor: '#334155',
+                                connectorColorHighlight: '#22D3EE',
                             },
                         }}
                     />
