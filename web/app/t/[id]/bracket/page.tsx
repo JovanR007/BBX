@@ -419,6 +419,8 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                 onMouseLeave={onMouseLeave}
                 style={{
                     display: 'flex',
+                    flex: '1',
+                    height: '50%',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '4px 8px',
@@ -457,9 +459,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                 onMouseLeave={onMouseLeave}
                 style={{
                     display: 'flex',
+                    flex: '1',
+                    height: '50%',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: '8px 12px',
+                    padding: '4px 8px',
                     background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
                     transition: 'background 0.2s',
                 }}
@@ -588,7 +592,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
 
             {/* Participant A */}
             <div className={cn(
-                "flex justify-between items-center px-2 py-1.5 transition-colors",
+                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
@@ -608,7 +612,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
 
             {/* Participant B */}
             <div className={cn(
-                "flex justify-between items-center px-2 py-1.5 transition-colors",
+                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
