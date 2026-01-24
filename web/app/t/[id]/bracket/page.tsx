@@ -431,12 +431,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     color: topWon ? '#000000' : '#E2E8F0',
                     fontSize: '11px',
                     fontWeight: topWon ? 'bold' : 'normal',
-                    maxWidth: '120px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    paddingRight: '8px',
+                    wordBreak: 'break-word',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
+                    lineHeight: '1.1',
                 }}>
                     {topParty.name || teamNameFallback}
                 </span>
@@ -469,12 +468,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     color: bottomWon ? '#000000' : '#E2E8F0',
                     fontSize: '11px',
                     fontWeight: bottomWon ? 'bold' : 'normal',
-                    maxWidth: '120px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    paddingRight: '8px',
+                    wordBreak: 'break-word',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
+                    lineHeight: '1.1',
                 }}>
                     {bottomParty.name || teamNameFallback}
                 </span>
@@ -512,7 +510,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         options={{
                             style: {
                                 width: 180,
-                                boxHeight: 60,
+                                boxHeight: 80,
                                 spaceBetweenColumns: 60,
                                 spaceBetweenRows: 24,
                                 canvasPadding: 20,
@@ -595,7 +593,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                 !aWon && "border-b border-slate-800"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight truncate max-w-[130px]",
+                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
                     {pA?.display_name || "TBD"}
@@ -614,7 +612,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight truncate max-w-[130px]",
+                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
                     {pB?.display_name || "TBD"}
