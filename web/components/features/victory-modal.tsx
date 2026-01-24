@@ -106,7 +106,7 @@ export function VictoryModal({ isOpen, onClose, winner, runnerUp, thirdPlace, sw
                                 </div>
                                 <div className="bg-slate-900/50 w-full p-4 rounded-xl border border-slate-400/20 text-center relative overflow-hidden">
                                     <div className="absolute inset-x-0 bottom-0 h-1 bg-slate-400/50" />
-                                    <div className="font-bold text-lg md:text-xl truncate text-slate-200">{runnerUp?.display_name || "TBD"}</div>
+                                    <div className="font-bold text-lg md:text-xl break-words text-slate-200">{runnerUp?.display_name || "TBD"}</div>
                                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Runner Up</div>
                                 </div>
                             </div>
@@ -121,7 +121,7 @@ export function VictoryModal({ isOpen, onClose, winner, runnerUp, thirdPlace, sw
                                 </div>
                                 <div className="bg-slate-900/80 w-full p-6 rounded-xl border border-yellow-500/30 text-center relative overflow-hidden shadow-2xl backdrop-blur-sm">
                                     <div className="absolute inset-x-0 bottom-0 h-1.5 bg-yellow-500" />
-                                    <div className="font-black text-2xl md:text-3xl truncate text-yellow-500 drop-shadow-sm">{winner?.display_name || "TBD"}</div>
+                                    <div className="font-black text-2xl md:text-3xl break-words text-yellow-500 drop-shadow-sm">{winner?.display_name || "TBD"}</div>
                                     <div className="text-xs font-bold text-yellow-600/70 uppercase tracking-widest mt-2 flex items-center justify-center gap-2">
                                         <Trophy className="w-3 h-3" /> Champion
                                     </div>
@@ -138,7 +138,7 @@ export function VictoryModal({ isOpen, onClose, winner, runnerUp, thirdPlace, sw
                                 </div>
                                 <div className="bg-slate-900/50 w-full p-4 rounded-xl border border-amber-700/20 text-center relative overflow-hidden">
                                     <div className="absolute inset-x-0 bottom-0 h-1 bg-amber-700/50" />
-                                    <div className="font-bold text-lg md:text-xl truncate text-slate-200">{thirdPlace?.display_name || "TBD"}</div>
+                                    <div className="font-bold text-lg md:text-xl break-words text-slate-200">{thirdPlace?.display_name || "TBD"}</div>
                                     <div className="text-[10px] font-bold text-amber-800/70 uppercase tracking-widest mt-1">3rd Place</div>
                                 </div>
                             </div>
