@@ -1,7 +1,8 @@
 import { getStoresAction, getLiveTournamentsAction } from "@/app/actions";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Store as StoreIcon, Trophy, Search, Loader2 } from "lucide-react";
+import { StoreCard } from "@/components/features/store-card";
+import { Trophy, Search, Loader2 } from "lucide-react";
 import { Store, Tournament } from "@/types";
 import { redirect } from "next/navigation";
 
@@ -23,11 +24,6 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
     const stores = storesRes.success ? (storesRes.data as Store[]) : [];
     const activeTournaments = tournamentsRes.success ? (tournamentsRes.data as any[]) : [];
 
-    // Distinct Cities for Filter (This could be cached or fetched separately in a real app)
-    // For now we can extract unique cities from ALL stores if we had them, 
-    // but efficient way is just to let user type or pre-define main cities.
-    // We'll pass the current filter to the client component.
-
     return (
         <div className="min-h-screen bg-neutral-950 relative flex flex-col">
             {/* Background Grid */}
@@ -44,18 +40,18 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
                 </div>
 
                 {/* Filter Bar */}
-                <div className="max-w-md mx-auto mb-12">
+                <div className="max-w-md mx-auto mb-12 text-black">
                     <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
                 </div>
 
                 {/* LIVE FEED */}
                 <div className="mb-16">
-                    <div className="flex items-center gap-2 mb-6">
+                    <div className="flex items-center gap-2 mb-6 text-white">
                         <div className="relative">
                             <div className="absolute inset-0 bg-red-500 blur opacity-50 animate-pulse rounded-full" />
                             <div className="relative w-3 h-3 bg-red-500 rounded-full" />
                         </div>
-                        <h2 className="text-xl font-bold tracking-tight text-white uppercase">
+                        <h2 className="text-xl font-bold tracking-tight uppercase">
                             {filterCity !== "all" ? `Live in ${filterCity}` : "Global Live Feed"}
                         </h2>
                     </div>
@@ -73,9 +69,9 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
                                     className="group block bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all"
                                 >
                                     <div className="p-4 flex gap-4">
-                                        <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
+                                        <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                                             {t.stores?.image_url ? (
-                                                <Image src={t.stores.image_url} alt={t.stores.name} width={48} height={48} className="w-full h-full object-cover rounded-lg" />
+                                                <Image src={t.stores.image_url} alt={t.stores.name} width={48} height={48} className="w-full h-full object-cover" unoptimized />
                                             ) : (
                                                 <Trophy className="w-6 h-6 text-cyan-400" />
                                             )}
@@ -98,9 +94,9 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
 
                 {/* STORE LIST */}
                 <div>
-                    <h2 className="text-xl font-bold tracking-tight text-white mb-6 flex items-center gap-2">
-                        <StoreIcon className="w-5 h-5 text-purple-400" />
-                        {filterCity !== "all" ? `${filterCity} Stores` : "All Locations"}
+                    <h2 className="text-xl font-bold tracking-tight text-white mb-8 flex items-center gap-3 uppercase">
+                        <div className="w-8 h-1 bg-purple-500 rounded-full" />
+                        {filterCity !== "all" ? `${filterCity} Stores` : "Official Partners"}
                     </h2>
 
                     {stores.length === 0 ? (
@@ -108,36 +104,9 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
                             <p className="text-muted-foreground">No stores found matching your criteria.</p>
                         </div>
                     ) : (
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                             {stores.map((store) => (
-                                <Link
-                                    key={store.id}
-                                    href={`/s/${store.slug}`}
-                                    className="group block bg-card border rounded-xl overflow-hidden hover:shadow-lg hover:border-purple-500/50 transition-all"
-                                >
-                                    <div className="relative h-40 bg-muted">
-                                        {store.image_url ? (
-                                            <Image
-                                                src={store.image_url}
-                                                alt={store.name}
-                                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                                fill
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-slate-900 text-slate-700">
-                                                <StoreIcon className="w-12 h-12" />
-                                            </div>
-                                        )}
-                                        <div className="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs text-white font-bold flex items-center">
-                                            <MapPin className="w-3 h-3 mr-1 text-purple-400" />
-                                            {store.city || "Unknown City"}
-                                        </div>
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="text-lg font-bold mb-1 group-hover:text-purple-400 transition-colors">{store.name}</h3>
-                                        <p className="text-sm text-muted-foreground line-clamp-1">{store.address || "No address provided"}</p>
-                                    </div>
-                                </Link>
+                                <StoreCard key={store.id} store={store} />
                             ))}
                         </div>
                     )}

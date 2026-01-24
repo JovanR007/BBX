@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import Image from "next/image";
-import { Store as StoreIcon, MapPin, Phone, Loader2, ArrowRight } from "lucide-react";
+import { StoreCard } from "@/components/features/store-card";
+import { Loader2 } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
 import { Store } from "@/types";
@@ -20,7 +21,7 @@ export default function LandingPage() {
       // 1. Fetch Stores
       const { data } = await supabase
         .from("stores")
-        .select("*")
+        .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan")
         .order("created_at", { ascending: false });
 
       if (data) setStores(data);
@@ -43,8 +44,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
       {/* Background Grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
       <div className="container mx-auto px-4 py-8 md:py-16 relative flex-1">
@@ -80,18 +79,18 @@ export default function LandingPage() {
 
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold tracking-tight">Featured Hobby Stores</h2>
-            <span className="text-sm text-muted-foreground">{stores.length} found</span>
+            <h2 className="text-2xl font-bold tracking-tight text-white">Featured Hobby Stores</h2>
+            <span className="text-sm text-neutral-500">{stores.length} found</span>
           </div>
 
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 className="animate-spin w-8 h-8 text-muted-foreground" /></div>
           ) : stores.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl text-muted-foreground">
+            <div className="text-center py-12 border-2 border-dashed border-slate-800 rounded-xl text-muted-foreground">
               No stores authorized yet.
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {stores.map((store) => (
                 <StoreCard key={store.id} store={store} />
               ))}
@@ -100,55 +99,5 @@ export default function LandingPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function StoreCard({ store }: { store: Store }) {
-  const [imgError, setImgError] = useState(false);
-
-  return (
-    <Link
-      href={`/s/${store.slug}`}
-      className="group block bg-card border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/50 transition-all"
-    >
-      <div className="relative h-48 bg-muted">
-        {store.image_url && !imgError ? (
-          <Image
-            src={store.image_url}
-            alt={store.name}
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
-            onError={() => setImgError(true)}
-            fill
-            unoptimized
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors">
-            <StoreIcon className="w-16 h-16" />
-          </div>
-        )}
-      </div>
-      <div className="p-6">
-        <h3 className="text-xl font-bold mb-2 group-hover:text-primary transition-colors line-clamp-1">{store.name}</h3>
-
-        <div className="space-y-2 text-sm text-muted-foreground">
-          {store.address && (
-            <div className="flex items-start">
-              <MapPin className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
-              <span className="line-clamp-2">{store.address}</span>
-            </div>
-          )}
-          {store.contact_number && (
-            <div className="flex items-center">
-              <Phone className="w-4 h-4 mr-2 shrink-0" />
-              <span>{store.contact_number}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex items-center text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
-          View Tournaments <ArrowRight className="ml-2 w-4 h-4" />
-        </div>
-      </div>
-    </Link>
   );
 }

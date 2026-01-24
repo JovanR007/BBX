@@ -81,7 +81,7 @@ export async function getTournamentDataAction(tournamentId: string) {
 
     try {
         const results = await Promise.all([
-            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
+            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
             supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
             supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
@@ -1375,7 +1375,7 @@ export async function uploadAvatarAction(formData: FormData) {
 // --- STORE DISCOVERY ACTIONS ---
 
 export async function getStoresAction(city?: string) {
-    let query = supabase.from("stores").select("*").order("created_at", { ascending: false });
+    let query = supabase.from("stores").select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan").order("created_at", { ascending: false });
 
     if (city && city !== "all") {
         query = query.ilike("city", city);
@@ -1395,7 +1395,10 @@ export async function getLiveTournamentsAction(city?: string) {
             stores!inner (
                 name,
                 city,
-                image_url
+                image_url,
+                primary_color,
+                secondary_color,
+                plan
             )
         `)
         .neq("status", "completed")

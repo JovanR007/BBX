@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import React from 'react';
 import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown } from "lucide-react";
@@ -80,7 +80,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             primaryColor={tournament?.stores?.primary_color}
             secondaryColor={tournament?.stores?.secondary_color}
             plan={tournament?.stores?.plan}
-            className="container mx-auto px-4 py-8 min-h-screen"
+            className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
             {/* Header */}
             <div className="flex justify-between items-center mb-8">
@@ -142,7 +142,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {/* Main Content */}
-            <div className="overflow-x-auto pb-6">
+            <div className="flex-grow overflow-x-auto pb-6">
                 {loading ? (
                     <div className="flex items-center gap-2 text-muted-foreground"><div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div> Loading tournament data...</div>
                 ) : viewMode === "empty" ? (
@@ -166,7 +166,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             {/* Modals */}
             <MatchScoringModal isOpen={!!selectedMatch} match={selectedMatch} participants={participants} onClose={() => setSelectedMatch(null)} refresh={refresh} />
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
-            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.store_id || ""} />
+            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
             <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} />
         </BrandedContainer>
     );
@@ -229,8 +229,6 @@ function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentB
     );
 }
 
-// SwissView and TopCutView remain mostly unchanged but are now separate, self-contained components
-
 function SwissView({ matches, participants, onMatchClick }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void }) {
     const rounds: Record<number, Match[]> = {};
     matches.forEach(m => {
@@ -246,7 +244,7 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
                 const rNum = Number(rNumStr);
                 const isLastRound = rNum === Number(maxRound);
                 return (
-                    <div key={rNum} className="flex flex-col gap-4 min-w-[280px]">
+                    <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
                         <div className="flex flex-col gap-3">
                             {(rounds[rNum] || []).map((m, idx) => (
@@ -261,110 +259,374 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
 }
 
 function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, cutSize: number }) {
-    const rounds: Record<number, Match[]> = {};
-    matches.forEach(m => {
-        if (!rounds[m.bracket_round]) rounds[m.bracket_round] = [];
-        rounds[m.bracket_round].push(m);
+    // Import the library dynamically to avoid SSR issues
+    const [LibraryComponents, setLibraryComponents] = useState<any>(null);
+
+    useEffect(() => {
+        import('react-tournament-brackets').then(mod => {
+            setLibraryComponents(mod);
+        });
+    }, []);
+
+    // Transform our match data to the library's format
+    const transformedMatches = useMemo(() => {
+        if (!matches.length) return [];
+
+        // Sort matches by bracket_round and match_number
+        const sortedMatches = [...matches].sort((a, b) => {
+            if (a.bracket_round !== b.bracket_round) return a.bracket_round - b.bracket_round;
+            return a.match_number - b.match_number;
+        });
+
+        // Find max round (for finals detection)
+        const maxRound = Math.max(...sortedMatches.map(m => Number(m.bracket_round)));
+
+        // Get round names
+        const getRoundName = (round: number) => {
+            if (round === maxRound) return 'Finals';
+            if (round === maxRound - 1) return 'Semifinals';
+            if (round === maxRound - 2) return 'Quarterfinals';
+            return `${round}`;
+        };
+
+        return sortedMatches
+            .filter(m => {
+                // Exclude 3rd place match (match_number 2 in final round)
+                if (Number(m.bracket_round) === maxRound && m.match_number === 2) return false;
+                return true;
+            })
+            .map(m => {
+                const pA = m.participant_a_id ? participants[m.participant_a_id] : null;
+                const pB = m.participant_b_id ? participants[m.participant_b_id] : null;
+
+                // Calculate nextMatchId based on bracket logic
+                const nextRound = Number(m.bracket_round) + 1;
+                const nextMatchNumber = Math.ceil(m.match_number / 2);
+                const nextMatch = sortedMatches.find(nm =>
+                    Number(nm.bracket_round) === nextRound && nm.match_number === nextMatchNumber
+                );
+
+                return {
+                    id: m.id,
+                    name: `M${m.match_number}`,
+                    nextMatchId: nextMatch?.id ?? null,
+                    tournamentRoundText: getRoundName(Number(m.bracket_round)),
+                    startTime: null,
+                    state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
+                    participants: [
+                        {
+                            id: m.participant_a_id || `bye-a-${m.id}`,
+                            resultText: m.score_a?.toString() ?? '-',
+                            isWinner: m.winner_id === m.participant_a_id && m.status === 'complete',
+                            status: m.status === 'complete' ? 'PLAYED' : null,
+                            name: pA?.display_name || 'TBD'
+                        },
+                        {
+                            id: m.participant_b_id || `bye-b-${m.id}`,
+                            resultText: m.score_b?.toString() ?? '-',
+                            isWinner: m.winner_id === m.participant_b_id && m.status === 'complete',
+                            status: m.status === 'complete' ? 'PLAYED' : null,
+                            name: pB?.display_name || 'TBD'
+                        }
+                    ]
+                };
+            });
+    }, [matches, participants]);
+
+    // Find 3rd place match
+    const thirdPlaceMatch = useMemo(() => {
+        if (!matches.length) return null;
+        const maxRound = Math.max(...matches.map(m => Number(m.bracket_round)));
+        return matches.find(m => Number(m.bracket_round) === maxRound && m.match_number === 2) || null;
+    }, [matches]);
+
+    // Store original match by ID for onClick handler
+    const matchById = useMemo(() => {
+        const map: Record<string, Match> = {};
+        matches.forEach(m => { map[m.id] = m; });
+        return map;
+    }, [matches]);
+
+    if (!LibraryComponents) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading bracket...</span>
+            </div>
+        );
+    }
+
+    const { SingleEliminationBracket, createTheme } = LibraryComponents;
+
+    // Create a dark Beyblade theme
+    const BeybladeTheme = createTheme({
+        textColor: { main: '#E2E8F0', highlighted: '#22D3EE', dark: '#64748B' },
+        matchBackground: { wonColor: '#1E293B', lostColor: '#0F172A' },
+        score: {
+            background: { wonColor: '#22D3EE', lostColor: '#334155' },
+            text: { highlightedWonColor: '#000000', highlightedLostColor: '#E2E8F0' },
+        },
+        border: {
+            color: '#334155',
+            highlightedColor: '#22D3EE',
+        },
+        roundHeader: { backgroundColor: '#1E293B', fontColor: '#94A3B8' },
+        connectorColor: '#334155',
+        connectorColorHighlight: '#22D3EE',
+        svgBackground: 'transparent',
     });
-    const roundKeys = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
-    const totalRounds = Math.ceil(Math.log2(cutSize || 4));
+
+    // Custom match component with always-visible scores
+    const CustomMatch = ({
+        match,
+        onMatchClick: libOnMatchClick,
+        onPartyClick,
+        onMouseEnter,
+        onMouseLeave,
+        topParty,
+        bottomParty,
+        topWon,
+        bottomWon,
+        topHovered,
+        bottomHovered,
+        topText,
+        bottomText,
+        connectorColor,
+        computedStyles,
+        teamNameFallback,
+        resultFallback,
+    }: any) => (
+        <div
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                height: '100%',
+                background: '#0F172A',
+                borderRadius: '8px',
+                border: '1px solid #334155',
+                overflow: 'hidden',
+                cursor: 'pointer',
+            }}
+            onClick={() => {
+                const originalMatch = matchById[match.id];
+                if (originalMatch) onMatchClick(originalMatch);
+            }}
+        >
+            {/* Top Player */}
+            <div
+                onMouseEnter={() => onMouseEnter(topParty.id)}
+                onMouseLeave={onMouseLeave}
+                style={{
+                    display: 'flex',
+                    flex: '1',
+                    height: '50%',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '4px 8px',
+                    background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
+                    borderBottom: '1px solid #334155',
+                    transition: 'background 0.2s',
+                }}
+            >
+                <span style={{
+                    color: topWon ? '#000000' : '#E2E8F0',
+                    fontSize: '11px',
+                    fontWeight: topWon ? 'bold' : 'normal',
+                    paddingRight: '8px',
+                    wordBreak: 'break-word',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    lineHeight: '1.1',
+                }}>
+                    {topParty.name || teamNameFallback}
+                </span>
+                <span style={{
+                    color: topWon ? '#000000' : '#94A3B8',
+                    fontSize: '12px',
+                    fontWeight: '900',
+                    fontFamily: 'monospace',
+                    minWidth: '20px',
+                    textAlign: 'right',
+                    opacity: topWon ? 1 : 0.6,
+                }}>
+                    {topParty.resultText || '-'}
+                </span>
+            </div>
+            {/* Bottom Player */}
+            <div
+                onMouseEnter={() => onMouseEnter(bottomParty.id)}
+                onMouseLeave={onMouseLeave}
+                style={{
+                    display: 'flex',
+                    flex: '1',
+                    height: '50%',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '4px 8px',
+                    background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
+                    transition: 'background 0.2s',
+                }}
+            >
+                <span style={{
+                    color: bottomWon ? '#000000' : '#E2E8F0',
+                    fontSize: '11px',
+                    fontWeight: bottomWon ? 'bold' : 'normal',
+                    paddingRight: '8px',
+                    wordBreak: 'break-word',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    lineHeight: '1.1',
+                }}>
+                    {bottomParty.name || teamNameFallback}
+                </span>
+                <span style={{
+                    color: bottomWon ? '#000000' : '#94A3B8',
+                    fontSize: '12px',
+                    fontWeight: '900',
+                    fontFamily: 'monospace',
+                    minWidth: '20px',
+                    textAlign: 'right',
+                    opacity: bottomWon ? 1 : 0.6,
+                }}>
+                    {bottomParty.resultText || '-'}
+                </span>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="flex flex-row gap-0 pb-12 min-w-max items-stretch">
-            {roundKeys.map((rNumStr) => {
-                const rNum = Number(rNumStr);
-                const isFinals = rNum === totalRounds;
-                const matchCount = rounds[rNum].length;
+        <div className="flex flex-col gap-16 pb-24">
+            {/* Scrollable bracket container - uses native horizontal scroll */}
+            <div
+                className="overflow-x-auto overflow-y-auto max-w-full pb-8 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40 text-left"
+                style={{
+                    cursor: 'default',
+                    scrollBehavior: 'smooth',
+                    maxHeight: '70vh',
+                }}
+            >
+                <div style={{ minWidth: 'max-content' }}>
+                    <SingleEliminationBracket
+                        matches={transformedMatches}
+                        matchComponent={CustomMatch}
+                        theme={BeybladeTheme}
+                        options={{
+                            style: {
+                                width: 180,
+                                boxHeight: 80,
+                                spaceBetweenColumns: 60,
+                                spaceBetweenRows: 24,
+                                canvasPadding: 20,
+                                roundHeader: {
+                                    backgroundColor: 'transparent',
+                                    fontColor: '#94A3B8',
+                                    fontSize: 12,
+                                    height: 30,
+                                    marginBottom: 20,
+                                    fontFamily: 'inherit',
+                                },
+                                connectorColor: '#334155',
+                                connectorColorHighlight: '#22D3EE',
+                            },
+                        }}
+                    />
+                </div>
+            </div>
 
-                if (isFinals) {
-                    const grandFinals = rounds[rNum][0];
-                    const thirdPlace = rounds[rNum][1]; // Index 1 is 3rd place if exists
-
-                    return (
-                        <React.Fragment key={rNum}>
-                            <div className="flex flex-col min-w-[280px] z-10 w-80 relative h-full">
-                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Grand Finals</div>
-
-                                <div className="flex-grow flex flex-col justify-between relative">
-                                    {/* Spacer to balance 3rd place and ensure Grand Finals stays vertically centered */}
-                                    {thirdPlace && (
-                                        <div className="w-full pb-0 px-2 flex flex-col items-center opacity-0 pointer-events-none" aria-hidden="true">
-                                            <div className="text-center text-xs font-bold uppercase tracking-widest mb-2">3rd Place Match</div>
-                                            <MatchCard match={thirdPlace} participants={participants} onClick={() => { }} label={null} />
-                                        </div>
-                                    )}
-
-                                    {/* The Main Event: Grand Finals - Centered by flex-grow / justify-between logic */}
-                                    <div className="flex flex-col justify-center items-center px-2 py-4">
-                                        <MatchCard match={grandFinals} participants={participants} onClick={() => onMatchClick(grandFinals)} label={null} />
-                                    </div>
-
-                                    {/* Actual 3rd Place Match */}
-                                    {thirdPlace && (
-                                        <div className="w-full pb-0 px-2 flex flex-col items-center">
-                                            <div className="text-center text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">3rd Place Match</div>
-                                            <MatchCard match={thirdPlace} participants={participants} onClick={() => onMatchClick(thirdPlace)} label={null} />
-                                        </div>
-                                    )}
-
-                                    {/* If no 3rd place, center using flex behavior (justify-between with 1 item puts it at start, so we need careful handling or just use justify-center if only 1 item) */}
-                                    {!thirdPlace && <div className="hidden" />}
-                                </div>
-                            </div>
-                        </React.Fragment>
-                    );
-                }
-
-                return (
-                    <React.Fragment key={rNum}>
-                        <div className="flex flex-col min-w-[280px] z-10 w-80">
-                            <div className="text-center font-bold text-muted-foreground uppercase tracking-wider h-6 mb-4">Round {rNum}</div>
-                            <div className="grid flex-grow relative w-full" style={{ gridTemplateRows: `repeat(${matchCount}, minmax(0, 1fr))` }}>
-                                {(rounds[rNum] || []).map((m) => (
-                                    <div key={m.id} className="flex flex-col justify-center items-center w-full px-2">
-                                        <div className="w-full relative">
-                                            <MatchCard match={m} participants={participants} onClick={() => onMatchClick(m)} label={null} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+            {thirdPlaceMatch && (
+                <div className="flex justify-start px-8 pt-8 border-t border-white/5">
+                    <div className="flex flex-col items-center gap-4 p-6 bg-slate-900/40 rounded-2xl border border-slate-800/50 backdrop-blur-sm">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">3rd Place Match</div>
+                        <div className="w-[180px]">
+                            <MatchCard
+                                match={thirdPlaceMatch}
+                                participants={participants}
+                                onClick={() => onMatchClick(thirdPlaceMatch!)}
+                            />
                         </div>
-                        {Number(rNum) < totalRounds && (<BracketConnector matches={undefined} match_target_points={undefined} previousRoundCount={matchCount} isFinals={(Number(rNum) + 1) === totalRounds} />)}
-                    </React.Fragment>
-                );
-            })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-interface MatchCardProps { match: Match; participants: Record<string, Participant>; onClick?: () => void; label?: string | null; isSwissKing?: boolean; }
+interface MatchCardProps {
+    match: Match;
+    participants: Record<string, Participant>;
+    onClick?: () => void;
+    label?: string | null;
+    isSwissKing?: boolean;
+    nextMatchNumber?: number | null;
+    isHighlighted?: boolean;
+    isSource?: boolean;
+    isTarget?: boolean;
+}
 
-function MatchCard({ match, participants, onClick, label, isSwissKing }: MatchCardProps) {
-    const winnerId = match.winner_id;
-    const isCompleted = match.status === "complete";
+function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }: MatchCardProps) {
     const pA = match.participant_a_id ? participants[match.participant_a_id] : null;
     const pB = match.participant_b_id ? participants[match.participant_b_id] : null;
-    const isIncomplete = match.status !== 'complete';
-    const showPulse = isIncomplete && match.stage === 'top_cut';
+    const isCompleted = match.status === "complete";
+    const winnerId = match.winner_id;
+    const aWon = isCompleted && winnerId === match.participant_a_id;
+    const bWon = isCompleted && winnerId === match.participant_b_id;
 
     return (
-        <div onClick={onClick} className={cn("border rounded-lg bg-card p-3 shadow-sm w-full relative transition-all group hover:border-primary cursor-pointer active:scale-[0.98]", match.stage === 'top_cut' ? "border-primary/20" : "border-border", showPulse ? "ring-1 ring-yellow-500/50 border-yellow-500/30 bg-yellow-500/5" : "", isSwissKing ? "border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.2)] bg-gradient-to-br from-yellow-500/10 to-transparent" : "")}>
-            {showPulse && !isSwissKing && (<div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full animate-ping" />)}
-            {isSwissKing && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-3 py-0.5 rounded-full text-[10px] uppercase font-black tracking-wider whitespace-nowrap z-10 shadow-lg flex items-center gap-1"><Crown className="w-3 h-3" /> Battle for Swiss King</div>)}
-            {label && (<div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background border px-2 py-0.5 rounded text-[10px] text-muted-foreground uppercase font-bold tracking-wider whitespace-nowrap z-10">{label}</div>)}
-            <div className="flex flex-col gap-2">
-                <div className={cn("flex justify-between items-center p-2 rounded transition-colors", winnerId === match.participant_a_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50")}>
-                    <span className="text-sm truncate w-[140px]" title={pA?.display_name || "BYE"}>{pA?.display_name || "BYE"} {pA?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
-                    <span className="font-mono text-sm">{match.score_a}</span>
+        <div
+            onClick={onClick}
+            className={cn(
+                "flex flex-col w-full rounded-md border overflow-hidden cursor-pointer transition-all duration-200 shadow-lg",
+                isSwissKing ? "border-yellow-500/50 shadow-yellow-500/10" : "border-slate-800",
+                isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700"
+            )}
+            style={isSwissKing ? { background: 'linear-gradient(to bottom right, #0F172A, #1e1b10)' } : { background: '#0F172A' }}
+        >
+            {/* Swiss King Header */}
+            {isSwissKing && (
+                <div className="bg-yellow-500 py-0.5 px-2 flex items-center justify-center gap-1">
+                    <Crown className="w-2 h-2 text-black" />
+                    <span className="text-[8px] font-black text-black uppercase tracking-tighter">Swiss King Battle</span>
                 </div>
-                <div className={cn("flex justify-between items-center p-2 rounded transition-colors", winnerId === match.participant_b_id && isCompleted ? "bg-primary/20 font-bold" : "bg-muted/30 group-hover:bg-muted/50")}>
-                    <span className="text-sm truncate w-[140px]" title={pB?.display_name || "BYE"}>{pB?.display_name || "BYE"} {pB?.dropped && <span className="text-[10px] text-red-500 font-bold">(BYE)</span>}</span>
-                    <span className="font-mono text-sm">{match.score_b}</span>
-                </div>
+            )}
+
+            {/* Participant A */}
+            <div className={cn(
+                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                aWon ? "bg-cyan-400" : "bg-transparent",
+                !aWon && "border-b border-slate-800"
+            )}>
+                <span className={cn(
+                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    aWon ? "text-slate-950" : "text-slate-100"
+                )}>
+                    {pA?.display_name || "TBD"}
+                </span>
+                <span className={cn(
+                    "text-xs font-black font-mono min-w-[20px] text-right",
+                    aWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                )}>
+                    {match.score_a ?? "-"}
+                </span>
             </div>
-            <div className="mt-2 text-[10px] text-muted-foreground flex justify-between uppercase items-center">
-                <span>M{match.match_number}</span>
-                {match.stage === 'top_cut' && isCompleted && (<span className="text-primary flex items-center gap-1 font-bold"><Trophy className="w-3 h-3" /> Winner</span>)}
+
+            {/* Participant B */}
+            <div className={cn(
+                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                bWon ? "bg-cyan-400" : "bg-transparent"
+            )}>
+                <span className={cn(
+                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    bWon ? "text-slate-950" : "text-slate-100"
+                )}>
+                    {pB?.display_name || "TBD"}
+                </span>
+                <span className={cn(
+                    "text-xs font-black font-mono min-w-[20px] text-right",
+                    bWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                )}>
+                    {match.score_b ?? "-"}
+                </span>
             </div>
         </div>
     );

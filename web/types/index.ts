@@ -17,6 +17,9 @@ export interface Store {
     contact_number: string | null;
     city: string | null;
     country: string | null;
+    primary_color?: string | null;
+    secondary_color?: string | null;
+    plan?: 'free' | 'pro';
 }
 
 export interface Tournament {
@@ -31,6 +34,7 @@ export interface Tournament {
     match_target_points: number | null;
     swiss_rounds: number | null;
     stores?: {
+        name: string | null;
         primary_color: string | null;
         secondary_color: string | null;
         plan: 'free' | 'pro';
