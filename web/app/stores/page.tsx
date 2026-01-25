@@ -111,7 +111,7 @@ export default async function StoresPage({
                     <div className="flex items-center justify-between mb-10">
                         <h2 className="text-xl font-black tracking-widest text-white flex items-center gap-3 uppercase italic">
                             <div className="w-10 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" />
-                            {filterCity !== "all" ? `${filterCity} Partners` : "Official Partners"}
+                            {filterCity !== "all" ? `${filterCity} Partners` : "Tournament Organizers"}
                         </h2>
                         {totalPages > 1 && (
                             <div className="flex gap-2">
