@@ -1,3 +1,5 @@
+"use client";
+
 import { useActionState, useState } from "react";
 import { updateStoreAction } from "@/app/actions";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
