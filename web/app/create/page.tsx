@@ -6,6 +6,7 @@ import { createTournamentAction } from "@/app/actions";
 import { ArrowLeft, Rocket } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { AddressAutocomplete } from "@/components/features/address-autocomplete";
 
 export default function CreateTournamentPage() {
     const [loading, setLoading] = useState(false);
@@ -48,10 +49,6 @@ export default function CreateTournamentPage() {
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
-
-                    import {AddressAutocomplete} from "@/components/features/address-autocomplete";
-
-                    // ...
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
