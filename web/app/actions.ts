@@ -337,6 +337,10 @@ export async function updateParticipantAction(formData: FormData) {
 
     if (!isOwner && !superAdmin) return { success: false, error: "Unauthorized" };
 
+    // Block updates for pre-registered users (linked to an account)
+    const { data: part } = await supabaseAdmin.from("participants").select("user_id").eq("id", participantId).single();
+    if (part?.user_id) return { success: false, error: "Pre-registered player names are locked to their accounts." };
+
     const { error } = await supabaseAdmin
         .from("participants")
         .update({ display_name: name })

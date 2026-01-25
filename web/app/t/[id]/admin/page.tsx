@@ -437,13 +437,15 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                                 Check In
                             </button>
                         )}
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
-                            title="Edit Name"
-                        >
-                            <Pencil className="w-3 h-3" />
-                        </button>
+                        {!participant.user_id && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
+                                title="Edit Name"
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </button>
+                        )}
                         {isStarted ? (
                             <button
                                 onClick={() => setShowDropModal(true)}
