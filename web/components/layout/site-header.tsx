@@ -96,6 +96,9 @@ export function SiteHeader() {
 
                 {/* Main Navigation */}
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
+                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">
+                        Events
+                    </Link>
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
                         Directory
                     </Link>
