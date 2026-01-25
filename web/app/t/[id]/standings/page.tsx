@@ -128,8 +128,8 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                 <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs sticky left-0 bg-card z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Participant</th>
                                 <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[120px] text-center whitespace-nowrap">Record (W-L)</th>
                                 <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[100px] text-center">Score</th>
-                                <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[100px] text-center">Buchholz</th>
                                 <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[120px] text-center whitespace-nowrap">Pt. Diff</th>
+                                <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[100px] text-center">Buchholz</th>
                                 <th className="h-14 px-4 md:px-6 align-middle font-bold text-muted-foreground uppercase tracking-wider text-xs w-[200px]">Match History</th>
                             </tr>
                         </thead>
@@ -190,11 +190,11 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                                 {player.match_wins * 1.0}
                                             </span>
                                         </td>
-                                        <td className="p-4 md:p-6 align-middle text-center text-muted-foreground font-mono">
-                                            {player.buchholz}
-                                        </td>
                                         <td className={cn("p-4 md:p-6 align-middle text-center font-mono font-bold", player.point_diff > 0 ? "text-green-500" : player.point_diff < 0 ? "text-red-500" : "text-muted-foreground")}>
                                             {player.point_diff > 0 ? `+${player.point_diff}` : player.point_diff}
+                                        </td>
+                                        <td className="p-4 md:p-6 align-middle text-center text-muted-foreground font-mono">
+                                            {player.buchholz}
                                         </td>
                                         <td className="p-4 md:p-6 align-middle">
                                             <div className="flex gap-1 flex-wrap w-[150px]">
@@ -281,7 +281,13 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                     <span className="font-mono font-bold">{player.match_wins}-{player.history.filter((h: MatchHistory) => h.result === 'L').length}</span>
                                 </div>
                                 <div className="bg-muted/50 p-2 rounded flex justify-between items-center">
-                                    <span className="uppercase tracking-wider font-bold opacity-70">Buchholz</span>
+                                    <span className="uppercase tracking-wider font-bold opacity-70 text-[10px]">Pt. Diff</span>
+                                    <span className={cn("font-mono font-bold", player.point_diff > 0 ? "text-green-500" : player.point_diff < 0 ? "text-red-500" : "text-muted-foreground")}>
+                                        {player.point_diff > 0 ? `+${player.point_diff}` : player.point_diff}
+                                    </span>
+                                </div>
+                                <div className="bg-muted/50 p-2 rounded flex justify-between items-center">
+                                    <span className="uppercase tracking-wider font-bold opacity-70 text-[10px]">BH</span>
                                     <span className="font-mono font-bold">{player.buchholz}</span>
                                 </div>
                             </div>
