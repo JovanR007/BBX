@@ -94,7 +94,7 @@ export function AddressAutocomplete({
 
             // If still no city, try postal_town (UK)
             if (!city) {
-                const town = components.find(c => c.types.includes("postal_town"));
+                const town = components.find((c: any) => c.types.includes("postal_town"));
                 if (town) city = town.long_name;
             }
 
