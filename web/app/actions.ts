@@ -1469,13 +1469,8 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
                 plan
             )
         `, { count: 'exact' })
-        .eq("status", "draft") // Wait, original logic was neq incomplete. Actually upcoming is usually 'created' or 'draft' (if public). 
-        // Based on previous code: neq 'draft' and neq 'completed' meant 'created' or 'started'.
-        // But since we separated 'started', we now want 'created' (or whatever the status is for published but not started).
-        // Let's assume 'status' can be 'created', 'started', 'completed', 'draft'.
-        // So upcoming is 'created'.
-        // Previous logic: .neq("status", "draft").neq("status", "completed") -> implied 'created' and 'started'.
-        .eq("status", "created")
+        // Include both 'created' (Published) and 'draft' (user requested)
+        .in("status", ["created", "draft"])
         .order("start_time", { ascending: true })
         .range(from, to);
 

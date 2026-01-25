@@ -107,8 +107,14 @@ export function AddressAutocomplete({
                     lng
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Geocoding error: ", error);
+            // If the error is related to API request denial, it's likely the Geocoding API is not enabled.
+            if (error?.message?.includes("REQUEST_DENIED") || error?.includes && error.includes("REQUEST_DENIED")) {
+                alert("Error: Google Maps Geocoding API is not enabled. Please enable it in your Google Cloud Console to use this feature.");
+            } else {
+                alert("Failed to fetch address details. Please try again.");
+            }
         }
     };
 
