@@ -53,59 +53,6 @@ export default async function StoresPage({
                     <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
                 </div>
 
-                {/* LIVE FEED - More Compact UX */}
-                <div className="mb-16">
-                    <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                        <div className="flex items-center gap-2 text-white">
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-red-500 blur opacity-50 animate-pulse rounded-full" />
-                                <div className="relative w-3 h-3 bg-red-500 rounded-full" />
-                            </div>
-                            <h2 className="text-xl font-bold tracking-tight uppercase">
-                                {filterCity !== "all" ? `Live in ${filterCity}` : "Live Feed"}
-                            </h2>
-                        </div>
-                        <span className="text-xs font-bold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
-                            {activeTournaments.length} Active
-                        </span>
-                    </div>
-
-                    {activeTournaments.length === 0 ? (
-                        <div className="bg-slate-950/50 border border-slate-900 border-dashed rounded-2xl p-12 text-center text-muted-foreground backdrop-blur-sm">
-                            <p className="text-sm font-medium">No live tournaments found {filterCity !== "all" ? `in ${filterCity}` : "currently"}.</p>
-                        </div>
-                    ) : (
-                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                            {activeTournaments.map((t) => (
-                                <Link
-                                    key={t.id}
-                                    href={`/t/${t.id}`}
-                                    className="group block bg-slate-900/30 border border-slate-800 rounded-xl overflow-hidden hover:border-cyan-500/50 hover:bg-slate-900/50 transition-all duration-300 backdrop-blur-sm"
-                                >
-                                    <div className="p-3 flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-white/5">
-                                            {t.stores?.image_url ? (
-                                                <Image src={t.stores.image_url} alt={t.stores.name} width={40} height={40} className="w-full h-full object-cover" unoptimized />
-                                            ) : (
-                                                <Trophy className="w-5 h-5 text-cyan-400" />
-                                            )}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h3 className="text-sm font-bold text-white truncate group-hover:text-cyan-400 transition-colors">{t.name}</h3>
-                                            <div className="flex items-center text-[10px] text-muted-foreground gap-2 mt-0.5">
-                                                <span className={`font-black uppercase tracking-tighter ${t.status === "started" ? "text-green-400" : "text-amber-400"}`}>
-                                                    {t.status}
-                                                </span>
-                                                <span className="truncate opacity-60">@ {t.stores?.name}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
                 {/* STORE LIST */}
                 <div>
                     <div className="flex items-center justify-between mb-10">

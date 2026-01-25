@@ -422,19 +422,21 @@ export async function createTournamentAction(formData: FormData) {
     const startTime = startTimeRaw ? new Date(startTimeRaw).toISOString() : null;
 
     const cutSize = Number(formData.get("cut_size"));
-    let slug = formData.get("slug") as string | null;
+
+    // Auto-Generate Slug: name-date (e.g. week-1-local-2024-12-25)
+    // 1. Format Date YYYY-MM-DD
+    const dateObj = new Date(startTime);
+    const dateStr = dateObj.toISOString().split('T')[0];
+
+    // 2. Format Name
+    const nameSlug = name.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+
+    // 3. Combine
+    const slug = `${nameSlug}-${dateStr}`;
 
     if (!name) return { success: false, error: "Name required" };
     if (!location) return { success: false, error: "Location required" };
     if (!startTime) return { success: false, error: "Start Time required" };
-
-    // Slug validation and normalization
-    if (slug) {
-        slug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        if (slug.length < 3) return { success: false, error: "Slug must be at least 3 characters" };
-    } else {
-        slug = null; // Ensure null if empty
-    }
 
     const { data, error } = await supabaseAdmin
         .from("tournaments")
