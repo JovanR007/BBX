@@ -1,135 +1,34 @@
-"use client";
-
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState } from "react";
 import { updateStoreAction } from "@/app/actions";
-import { getCountriesAction, getStatesAction, getCitiesAction } from "@/app/location-actions";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { AddressAutocomplete } from "@/components/features/address-autocomplete";
 
 export default function StoreSettings({ store: initialStore }: { store: any }) {
     const [state, action, isPending] = useActionState(updateStoreAction, null);
     const [isOpen, setIsOpen] = useState(false);
 
-    // Global Data State
-    const [countries, setCountries] = useState<{ name: string, code: string }[]>([]);
-    const [states, setStates] = useState<{ name: string, code: string }[]>([]);
-    const [cities, setCities] = useState<{ name: string }[]>([]);
-    const [isLoadingLocations, setIsLoadingLocations] = useState(false);
-
-    // Selection State
-    const [selectedCountryName, setSelectedCountryName] = useState<string>(initialStore.country || "Philippines");
-    const [selectedStateCode, setSelectedStateCode] = useState<string>("");
-
-    // 1. Fetch Countries on Mount
-    useEffect(() => {
-        getCountriesAction().then(setCountries);
-    }, []);
-
-    // 2. Sync state when Prop OR Countries change - RESTORE saved state/city
-    useEffect(() => {
-        if (countries.length === 0) return;
-
-        async function syncData() {
-            const currentName = initialStore.country || "Philippines";
-            setSelectedCountryName(currentName);
-
-            const countryParams = countries.find(c => c.name === currentName);
-            if (countryParams) {
-                // Determine if we need states
-                if (countryParams.code === 'PH') {
-                    // PH: Direct Cities
-                    const cityList = await getCitiesAction(countryParams.code);
-                    setCities(cityList);
-                } else {
-                    // Others: Check States
-                    const stateList = await getStatesAction(countryParams.code);
-                    if (stateList && stateList.length > 0) {
-                        setStates(stateList);
-
-                        // RESTORE: If we have a saved city, find its state and load cities
-                        if (initialStore.city) {
-                            // Try to find which state contains this city
-                            let foundStateCode = "";
-                            for (const state of stateList) {
-                                const citiesInState = await getCitiesAction(countryParams.code, state.code);
-                                if (citiesInState.some(c => c.name === initialStore.city)) {
-                                    foundStateCode = state.code;
-                                    setCities(citiesInState);
-                                    break;
-                                }
-                            }
-                            if (foundStateCode) {
-                                setSelectedStateCode(foundStateCode);
-                            }
-                        } else {
-                            // Optional: clear cities or keep them empty until state selected
-                            setCities([]);
-                        }
-                    } else {
-                        // No states
-                        const cityList = await getCitiesAction(countryParams.code);
-                        setCities(cityList);
-                    }
-                }
-            }
-        }
-        syncData();
-    }, [initialStore.country, initialStore.city, countries]);
-
-    // Handle Country Change
-    const handleCountryChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newCountryName = e.target.value;
-        setSelectedCountryName(newCountryName);
-
-        // Reset downstream
-        setStates([]);
-        setCities([]);
-        setSelectedStateCode("");
-
-        const countryData = countries.find(c => c.name === newCountryName);
-        if (countryData) {
-            setIsLoadingLocations(true);
-
-            if (countryData.code === 'PH') {
-                const cityList = await getCitiesAction(countryData.code);
-                setCities(cityList);
-                setIsLoadingLocations(false);
-            } else {
-                const stateList = await getStatesAction(countryData.code);
-                if (stateList && stateList.length > 0) {
-                    setStates(stateList);
-                    setIsLoadingLocations(false);
-                } else {
-                    const cityList = await getCitiesAction(countryData.code);
-                    setCities(cityList);
-                    setIsLoadingLocations(false);
-                }
-            }
-        }
-    };
-
-    // Handle State Change
-    const handleStateChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newStateCode = e.target.value;
-        setSelectedStateCode(newStateCode);
-
-        const countryData = countries.find(c => c.name === selectedCountryName);
-        if (countryData) {
-            setIsLoadingLocations(true);
-            const cityList = await getCitiesAction(countryData.code, newStateCode);
-            setCities(cityList);
-            setIsLoadingLocations(false);
-        }
-    };
-
-    const [store, setStore] = useState<{ name: string, description: string, image_url: string | null, contact_number: string, address: string, primary_color?: string, secondary_color?: string }>({
+    // Store State
+    const [store, setStore] = useState<{
+        name: string,
+        description: string,
+        image_url: string | null,
+        contact_number: string,
+        address: string,
+        city: string,
+        country: string,
+        primary_color?: string,
+        secondary_color?: string
+    }>({
         name: initialStore?.name || "",
         description: initialStore?.description || "",
         image_url: initialStore?.image_url || null,
         contact_number: initialStore?.contact_number || "",
         address: initialStore?.address || "",
-        primary_color: initialStore?.primary_color || "#22d3ee", // Default cyan
-        secondary_color: initialStore?.secondary_color || "#a855f7" // Default purple
+        city: initialStore?.city || "",
+        country: initialStore?.country || "",
+        primary_color: initialStore?.primary_color || "#22d3ee",
+        secondary_color: initialStore?.secondary_color || "#a855f7"
     });
 
     const isPro = initialStore.plan === 'pro';
@@ -151,6 +50,8 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                 <div className="px-6 pb-6 border-t pt-6">
                     <form action={action} className="space-y-4 max-w-lg">
                         <input type="hidden" name="store_id" value={initialStore.id} />
+                        <input type="hidden" name="city" value={store.city} />
+                        <input type="hidden" name="country" value={store.country} />
 
                         {state?.error && (
                             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm">
@@ -202,7 +103,7 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Contact Number</label>
                                 <input
@@ -211,69 +112,26 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                                     className="w-full bg-background border px-3 py-2 rounded-md"
                                 />
                             </div>
+
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Address</label>
-                                <input
+                                <AddressAutocomplete
                                     name="address"
-                                    defaultValue={store.address || ""}
-                                    className="w-full bg-background border px-3 py-2 rounded-md"
+                                    defaultValue={store.address}
+                                    placeholder="Search specific store address..."
+                                    onAddressSelect={(res) => {
+                                        setStore(s => ({
+                                            ...s,
+                                            address: res.address,
+                                            city: res.city,
+                                            country: res.country
+                                        }));
+                                    }}
                                 />
-                            </div>
-
-                            {/* Country Select */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Country</label>
-                                <select
-                                    name="country"
-                                    value={selectedCountryName}
-                                    onChange={handleCountryChange}
-                                    className="w-full bg-background border px-3 py-2 rounded-md"
-                                >
-                                    {countries.length === 0 && <option>Loading...</option>}
-                                    {countries.map((c) => (
-                                        <option key={c.code} value={c.name}>
-                                            {c.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* State Select (Conditional) */}
-                            {states.length > 0 && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">State/Region</label>
-                                    <select
-                                        name="state_region" // Not saved to DB yet, just for filtering
-                                        value={selectedStateCode}
-                                        onChange={handleStateChange}
-                                        className="w-full bg-background border px-3 py-2 rounded-md"
-                                    >
-                                        <option value="">Select State...</option>
-                                        {states.map((s) => (
-                                            <option key={s.code} value={s.code}>
-                                                {s.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                <div className="flex gap-2 text-xs text-muted-foreground mt-1">
+                                    <span className="bg-secondary/50 px-2 py-0.5 rounded">City: {store.city || "None"}</span>
+                                    <span className="bg-secondary/50 px-2 py-0.5 rounded">Country: {store.country || "None"}</span>
                                 </div>
-                            )}
-
-                            {/* City Select */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">City</label>
-                                <select
-                                    name="city"
-                                    defaultValue={initialStore.city || ""}
-                                    className="w-full bg-background border px-3 py-2 rounded-md"
-                                    disabled={isLoadingLocations || cities.length === 0}
-                                >
-                                    <option value="" disabled>Select City</option>
-                                    {cities.map((city) => (
-                                        <option key={city.name} value={city.name}>
-                                            {city.name}
-                                        </option>
-                                    ))}
-                                </select>
                             </div>
                         </div>
 
