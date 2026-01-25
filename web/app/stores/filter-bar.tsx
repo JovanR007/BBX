@@ -138,6 +138,21 @@ export default function FilterBar({ currentCity }: { currentCity: string }) {
                 </select>
                 <Search className="w-5 h-5 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+
+            {/* Clear Button */}
+            {(selectedCountryCode || currentCity) && (
+                <button
+                    onClick={() => {
+                        setSelectedCountryCode("");
+                        setSelectedStateCode("");
+                        setSelectedCity("");
+                        router.push("/stores");
+                    }}
+                    className="px-6 py-3 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/50 transition-all font-bold text-sm whitespace-nowrap"
+                >
+                    Clear Filters
+                </button>
+            )}
         </div>
     );
 }
