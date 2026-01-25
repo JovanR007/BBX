@@ -53,6 +53,10 @@ client.once(Events.ClientReady, async (readyClient) => {
                 name: '✅ Enhanced Check-in Flow',
                 value: '- Registered users can now check themselves in.\n- Pre-registered users require a manual check-in by staff.\n- Walk-in bladers are automatically checked in upon entry.'
             },
+            {
+                name: '📱 Mobile Experience & Safari Fixes',
+                value: '- **Logo Alignment**: Optimized the header for mobile, ensuring the logo is properly left-aligned.\n- **Safari Interactivity**: Converted the account menu to a click-based toggle for reliable performance on mobile Safari and touch devices.'
+            }
         )
         .setFooter({ text: 'Version 1.1.0' })
         .setTimestamp();

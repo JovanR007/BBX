@@ -1363,20 +1363,28 @@ export async function uploadAvatarAction(formData: FormData) {
 
 // --- STORE DISCOVERY ACTIONS ---
 
-export async function getStoresAction(city?: string) {
-    let query = supabase.from("stores").select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan").order("created_at", { ascending: false });
+export async function getStoresAction(city?: string, page = 1, pageSize = 12) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+        .from("stores")
+        .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan", { count: 'exact' })
+        .order("plan", { ascending: false }) // Show Pro stores first
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
     if (city && city !== "all") {
         query = query.ilike("city", city);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) return { success: false, error: error.message };
-    return { success: true, data };
+    return { success: true, data, count, page, pageSize };
 }
 
 export async function getLiveTournamentsAction(city?: string) {
-    // 1. Base Query: Active Tournaments (draft, pending, started)
+    // 1. Base Query: Active Tournaments (pending, started) - Filter Out Drafts for Cleaner Feed
     let query = supabase
         .from("tournaments")
         .select(`
@@ -1391,6 +1399,7 @@ export async function getLiveTournamentsAction(city?: string) {
             )
         `)
         .neq("status", "completed")
+        .neq("status", "draft") // Premium Feed: No Drafts
         .order("created_at", { ascending: false });
 
     // 2. Apply City Filter on the joined Store table
