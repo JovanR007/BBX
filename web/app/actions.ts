@@ -83,7 +83,7 @@ export async function getTournamentDataAction(tournamentId: string) {
         const results = await Promise.all([
             supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
             supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
-            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped").eq("tournament_id", tournamentId),
+            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped, checked_in").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
         ]);
         const args = results; // Alias for minimal change to getRes or just use results directly
@@ -203,7 +203,8 @@ export async function addParticipantAction(formData: FormData) {
         .insert({
             display_name: name,
             tournament_id: tournamentId,
-            user_id: userId || null
+            user_id: userId || null,
+            checked_in: true // Manual walk-ins are auto checked-in
         })
         .select()
         .single();
@@ -1631,4 +1632,25 @@ export async function acceptInviteAction(token: string) {
 
     revalidatePath(`/t/${invite.tournament_id}`);
     return { success: true, tournamentId: invite.tournament_id };
+}
+
+export async function toggleCheckInAction(formData: FormData) {
+    const participantId = formData.get("participant_id") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+    const status = formData.get("status") === "true";
+
+    if (!participantId || !tournamentId) return { success: false, error: "Missing ID" };
+
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ checked_in: status })
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
 }
