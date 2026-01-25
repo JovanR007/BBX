@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { User, LogOut, Settings } from "lucide-react";
 import Image from "next/image";
+import { NotificationCenter } from "@/components/features/notification-center";
 
 export function SiteHeader() {
     const user = useUser();
@@ -18,14 +19,21 @@ export function SiteHeader() {
         async function getProfile() {
             const { data } = await supabase
                 .from("profiles")
-                .select("username, avatar_url")
+                .select("username, avatar_url, email")
                 .eq("id", user!.id)
                 .single();
 
             if (data) {
-                if (!data.avatar_url && user!.profileImageUrl) {
-                    await supabase.from("profiles").update({ avatar_url: user!.profileImageUrl }).eq("id", user!.id);
-                    setProfile({ username: data.username, avatar_url: user!.profileImageUrl });
+                const updates: any = {};
+                if (!data.avatar_url && user!.profileImageUrl) updates.avatar_url = user!.profileImageUrl;
+                if (!data.email && user!.primaryEmail) updates.email = user!.primaryEmail;
+
+                if (Object.keys(updates).length > 0) {
+                    await supabase.from("profiles").update(updates).eq("id", user!.id);
+                    setProfile({
+                        username: data.username,
+                        avatar_url: updates.avatar_url || data.avatar_url
+                    });
                 } else {
                     setProfile({ username: data.username, avatar_url: data.avatar_url });
                 }
@@ -90,6 +98,7 @@ export function SiteHeader() {
                 <div className="flex items-center gap-6 pr-2">
                     {user ? (
                         <div className="flex items-center gap-4">
+                            <NotificationCenter />
                             <div className="relative group">
                                 <button className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition-all">
                                     {profile.avatar_url ? (

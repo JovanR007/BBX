@@ -1431,6 +1431,17 @@ export async function createInviteAction(formData: FormData) {
     const isOwner = await verifyTournamentOwner(tournamentId);
     if (!isOwner) return { success: false, error: "Unauthorized" };
 
+    // Check if user exists – we check our profiles table (which includes email)
+    const { data: userToInvite } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .single();
+
+    if (!userToInvite) {
+        return { success: false, error: "User with this email not found in the system. They must have a profile first." };
+    }
+
     // Check if invite already exists
     const { data: existing } = await supabaseAdmin
         .from("tournament_invites")
@@ -1455,6 +1466,32 @@ export async function createInviteAction(formData: FormData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     return { success: true, invite: data };
+}
+
+export async function getUserInvitesAction() {
+    const user = await stackServerApp.getUser();
+    if (!user || !user.primaryEmail) return { success: false, invites: [] };
+
+    const { data, error } = await supabaseAdmin
+        .from("tournament_invites")
+        .select(`
+            *,
+            tournaments (
+                id,
+                name,
+                stores (
+                    name,
+                    city,
+                    country
+                )
+            )
+        `)
+        .eq("email", user.primaryEmail)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, invites: data };
 }
 
 export async function deleteInviteAction(formData: FormData) {

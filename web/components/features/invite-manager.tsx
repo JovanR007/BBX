@@ -81,8 +81,8 @@ export function InviteManager({ tournamentId }: { tournamentId: string }) {
                 </h3>
 
                 <p className="text-sm text-muted-foreground mb-4">
-                    Invite players to join this tournament. They will receive a unique link to register.
-                    This allows you to track their stats correctly.
+                    Invite registered players to join this tournament. They will receive an in-app notification
+                    and a unique link if you choose to share it. Only users with a created profile can be invited.
                 </p>
 
                 {/* Create Form */}
@@ -100,7 +100,7 @@ export function InviteManager({ tournamentId }: { tournamentId: string }) {
                         disabled={creating || !email}
                         className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-4 py-2 text-sm font-medium flex items-center gap-2"
                     >
-                        {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Generate Invite"}
+                        {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Invite Player"}
                     </button>
                 </form>
 
