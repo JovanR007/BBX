@@ -49,6 +49,28 @@ export default function CreateTournamentPage() {
                         />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Venue / Location</label>
+                            <input
+                                name="location"
+                                type="text"
+                                required
+                                placeholder="e.g. Main Hobby Shop, St. Louis"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Start Time</label>
+                            <input
+                                name="start_time"
+                                type="datetime-local"
+                                required
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                        </div>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Custom URL Slug (Optional)</label>
                         <div className="flex items-center">

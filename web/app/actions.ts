@@ -415,10 +415,18 @@ export async function createTournamentAction(formData: FormData) {
     if (!store) return { success: false, error: "You must own a store to create tournaments." };
 
     const name = formData.get("name") as string;
+    const location = formData.get("location") as string;
+    const startTimeRaw = formData.get("start_time") as string;
+
+    // Ensure startTime is an ISO string if present
+    const startTime = startTimeRaw ? new Date(startTimeRaw).toISOString() : null;
+
     const cutSize = Number(formData.get("cut_size"));
     let slug = formData.get("slug") as string | null;
 
     if (!name) return { success: false, error: "Name required" };
+    if (!location) return { success: false, error: "Location required" };
+    if (!startTime) return { success: false, error: "Start Time required" };
 
     // Slug validation and normalization
     if (slug) {
@@ -432,6 +440,8 @@ export async function createTournamentAction(formData: FormData) {
         .from("tournaments")
         .insert({
             name,
+            location,
+            start_time: startTime,
             cut_size: cutSize || 16,
             status: "draft",
             slug,
@@ -1417,6 +1427,37 @@ export async function getLiveTournamentsAction(city?: string) {
 }
 
 
+
+
+export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+        .from("tournaments")
+        .select(`
+            *,
+            stores (
+                name,
+                city,
+                image_url,
+                plan
+            )
+        `, { count: 'exact' })
+        .neq("status", "draft")
+        .neq("status", "completed") // Focus on live/upcoming
+        .order("start_time", { ascending: true }) // Earliest first (upcoming)
+        .range(from, to);
+
+    // Filter by Tournament Location (First Priority)
+    if (city && city !== "all") {
+        query = query.ilike("location", `%${city}%`);
+    }
+
+    const { data, error, count } = await query;
+    if (error) return { success: false, error: error.message };
+    return { success: true, data, count, page, pageSize };
+}
 
 // --- TOURNAMENT INVITE ACTIONS ---
 
