@@ -7,6 +7,8 @@ import { Settings, Save, Trash2, AlertTriangle, Loader2, Users, X } from "lucide
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import { ConfirmationModal } from "@/components/ui/modal";
+import { InviteManager } from "@/components/features/invite-manager";
+
 
 export default function TournamentSettings({ tournament, judges = [], refresh }: { tournament: any, judges?: any[], refresh: any }) {
     const { toast } = useToast();
@@ -132,6 +134,11 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
                     </button>
                 </div>
             </form>
+
+            <div className="mt-8">
+                <InviteManager tournamentId={tournament.id} />
+            </div>
+
 
             <div className="mt-8 pt-8 border-t border-destructive/20">
                 <h3 className="text-sm font-bold text-destructive mb-2 flex items-center gap-2">

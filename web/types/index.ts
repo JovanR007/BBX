@@ -105,3 +105,12 @@ export interface SwissStanding {
     history: MatchHistory[];
 }
 
+
+export interface TournamentInvite {
+    id: string;
+    tournament_id: string;
+    email: string;
+    status: 'pending' | 'accepted' | 'declined';
+    token: string;
+    created_at: string;
+}
