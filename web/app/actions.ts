@@ -1424,39 +1424,69 @@ export async function getTournamentInvitesAction(tournamentId: string) {
 
 export async function createInviteAction(formData: FormData) {
     const tournamentId = formData.get("tournament_id") as string;
-    const email = formData.get("email") as string;
+    const identifier = formData.get("email") as string; // This is now 'identifier' (Email or Username)
 
-    if (!tournamentId || !email) return { success: false, error: "Missing ID or Email" };
+    if (!tournamentId || !identifier) return { success: false, error: "Missing ID or Identifier" };
 
     const isOwner = await verifyTournamentOwner(tournamentId);
     if (!isOwner) return { success: false, error: "Unauthorized" };
 
-    // Check if user exists – we check our profiles table (which includes email)
-    const { data: userToInvite } = await supabaseAdmin
-        .from("profiles")
-        .select("id")
-        .eq("email", email)
-        .single();
+    let targetEmail: string | null = null;
 
-    if (!userToInvite) {
-        return { success: false, error: "User with this email not found in the system. They must have a profile first." };
+    // 1. Check if it's an email
+    if (identifier.includes("@")) {
+        // Look up in profiles first
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .eq("email", identifier)
+            .single();
+
+        if (profile?.email) {
+            targetEmail = profile.email;
+        } else {
+            // Fallback to Stack search
+            const users = await stackServerApp.listUsers({ query: identifier });
+            const foundUser = users.find(u => u.primaryEmail === identifier);
+            if (foundUser?.primaryEmail) {
+                targetEmail = foundUser.primaryEmail;
+            }
+        }
+    } else {
+        // 2. Treat as Username
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .ilike("username", identifier)
+            .single();
+
+        if (profile?.email) {
+            targetEmail = profile.email;
+        }
     }
 
-    // Check if invite already exists
+    if (!targetEmail) {
+        return {
+            success: false,
+            error: "User not found. Ensure they have a profile or a registered email."
+        };
+    }
+
+    // Check if invite already exists for this email
     const { data: existing } = await supabaseAdmin
         .from("tournament_invites")
         .select("id")
         .eq("tournament_id", tournamentId)
-        .eq("email", email)
+        .eq("email", targetEmail)
         .single();
 
-    if (existing) return { success: false, error: "Invite already exists for this email." };
+    if (existing) return { success: false, error: "Invite already exists for this user." };
 
     const { data, error } = await supabaseAdmin
         .from("tournament_invites")
         .insert({
             tournament_id: tournamentId,
-            email: email,
+            email: targetEmail,
             status: 'pending'
         })
         .select()

@@ -81,15 +81,15 @@ export function InviteManager({ tournamentId }: { tournamentId: string }) {
                 </h3>
 
                 <p className="text-sm text-muted-foreground mb-4">
-                    Invite registered players to join this tournament. They will receive an in-app notification
-                    and a unique link if you choose to share it. Only users with a created profile can be invited.
+                    Invite registered players by **Email** or **Username**. They will receive an in-app notification.
+                    Only users with a created profile can be invited directly.
                 </p>
 
                 {/* Create Form */}
                 <form onSubmit={handleCreate} className="flex gap-2 mb-6">
                     <input
-                        type="email"
-                        placeholder="player@example.com"
+                        type="text"
+                        placeholder="Email or Username"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
