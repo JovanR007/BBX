@@ -18,6 +18,7 @@ alter table tournament_invites enable row level security;
 -- or if we eventually use client-side fetching.
 
 -- Policy: Store Owners can view invites for their tournaments
+drop policy if exists "Owners can view invites" on tournament_invites;
 create policy "Owners can view invites"
   on tournament_invites
   for select
@@ -31,6 +32,7 @@ create policy "Owners can view invites"
   );
 
 -- Policy: Store Owners can insert invites
+drop policy if exists "Owners can create invites" on tournament_invites;
 create policy "Owners can create invites"
   on tournament_invites
   for insert
@@ -44,6 +46,7 @@ create policy "Owners can create invites"
   );
 
 -- Policy: Store Owners can delete invites
+drop policy if exists "Owners can delete invites" on tournament_invites;
 create policy "Owners can delete invites"
   on tournament_invites
   for delete
@@ -58,6 +61,7 @@ create policy "Owners can delete invites"
 
 -- Policy: Public can view invites by Token (for the acceptance page)
 -- This allows anyone with the token to "read" the invite details to verify it.
+drop policy if exists "Public can view invite by token" on tournament_invites;
 create policy "Public can view invite by token"
   on tournament_invites
   for select
