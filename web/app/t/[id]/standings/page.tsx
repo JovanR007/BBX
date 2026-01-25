@@ -38,8 +38,8 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
             .select("*")
             .eq("tournament_id", tournamentId)
             .order("match_wins", { ascending: false })
-            .order("buchholz", { ascending: false })
-            .order("point_diff", { ascending: false });
+            .order("point_diff", { ascending: false })
+            .order("buchholz", { ascending: false });
 
         // Fetch All Matches to build History
         const { data: allMatches } = await supabase

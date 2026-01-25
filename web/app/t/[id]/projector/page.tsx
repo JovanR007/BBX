@@ -140,7 +140,7 @@ export default function ProjectorPage() {
             supabase.from("tournaments").select("*").eq("id", tournamentId).single(),
             supabase.from("participants").select("*").eq("tournament_id", tournamentId),
             supabase.from("matches").select("*").eq("tournament_id", tournamentId),
-            supabase.from("swiss_standings").select("*").eq("tournament_id", tournamentId).order("match_wins", { ascending: false }).order("buchholz", { ascending: false }).order("point_diff", { ascending: false })
+            supabase.from("swiss_standings").select("*").eq("tournament_id", tournamentId).order("match_wins", { ascending: false }).order("point_diff", { ascending: false }).order("buchholz", { ascending: false })
         ]);
 
         const tournament = tourneyRes.data;

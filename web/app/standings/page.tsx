@@ -34,8 +34,8 @@ export default function StandingsPage() {
                 .from("swiss_standings")
                 .select("*")
                 .order("match_wins", { ascending: false })
-                .order("buchholz", { ascending: false })
-                .order("point_diff", { ascending: false });
+                .order("point_diff", { ascending: false })
+                .order("buchholz", { ascending: false });
 
             if (stds) setStandings(stds);
             setLoading(false);
