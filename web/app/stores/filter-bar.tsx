@@ -3,7 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getCountriesAction, getStatesAction, getCitiesAction } from "@/app/location-actions";
-import { Search } from "lucide-react";
+import { Search, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export default function FilterBar({ currentCity }: { currentCity: string }) {
     const router = useRouter();
@@ -18,6 +21,7 @@ export default function FilterBar({ currentCity }: { currentCity: string }) {
     const [selectedCountryCode, setSelectedCountryCode] = useState("");
     const [selectedStateCode, setSelectedStateCode] = useState("");
     const [selectedCity, setSelectedCity] = useState(currentCity || "");
+    const [openCountry, setOpenCountry] = useState(false);
 
     // 1. Fetch Countries on Mount
     useEffect(() => {
@@ -85,21 +89,53 @@ export default function FilterBar({ currentCity }: { currentCity: string }) {
 
     return (
         <div className="flex gap-4 max-w-4xl mx-auto flex-col md:flex-row">
-            {/* Country Select */}
+            {/* Country Select - Autocomplete */}
             <div className="relative flex-1">
-                <select
-                    value={selectedCountryCode}
-                    onChange={(e) => setSelectedCountryCode(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-full py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all shadow-lg appearance-none cursor-pointer"
-                >
-                    <option value="">Select Country first...</option>
-                    {countries.map(c => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
-                    ))}
-                </select>
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <span className="text-xl">🌍</span>
-                </div>
+                <Popover open={openCountry} onOpenChange={setOpenCountry}>
+                    <PopoverTrigger asChild>
+                        <button
+                            role="combobox"
+                            aria-expanded={openCountry}
+                            className="w-full flex items-center justify-between bg-slate-900 border border-slate-700 rounded-full py-3 pl-6 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all shadow-lg hover:border-slate-600"
+                        >
+                            <span className="truncate">
+                                {selectedCountryCode
+                                    ? countries.find((c) => c.code === selectedCountryCode)?.name
+                                    : "Select Country..."}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0 rounded-xl border-slate-700 bg-slate-950">
+                        <Command className="bg-slate-950 text-white">
+                            <CommandInput placeholder="Search country..." className="border-slate-800" />
+                            <CommandList>
+                                <CommandEmpty>No country found.</CommandEmpty>
+                                <CommandGroup>
+                                    {countries.map((country) => (
+                                        <CommandItem
+                                            key={country.code}
+                                            value={country.name}
+                                            onSelect={() => {
+                                                setSelectedCountryCode(country.code === selectedCountryCode ? "" : country.code);
+                                                setOpenCountry(false);
+                                            }}
+                                            className="text-slate-300 aria-selected:bg-slate-800 aria-selected:text-white"
+                                        >
+                                            <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    selectedCountryCode === country.code ? "opacity-100" : "opacity-0"
+                                                )}
+                                            />
+                                            {country.name}
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
             </div>
 
             {/* State Select - Conditional */}
