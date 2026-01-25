@@ -40,32 +40,32 @@ export default async function StoresPage({
 
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="mb-12 text-center space-y-4">
-                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 uppercase italic">
-                        The Directory
+                    <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
+                        STORE DIRECTORY
                     </h1>
-                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto font-medium">
+                    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                         Find official BEYBRACKET hobby stores and join the action near you.
                     </p>
                 </div>
 
                 {/* Filter Bar */}
-                <div className="max-w-md mx-auto mb-16 text-black">
+                <div className="max-w-md mx-auto mb-12 text-black">
                     <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
                 </div>
 
                 {/* LIVE FEED - More Compact UX */}
-                <div className="mb-20">
-                    <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-4">
-                        <div className="flex items-center gap-3 text-white">
+                <div className="mb-16">
+                    <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                        <div className="flex items-center gap-2 text-white">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-red-500 blur opacity-50 animate-pulse rounded-full" />
-                                <div className="relative w-2.5 h-2.5 bg-red-500 rounded-full" />
+                                <div className="relative w-3 h-3 bg-red-500 rounded-full" />
                             </div>
-                            <h2 className="text-xl font-black tracking-widest uppercase italic">
+                            <h2 className="text-xl font-bold tracking-tight uppercase">
                                 {filterCity !== "all" ? `Live in ${filterCity}` : "Live Feed"}
                             </h2>
                         </div>
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+                        <span className="text-xs font-bold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
                             {activeTournaments.length} Active
                         </span>
                     </div>
