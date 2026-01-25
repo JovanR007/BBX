@@ -17,8 +17,9 @@ export default async function TournamentsPage({
     const currentPage = Number(page) || 1;
     const pageSize = 12;
 
-    const { success, data, count } = await getTournamentsDirectoryAction(filterCity, currentPage, pageSize);
-    const tournaments = success ? (data as any[]) : [];
+    const { success, liveData, upcomingData, count } = await getTournamentsDirectoryAction(filterCity, currentPage, pageSize);
+    const liveTournaments = success ? (liveData as any[]) : [];
+    const upcomingTournaments = success ? (upcomingData as any[]) : [];
     const totalTournaments = count || 0;
     const totalPages = Math.ceil(totalTournaments / pageSize);
 
@@ -37,24 +38,79 @@ export default async function TournamentsPage({
                     </p>
                 </div>
 
-                {/* Filter Bar (Reused from Stores but works for Tournaments now via URL param) */}
+                {/* Filter Bar */}
                 <div className="max-w-md mx-auto mb-16 text-black">
                     <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
                 </div>
 
-                {/* TOURNAMENT LIST */}
+                {/* LIVE FEED (Dedicated Section) */}
+                {liveTournaments.length > 0 && (
+                    <div className="mb-16 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
+                            <div className="flex items-center gap-2 text-white">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-red-500 blur opacity-50 animate-pulse rounded-full" />
+                                    <div className="relative w-3 h-3 bg-red-500 rounded-full" />
+                                </div>
+                                <h2 className="text-xl font-bold tracking-tight uppercase">
+                                    {filterCity !== "all" ? `Live in ${filterCity}` : "Happening Now"}
+                                </h2>
+                            </div>
+                            <span className="text-xs font-bold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">
+                                {liveTournaments.length} Active
+                            </span>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {liveTournaments.map((t) => (
+                                <Link
+                                    key={t.id}
+                                    href={`/t/${t.slug || t.id}`}
+                                    className="group relative block bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden hover:border-red-500/50 hover:bg-slate-900/60 transition-all duration-300"
+                                >
+                                    {/* ... Slightly different card style for Live ... */}
+                                    <div className="h-32 relative bg-slate-900 overflow-hidden">
+                                        {t.stores?.image_url ? (
+                                            <Image src={t.stores.image_url} alt={t.stores.name} fill className="object-cover opacity-60 group-hover:opacity-80 transition-all font-bold" unoptimized />
+                                        ) : (
+                                            <div className="w-full h-full bg-slate-900 flex items-center justify-center">
+                                                <Trophy className="w-8 h-8 text-slate-700" />
+                                            </div>
+                                        )}
+                                        <div className="absolute top-2 right-2">
+                                            <span className="bg-red-500 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded-sm animate-pulse">
+                                                LIVE
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4">
+                                        <h3 className="text-base font-bold text-white mb-1 truncate group-hover:text-red-400 transition-colors">
+                                            {t.name}
+                                        </h3>
+                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            <MapPin className="w-3 h-3" />
+                                            <span className="truncate">{t.location || "Unknown Location"}</span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* UPCOMING LIST */}
                 <div>
                     <div className="flex items-center justify-between mb-10">
                         <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-3 uppercase">
                             <div className="w-8 h-1 bg-cyan-500 rounded-full" />
-                            {filterCity !== "all" ? `Events in ${filterCity}` : "Upcoming Events"}
+                            {filterCity !== "all" ? `Upcoming in ${filterCity}` : "Upcoming Events"}
                         </h2>
                         <span className="text-sm text-slate-500 font-bold uppercase tracking-widest">{totalTournaments} Found</span>
                     </div>
 
-                    {tournaments.length === 0 ? (
+                    {upcomingTournaments.length === 0 ? (
                         <div className="text-center py-24 border rounded-3xl border-dashed border-slate-900 bg-slate-950/50 backdrop-blur-sm">
-                            <p className="text-muted-foreground font-medium text-lg">No tournaments found in this area.</p>
+                            <p className="text-muted-foreground font-medium text-lg">No upcoming tournaments found.</p>
                             <Link href="/create" className="text-cyan-400 font-bold mt-4 inline-block hover:underline">
                                 Host Your Own Event &rarr;
                             </Link>
@@ -62,7 +118,7 @@ export default async function TournamentsPage({
                     ) : (
                         <>
                             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
-                                {tournaments.map((t) => (
+                                {upcomingTournaments.map((t) => (
                                     <Link
                                         key={t.id}
                                         href={`/t/${t.slug || t.id}`}
@@ -95,18 +151,6 @@ export default async function TournamentsPage({
                                                     </div>
                                                 </div>
                                             )}
-
-                                            {/* Status Badge */}
-                                            <div className="absolute top-3 right-3">
-                                                <span className={cn(
-                                                    "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-lg backdrop-blur-md",
-                                                    t.status === 'started'
-                                                        ? "bg-green-500/20 text-green-400 border-green-500/30 animate-pulse"
-                                                        : "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                                                )}>
-                                                    {t.status === 'started' ? 'Live Now' : 'Upcoming'}
-                                                </span>
-                                            </div>
                                         </div>
 
                                         <div className="p-5">

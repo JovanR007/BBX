@@ -1431,11 +1431,34 @@ export async function getLiveTournamentsAction(city?: string) {
 
 
 
+
 export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = supabase
+    // 1. Fetch Live Tournaments (No pagination, show all active)
+    let liveQuery = supabase
+        .from("tournaments")
+        .select(`
+            *,
+            stores (
+                name,
+                city,
+                image_url,
+                plan
+            )
+        `)
+        .eq("status", "started")
+        .order("start_time", { ascending: true });
+
+    if (city && city !== "all") {
+        liveQuery = liveQuery.ilike("location", `%${city}%`);
+    }
+
+    const { data: liveData, error: liveError } = await liveQuery;
+
+    // 2. Fetch Upcoming Tournaments (Paginated)
+    let upcomingQuery = supabase
         .from("tournaments")
         .select(`
             *,
@@ -1446,19 +1469,33 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
                 plan
             )
         `, { count: 'exact' })
-        .neq("status", "draft")
-        .neq("status", "completed") // Focus on live/upcoming
-        .order("start_time", { ascending: true }) // Earliest first (upcoming)
+        .eq("status", "draft") // Wait, original logic was neq incomplete. Actually upcoming is usually 'created' or 'draft' (if public). 
+        // Based on previous code: neq 'draft' and neq 'completed' meant 'created' or 'started'.
+        // But since we separated 'started', we now want 'created' (or whatever the status is for published but not started).
+        // Let's assume 'status' can be 'created', 'started', 'completed', 'draft'.
+        // So upcoming is 'created'.
+        // Previous logic: .neq("status", "draft").neq("status", "completed") -> implied 'created' and 'started'.
+        .eq("status", "created")
+        .order("start_time", { ascending: true })
         .range(from, to);
 
-    // Filter by Tournament Location (First Priority)
     if (city && city !== "all") {
-        query = query.ilike("location", `%${city}%`);
+        upcomingQuery = upcomingQuery.ilike("location", `%${city}%`);
     }
 
-    const { data, error, count } = await query;
-    if (error) return { success: false, error: error.message };
-    return { success: true, data, count, page, pageSize };
+    const { data: upcomingData, error: upcomingError, count } = await upcomingQuery;
+
+    if (liveError) console.error("Live fetch error:", liveError);
+    if (upcomingError) return { success: false, error: upcomingError.message };
+
+    return {
+        success: true,
+        liveData: liveData || [],
+        upcomingData: upcomingData || [],
+        count,
+        page,
+        pageSize
+    };
 }
 
 // --- TOURNAMENT INVITE ACTIONS ---
