@@ -423,6 +423,10 @@ export async function createTournamentAction(formData: FormData) {
 
     const cutSize = Number(formData.get("cut_size"));
 
+    if (!name) return { success: false, error: "Name required" };
+    if (!location) return { success: false, error: "Location required" };
+    if (!startTime) return { success: false, error: "Start Time required" };
+
     // Auto-Generate Slug: name-date (e.g. week-1-local-2024-12-25)
     // 1. Format Date YYYY-MM-DD
     const dateObj = new Date(startTime);
@@ -433,10 +437,6 @@ export async function createTournamentAction(formData: FormData) {
 
     // 3. Combine
     const slug = `${nameSlug}-${dateStr}`;
-
-    if (!name) return { success: false, error: "Name required" };
-    if (!location) return { success: false, error: "Location required" };
-    if (!startTime) return { success: false, error: "Start Time required" };
 
     const { data, error } = await supabaseAdmin
         .from("tournaments")
