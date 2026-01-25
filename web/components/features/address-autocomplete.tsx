@@ -21,7 +21,27 @@ import { cn } from "@/lib/utils";
 // Make sure to load the Google Maps script in your layout or app
 // e.g. <script src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}></script>
 
-export function AddressAutocomplete({ name = "location", required = false, placeholder = "Search address..." }: { name?: string, required?: boolean, placeholder?: string }) {
+export interface AddressResult {
+    address: string;
+    city: string;
+    country: string;
+    lat: number;
+    lng: number;
+}
+
+export function AddressAutocomplete({
+    name = "location",
+    required = false,
+    placeholder = "Search address...",
+    defaultValue = "",
+    onAddressSelect
+}: {
+    name?: string,
+    required?: boolean,
+    placeholder?: string,
+    defaultValue?: string,
+    onAddressSelect?: (result: AddressResult) => void
+}) {
     const {
         ready,
         value,
@@ -33,10 +53,64 @@ export function AddressAutocomplete({ name = "location", required = false, place
             /* Define search scope here */
         },
         debounce: 300,
+        defaultValue,
         callbackName: "initMap" // matches the global callback if you use one
     });
 
     const [open, setOpen] = useState(false);
+
+    const handleSelect = async (address: string) => {
+        setValue(address, false);
+        clearSuggestions();
+        setOpen(false);
+
+        try {
+            const results = await getGeocode({ address });
+            const { lat, lng } = await getLatLng(results[0]);
+
+            // Extract City and Country
+            let city = "";
+            let country = "";
+
+            const components = results[0].address_components;
+
+            for (const component of components) {
+                if (component.types.includes("country")) {
+                    country = component.long_name;
+                }
+                if (component.types.includes("locality")) {
+                    city = component.long_name;
+                }
+                // Fallback for city if locality is missing (e.g. some parts of Japan/Philippines)
+                if (!city && component.types.includes("administrative_area_level_2")) {
+                    city = component.long_name; // County/District level often acts as city
+                }
+                if (!city && component.types.includes("administrative_area_level_1")) {
+                    // Last resort: State/Province if no city found (not ideal but better than empty)
+                    // keeping empty might be safer to prompt manual entry? No, user requested consolidation.
+                    // Let's stick to locality/admin_level_2.
+                }
+            }
+
+            // If still no city, try postal_town (UK)
+            if (!city) {
+                const town = components.find(c => c.types.includes("postal_town"));
+                if (town) city = town.long_name;
+            }
+
+            if (onAddressSelect) {
+                onAddressSelect({
+                    address,
+                    city,
+                    country,
+                    lat,
+                    lng
+                });
+            }
+        } catch (error) {
+            console.error("Geocoding error: ", error);
+        }
+    };
 
     // Sync internal value with hidden input
     // We use a hidden input so it works with the FormData serialization in the parent form
@@ -47,6 +121,7 @@ export function AddressAutocomplete({ name = "location", required = false, place
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <button
+                        type="button" // Prevent form submission
                         disabled={!ready}
                         className="w-full flex items-center justify-between h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
                     >
@@ -71,11 +146,7 @@ export function AddressAutocomplete({ name = "location", required = false, place
                                 <CommandItem
                                     key={place_id}
                                     value={description}
-                                    onSelect={(currentValue) => {
-                                        setValue(description, false);
-                                        clearSuggestions();
-                                        setOpen(false);
-                                    }}
+                                    onSelect={() => handleSelect(description)}
                                 >
                                     <MapPin className="mr-2 h-4 w-4 opacity-50" />
                                     {description}
