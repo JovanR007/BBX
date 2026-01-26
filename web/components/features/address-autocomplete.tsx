@@ -307,8 +307,8 @@ export function AddressAutocomplete({
         <div className="relative w-full group">
             {/* API Loader handles the Google Maps script injection */}
             {/* Only render loader if window.google is not available (prevent multiple loaders) */}
-            {/* @ts-ignore */}
             {!window.google && (
+                // @ts-ignore
                 <gmpx-api-loader
                     ref={loaderRef}
                     solution-channel="GMP_GE_placepicker_v2"
