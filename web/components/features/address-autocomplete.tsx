@@ -48,15 +48,16 @@ export function AddressAutocomplete({
         if (!libLoaded) return;
 
         const checkAndSetKey = () => {
-            // Debugging: Check if env var is loaded
-            if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-                console.error("Critical: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is missing!");
-                // Optional: alert("System Error: Google Maps API Key is missing. Please check Vercel settings.");
+            // Fallback to hardcoded key if env var fails (Temporary Debugging)
+            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyB1mUEo5LNlUuLVtm0FMugxab6hfLjyUuw";
+
+            if (!apiKey) {
+                console.error("Critical: API Key is really missing!");
                 return false;
             }
 
             if (loaderRef.current) {
-                loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+                loaderRef.current.setAttribute("key", apiKey);
                 setApiReady(true);
                 return true;
             }
