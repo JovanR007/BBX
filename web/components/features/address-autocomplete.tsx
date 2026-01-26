@@ -169,6 +169,23 @@ export function AddressAutocomplete({
         );
     }
 
+    // Handle Initial Value (Persistence)
+    useEffect(() => {
+        if (!apiReady || !pickerRef.current || !defaultValue) return;
+
+        // Hack: Manually set the input value in the Shadow DOM since 'value' prop expects a Place object
+        const setInitialValue = () => {
+            const input = pickerRef.current.shadowRoot?.querySelector("input");
+            if (input) {
+                input.value = defaultValue;
+            } else {
+                // Retry if shadow DOM isn't ready
+                requestAnimationFrame(setInitialValue);
+            }
+        };
+        setTimeout(setInitialValue, 500); // Small delay to allow internal render
+    }, [apiReady, defaultValue]);
+
     return (
         <div className="relative w-full">
             {/* API Loader handles the Google Maps script injection */}
@@ -181,25 +198,48 @@ export function AddressAutocomplete({
             {/* The Place Picker Web Component - Only render when API key is set */}
             {apiReady && (
                 <div className="w-full">
-                    {/* @ts-ignore */}
-                    <gmpx-place-picker
-                        ref={pickerRef}
-                        placeholder={placeholder}
-                        // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
-                        style={{ width: '100%' }}
-                    />
+                    {/* 
+                        Global Styles for the shadow DOM of the picker 
+                        We make the picker background transparent so it inherits the container's style.
+                    */}
+                    <style jsx global>{`
+                        gmpx-place-picker {
+                            --gmpx-color-surface: transparent; 
+                            --gmpx-color-on-surface: inherit;
+                            --gmpx-color-primary: hsl(var(--primary));
+                            --gmpx-font-family-base: inherit;
+                        }
+                        gmpx-place-picker input {
+                            padding: 0 !important;
+                        }
+                    `}</style>
+
+                    {/* Wrapper matching Shadcn Input Styles */}
+                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                        {/* @ts-ignore */}
+                        <gmpx-place-picker
+                            ref={pickerRef}
+                            placeholder={placeholder}
+                            style={{
+                                width: '100%',
+                                background: 'transparent',
+                                border: 'none',
+                                outline: 'none'
+                            }}
+                        />
+                    </div>
                 </div>
             )}
 
             {/* Show loading state while waiting for API Key injection */}
             {!apiReady && (
-                <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    Initializing...
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
+                    Initializing Maps...
                 </div>
             )}
 
             {/* Hidden Input for Form Submission compliance if needed */}
-            <input type="hidden" name={name} />
+            <input type="hidden" name={name} value={defaultValue} />
         </div>
     );
 }
