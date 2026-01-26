@@ -203,20 +203,23 @@ export function AddressAutocomplete({
                         We make the picker background transparent so it inherits the container's style.
                     */}
                     <style jsx global>{`
-                        gmpx-place-picker {
+                        /* Hide the Google Logo/Search Icon if it clashes or looks bad */
+                        gmpx-place-picker::part(input) {
+                            color: hsl(var(--foreground));
+                            background: transparent;
+                            border: none;
+                            outline: none;
+                            padding: 0;
+                        }
+                        /* Remove default box shadow or border if present on the host */
+                         gmpx-place-picker {
                             --gmpx-color-surface: transparent; 
                             --gmpx-color-on-surface: hsl(var(--foreground));
                             --gmpx-color-primary: hsl(var(--primary));
                             --gmpx-font-family-base: inherit;
-                            font-size: 0.875rem; /* text-sm */
-                        }
-                        gmpx-place-picker input {
-                            padding: 0 !important;
-                            color: hsl(var(--foreground)) !important; 
-                        }
-                        /* Hide the Google Logo/Search Icon if it clashes or looks bad */
-                        gmpx-place-picker::part(input) {
-                            color: hsl(var(--foreground));
+                            font-size: 0.875rem;
+                            border: none !important;
+                            outline: none !important;
                         }
                     `}</style>
 
