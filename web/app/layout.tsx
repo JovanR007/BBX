@@ -58,12 +58,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={cn(inter.className, "min-h-screen bg-background text-foreground antialiased")}>
-        {/* Google Maps API for Autocomplete - Force Rebuild */ }
-        <script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}
-          async
-          defer
-        ></script>
+        {/* Google Maps API for Autocomplete - Force Rebuild */}
+        {/* Google Maps API handled by gmpx-api-loader in components */}
         <StackProvider app={stackServerApp}>
           <StackTheme>
             <ToastProvider>

@@ -1,25 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import usePlacesAutocomplete, {
-    getGeocode,
-    getLatLng,
-} from "use-places-autocomplete";
-import {
-    Command,
-    CommandDialog,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, MapPin } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
+// Import the Google Maps Extended Component Library web components
+import "@googlemaps/extended-component-library/place_picker.js";
+import "@googlemaps/extended-component-library/api_loader.js";
 
-// Make sure to load the Google Maps script in your layout or app
-// e.g. <script src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`}></script>
+// Define the custom elements for TypeScript
+declare global {
+    namespace JSX {
+        interface IntrinsicElements {
+            "gmpx-api-loader": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+                key?: string;
+                "solution-channel"?: string;
+            };
+            "gmpx-place-picker": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+                placeholder?: string;
+                ref?: React.RefObject<any>;
+            };
+        }
+    }
+}
 
 export interface AddressResult {
     address: string;
@@ -42,60 +42,44 @@ export function AddressAutocomplete({
     defaultValue?: string,
     onAddressSelect?: (result: AddressResult) => void
 }) {
-    const {
-        ready,
-        value,
-        suggestions: { status, data },
-        setValue,
-        clearSuggestions,
-    } = usePlacesAutocomplete({
-        requestOptions: {
-            /* Define search scope here */
-        },
-        debounce: 300,
-        defaultValue,
-        callbackName: "initMap" // matches the global callback if you use one
-    });
+    const pickerRef = useRef<any>(null);
 
-    const [open, setOpen] = useState(false);
+    // Attach event listener for place changes
+    useEffect(() => {
+        const picker = pickerRef.current;
+        if (!picker) return;
 
-    const handleSelect = async (address: string) => {
-        setValue(address, false);
-        clearSuggestions();
-        setOpen(false);
+        const handlePlaceChange = () => {
+            const place = picker.value;
+            if (!place || !place.location) return;
 
-        try {
-            const results = await getGeocode({ address });
-            const { lat, lng } = await getLatLng(results[0]);
+            const address = place.formattedAddress || "";
+            const lat = place.location.lat();
+            const lng = place.location.lng();
 
-            // Extract City and Country
+            // Extract City and Country from address_components
             let city = "";
             let country = "";
-
-            const components = results[0].address_components;
+            const components = place.addressComponents || [];
 
             for (const component of components) {
                 if (component.types.includes("country")) {
-                    country = component.long_name;
+                    country = component.longName;
                 }
                 if (component.types.includes("locality")) {
-                    city = component.long_name;
+                    city = component.longName;
                 }
-                // Fallback for city if locality is missing (e.g. some parts of Japan/Philippines)
                 if (!city && component.types.includes("administrative_area_level_2")) {
-                    city = component.long_name; // County/District level often acts as city
+                    city = component.longName;
                 }
                 if (!city && component.types.includes("administrative_area_level_1")) {
-                    // Last resort: State/Province if no city found (not ideal but better than empty)
-                    // keeping empty might be safer to prompt manual entry? No, user requested consolidation.
-                    // Let's stick to locality/admin_level_2.
+                    // Fallback
                 }
             }
 
-            // If still no city, try postal_town (UK)
             if (!city) {
                 const town = components.find((c: any) => c.types.includes("postal_town"));
-                if (town) city = town.long_name;
+                if (town) city = town.longName;
             }
 
             if (onAddressSelect) {
@@ -107,61 +91,36 @@ export function AddressAutocomplete({
                     lng
                 });
             }
-        } catch (error: any) {
-            console.error("Geocoding error: ", error);
-            // If the error is related to API request denial, it's likely the Geocoding API is not enabled.
-            if (error?.message?.includes("REQUEST_DENIED") || error?.includes && error.includes("REQUEST_DENIED")) {
-                alert("Error: Google Maps Geocoding API is not enabled. Please enable it in your Google Cloud Console to use this feature.");
-            } else {
-                alert("Failed to fetch address details. Please try again.");
-            }
-        }
-    };
+        };
 
-    // Sync internal value with hidden input
-    // We use a hidden input so it works with the FormData serialization in the parent form
+        // Standard event listener for web components
+        picker.addEventListener("gmpx-placechange", handlePlaceChange);
+
+        return () => {
+            picker.removeEventListener("gmpx-placechange", handlePlaceChange);
+        };
+    }, [onAddressSelect]);
+
     return (
         <div className="relative w-full">
-            <input type="hidden" name={name} value={value} />
+            {/* API Loader handles the Google Maps script injection */}
+            <gmpx-api-loader
+                key={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                solution-channel="GMP_GE_placepicker_v2"
+            />
 
-            <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                    <button
-                        type="button" // Prevent form submission
-                        disabled={!ready}
-                        className="w-full flex items-center justify-between h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-left"
-                    >
-                        <span className={cn("truncate", !value && "text-muted-foreground")}>
-                            {value || placeholder}
-                        </span>
-                        <MapPin className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command shouldFilter={false}>
-                        <CommandInput
-                            placeholder="Search places..."
-                            value={value}
-                            onValueChange={(val) => {
-                                setValue(val);
-                                setOpen(true);
-                            }}
-                        />
-                        <CommandList>
-                            {status === "OK" && data.map(({ place_id, description }) => (
-                                <CommandItem
-                                    key={place_id}
-                                    value={description}
-                                    onSelect={() => handleSelect(description)}
-                                >
-                                    <MapPin className="mr-2 h-4 w-4 opacity-50" />
-                                    {description}
-                                </CommandItem>
-                            ))}
-                        </CommandList>
-                    </Command>
-                </PopoverContent>
-            </Popover>
+            {/* The Place Picker Web Component */}
+            <div className="w-full">
+                <gmpx-place-picker
+                    ref={pickerRef}
+                    placeholder={placeholder}
+                    // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
+                    style={{ width: '100%' }}
+                />
+            </div>
+
+            {/* Hidden Input for Form Submission compliance if needed */}
+            <input type="hidden" name={name} />
         </div>
     );
 }
