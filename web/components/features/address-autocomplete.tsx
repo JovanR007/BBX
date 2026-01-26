@@ -160,15 +160,6 @@ export function AddressAutocomplete({
         };
     }, [onAddressSelect, apiReady]);
 
-    // Don't render until client-side library is ready (prevents hydration mismatch)
-    if (!libLoaded) {
-        return (
-            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                Loading Maps...
-            </div>
-        );
-    }
-
     // Handle Initial Value (Persistence)
     useEffect(() => {
         if (!apiReady || !pickerRef.current || !defaultValue) return;
@@ -185,6 +176,15 @@ export function AddressAutocomplete({
         };
         setTimeout(setInitialValue, 500); // Small delay to allow internal render
     }, [apiReady, defaultValue]);
+
+    // Don't render until client-side library is ready (prevents hydration mismatch)
+    if (!libLoaded) {
+        return (
+            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                Loading Maps...
+            </div>
+        );
+    }
 
     return (
         <div className="relative w-full">
