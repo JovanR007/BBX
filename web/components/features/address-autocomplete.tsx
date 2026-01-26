@@ -88,6 +88,13 @@ export function AddressAutocomplete({
         };
     }, [libLoaded]);
 
+    const [currentValue, setCurrentValue] = useState(defaultValue);
+
+    // Sync defaultValue if it changes externally
+    useEffect(() => {
+        setCurrentValue(defaultValue);
+    }, [defaultValue]);
+
     // Attach Event Listener
     useEffect(() => {
         if (!apiReady) return;
@@ -105,6 +112,9 @@ export function AddressAutocomplete({
             }
 
             const address = place.formattedAddress || "";
+            // Update the hidden input value so parent forms can see it
+            setCurrentValue(address);
+
             // Debugging location access
             const lat = typeof place.location.lat === 'function' ? place.location.lat() : place.location.lat;
             const lng = typeof place.location.lng === 'function' ? place.location.lng() : place.location.lng;
@@ -160,49 +170,117 @@ export function AddressAutocomplete({
         };
     }, [onAddressSelect, apiReady]);
 
-    // Handle Initial Value (Persistence)
-    useEffect(() => {
-        if (!apiReady || !pickerRef.current || !defaultValue) return;
+    // ... (rest of the effects) ...
 
-        // Hack: Manually set the input value in the Shadow DOM since 'value' prop expects a Place object
-        const setInitialValue = () => {
-            const input = pickerRef.current.shadowRoot?.querySelector("input");
-            if (input) {
-                input.value = defaultValue;
-            } else {
-                // Retry if shadow DOM isn't ready
-                requestAnimationFrame(setInitialValue);
-            }
-        };
-        setTimeout(setInitialValue, 500); // Small delay to allow internal render
-    }, [apiReady, defaultValue]);
+    // ... (skipping to the render part) ...
 
-    // Don't render until client-side library is ready (prevents hydration mismatch)
-    if (!libLoaded) {
-        return (
-            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                Loading Maps...
-            </div>
-        );
-    }
+    {/* Hidden Input for Form Submission compliance if needed */ }
+    <input type="hidden" name={name} value={currentValue} />
+        </div >
+    );
+}
 
+// Handle Initial Value (Persistence) & Style Injection
+useEffect(() => {
+    if (!apiReady || !pickerRef.current) return;
+
+    const injectStyles = () => {
+        const shadow = pickerRef.current.shadowRoot;
+        if (!shadow) {
+            requestAnimationFrame(injectStyles);
+            return;
+        }
+
+        // 1. Persistence Hack
+        if (defaultValue) {
+            const input = shadow.querySelector("input");
+            if (input) input.value = defaultValue;
+        }
+
+        // 2. Style Injection (The "Nuclear" Option for Borders)
+        // We inject a style tag DIRECTLY into the shadow root to target internal elements
+        if (!shadow.querySelector("#custom-gmpx-styles")) {
+            const style = document.createElement("style");
+            style.id = "custom-gmpx-styles";
+            style.textContent = `
+                    /* Remove Material Design Outlines, Borders, and LABELS */
+                    .mdc-notched-outline, 
+                    .mdc-line-ripple,
+                    .mdc-floating-label,
+                    label,
+                    div[class*="outline"], 
+                    div[class*="border"] {
+                        display: none !important;
+                        opacity: 0 !important;
+                        border: none !important;
+                    }
+                    
+                    /* Force Input Transparent but KEEP padding/layout */
+                    input {
+                        background: transparent !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        outline: none !important;
+                        /* Do NOT force padding: 0, it breaks icon spacing */
+                        /* padding: 0 !important; */
+                        
+                        /* Ensure text color matches */
+                        color: hsl(var(--foreground)) !important;
+                    }
+
+                    /* Just in case icon needs help */
+                    i, svg {
+                        color: hsl(var(--foreground)) !important;
+                    }
+                 `;
+            shadow.appendChild(style);
+        }
+    };
+
+    // Run immediately and after a short delay to ensure rendering matches
+    injectStyles();
+    setTimeout(injectStyles, 1000);
+
+}, [apiReady, defaultValue]);
+
+// Don't render until client-side library is ready (prevents hydration mismatch)
+if (!libLoaded) {
     return (
-        <div className="relative w-full">
-            {/* API Loader handles the Google Maps script injection */}
-            {/* @ts-ignore */}
-            <gmpx-api-loader
-                ref={loaderRef}
-                solution-channel="GMP_GE_placepicker_v2"
-            />
+        <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+            Loading Maps...
+        </div>
+    );
+}
 
-            {/* The Place Picker Web Component - Only render when API key is set */}
-            {apiReady && (
-                <div className="w-full">
-                    {/* 
+// Clear button functionality
+const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pickerRef.current) {
+        pickerRef.current.value = null; // Reset picker
+    }
+    setCurrentValue("");
+    if (onAddressSelect) {
+        onAddressSelect({ address: "", city: "", country: "", lat: 0, lng: 0 });
+    }
+};
+
+return (
+    <div className="relative w-full group">
+        {/* API Loader handles the Google Maps script injection */}
+        {/* @ts-ignore */}
+        <gmpx-api-loader
+            ref={loaderRef}
+            solution-channel="GMP_GE_placepicker_v2"
+        />
+
+        {/* The Place Picker Web Component - Only render when API key is set */}
+        {apiReady && (
+            <div className="w-full relative">
+                {/* 
                         Global Styles for the shadow DOM of the picker 
-                        We make the picker background transparent so it inherits the container's style.
                     */}
-                    <style jsx global>{`
+                <style jsx global>{`
                         /* Hide the Google Logo/Search Icon if it clashes or looks bad */
                         gmpx-place-picker::part(input) {
                             color: hsl(var(--foreground));
@@ -211,45 +289,80 @@ export function AddressAutocomplete({
                             outline: none !important;
                             box-shadow: none !important;
                             padding: 0 !important;
+                            height: 100% !important;
+                            width: 100% !important;
+                            -webkit-appearance: none !important;
+                            appearance: none !important;
                         }
                         /* Remove default box shadow or border if present on the host */
                          gmpx-place-picker {
                             --gmpx-color-surface: transparent; 
                             --gmpx-color-on-surface: hsl(var(--foreground));
-                            --gmpx-color-primary: hsl(var(--primary));
+                            
+                            /* CRITICAL: Set primary color (Focus Ring) to transparent */
+                            --gmpx-color-primary: transparent !important;
+                            --gmpx-color-outline: transparent !important;
+                            --md-sys-color-outline: transparent !important;
+                            --md-sys-color-outline-variant: transparent !important;
+
                             --gmpx-font-family-base: inherit;
                             font-size: 0.875rem;
                             border: none !important;
                             outline: none !important;
+                            display: block;
+                            height: 100%;
+                            width: 100%;
                         }
                     `}</style>
 
-                    {/* Wrapper matching Shadcn Input Styles */}
-                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                        {/* @ts-ignore */}
-                        <gmpx-place-picker
-                            ref={pickerRef}
-                            placeholder={placeholder}
-                            style={{
-                                width: '100%',
-                                background: 'transparent',
-                                border: 'none',
-                                outline: 'none'
-                            }}
-                        />
+                {/* Wrapper matching Shadcn Input Styles */}
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background pl-3 pr-10 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 relative">
+                    {/* Search Icon (Custom) */}
+                    <div className="absolute left-3 text-muted-foreground pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
                     </div>
-                </div>
-            )}
 
-            {/* Show loading state while waiting for API Key injection */}
-            {!apiReady && (
-                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
-                    Initializing Maps...
-                </div>
-            )}
+                    {/* @ts-ignore */}
+                    <gmpx-place-picker
+                        ref={pickerRef}
+                        placeholder={placeholder}
+                        style={{
+                            width: '100%',
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            paddingLeft: '24px' // Make room for icon
+                        }}
+                    />
 
-            {/* Hidden Input for Form Submission compliance if needed */}
-            <input type="hidden" name={name} value={defaultValue} />
-        </div>
-    );
+                    {/* Clear Button - Shows only when there is a value */}
+                    {currentValue && (
+                        <button
+                            type="button"
+                            onClick={handleClear}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                            aria-label="Clear address"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                        </button>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* Show loading state while waiting for API Key injection */}
+        {!apiReady && (
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
+                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Initializing Maps...
+            </div>
+        )}
+
+        {/* Hidden Input for Form Submission compliance */}
+        <input type="hidden" name={name} value={currentValue} />
+    </div>
+);
 }
