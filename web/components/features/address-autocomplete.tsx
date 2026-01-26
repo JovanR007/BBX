@@ -58,8 +58,8 @@ export function AddressAutocomplete({
         if (!libLoaded) return;
 
         const checkAndSetKey = () => {
-            // Fallback to hardcoded key if env var fails (Temporary Debugging)
-            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "AIzaSyB1zROdMVjWDyJEp38_onyz6lwwU9ulKsM";
+            // Fallback to empty string if env var fails
+            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
             if (!apiKey) {
                 console.error("Critical: API Key is really missing!");
