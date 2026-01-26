@@ -10,6 +10,12 @@ export interface AddressResult {
     lng: number;
 }
 
+declare global {
+    interface Window {
+        google: any;
+    }
+}
+
 export function AddressAutocomplete({
     name = "location",
     required = false,
@@ -58,6 +64,12 @@ export function AddressAutocomplete({
         if (!libLoaded) return;
 
         const checkAndSetKey = () => {
+            // Check if Google Maps is already loaded globally
+            if (window.google && window.google.maps) {
+                setApiReady(true);
+                return true;
+            }
+
             // Fallback to empty string if env var fails
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -294,11 +306,14 @@ export function AddressAutocomplete({
     return (
         <div className="relative w-full group">
             {/* API Loader handles the Google Maps script injection */}
+            {/* Only render loader if window.google is not available (prevent multiple loaders) */}
             {/* @ts-ignore */}
-            <gmpx-api-loader
-                ref={loaderRef}
-                solution-channel="GMP_GE_placepicker_v2"
-            />
+            {!window.google && (
+                <gmpx-api-loader
+                    ref={loaderRef}
+                    solution-channel="GMP_GE_placepicker_v2"
+                />
+            )}
 
             {/* The Place Picker Web Component - Only render when API key is set */}
             {apiReady && (
