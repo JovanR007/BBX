@@ -18,10 +18,11 @@ export default function LandingPage() {
 
   useEffect(() => {
     async function fetchData() {
-      // 1. Fetch Stores
+      // 1. Fetch Featured Stores (Only Pro Plan) - Premium Exclusivity
       const { data } = await supabase
         .from("stores")
         .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan")
+        .eq("plan", "pro")
         .order("created_at", { ascending: false });
 
       if (data) setStores(data);
@@ -63,7 +64,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex gap-4">
-            {user && (
+            {user ? (
               <Link
                 href="/dashboard"
                 className="relative inline-flex items-center justify-center rounded-full bg-slate-950 px-8 py-3 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:shadow-cyan-500/25 border border-slate-800 hover:border-cyan-500/50 group"
@@ -73,7 +74,24 @@ export default function LandingPage() {
                   {isOwner ? "Manage Tournaments" : "My Blader Profile"}
                 </span>
               </Link>
+            ) : (
+              <Link
+                href="/sign-in"
+                className="relative inline-flex items-center justify-center rounded-full bg-slate-950 px-8 py-3 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:shadow-cyan-500/25 border border-slate-800 hover:border-cyan-500/50 group"
+              >
+                <span className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 opacity-20 group-hover:opacity-40 blur transition-opacity" />
+                <span className="relative">
+                  Get Started
+                </span>
+              </Link>
             )}
+
+            <Link
+              href="/stores"
+              className="relative inline-flex items-center justify-center rounded-full bg-slate-950/50 backdrop-blur-sm px-8 py-3 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 border border-slate-800 hover:bg-slate-800"
+            >
+              Find Local Shops
+            </Link>
           </div>
         </div>
 

@@ -20,6 +20,8 @@ export interface Store {
     primary_color?: string | null;
     secondary_color?: string | null;
     plan?: 'free' | 'pro';
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 export interface Tournament {
@@ -105,3 +107,12 @@ export interface SwissStanding {
     history: MatchHistory[];
 }
 
+
+export interface TournamentInvite {
+    id: string;
+    tournament_id: string;
+    email: string;
+    status: 'pending' | 'accepted' | 'declined';
+    token: string;
+    created_at: string;
+}

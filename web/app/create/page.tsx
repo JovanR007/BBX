@@ -6,6 +6,8 @@ import { createTournamentAction } from "@/app/actions";
 import { ArrowLeft, Rocket } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { AddressAutocomplete } from "@/components/features/address-autocomplete";
+import { DateTimePicker } from "@/components/features/date-time-picker";
 
 export default function CreateTournamentPage() {
     const [loading, setLoading] = useState(false);
@@ -49,25 +51,24 @@ export default function CreateTournamentPage() {
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Custom URL Slug (Optional)</label>
-                        <div className="flex items-center">
-                            <span className="bg-muted px-3 py-2 border border-r-0 rounded-l-md text-sm text-muted-foreground">
-                                /t/
-                            </span>
-                            <input
-                                name="slug"
-                                type="text"
-                                placeholder="my-cool-tournament"
-                                className="flex h-10 w-full rounded-r-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Venue / Location</label>
+                            {/* Replaced native input with Autocomplete */}
+                            <AddressAutocomplete
+                                name="location"
+                                required
+                                placeholder="Search venue name or address..."
                             />
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                            Leave blank to auto-generate an ID. Only letters, numbers, and dashes.
-                        </p>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Start Time</label>
+                            <DateTimePicker
+                                name="start_time"
+                                required
+                            />
+                        </div>
                     </div>
-
-
 
                     <button
                         type="submit"

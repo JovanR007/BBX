@@ -140,7 +140,7 @@ export default function ProjectorPage() {
             supabase.from("tournaments").select("*").eq("id", tournamentId).single(),
             supabase.from("participants").select("*").eq("tournament_id", tournamentId),
             supabase.from("matches").select("*").eq("tournament_id", tournamentId),
-            supabase.from("swiss_standings").select("*").eq("tournament_id", tournamentId).order("match_wins", { ascending: false }).order("buchholz", { ascending: false }).order("point_diff", { ascending: false })
+            supabase.from("swiss_standings").select("*").eq("tournament_id", tournamentId).order("match_wins", { ascending: false }).order("point_diff", { ascending: false }).order("buchholz", { ascending: false })
         ]);
 
         const tournament = tourneyRes.data;
@@ -377,9 +377,10 @@ function StandingsView({ standings, cutSize }: { standings: any[], cutSize: numb
                     (globalIndex < 4 && page === 0) ? "bg-slate-800/80 border-slate-700 text-white" : "bg-slate-900/50 border-slate-800 text-slate-300"
             )}>
                 <div className="col-span-2 font-mono opacity-50 text-right pr-4">#{p.rank}</div>
-                <div className="col-span-6 truncate">{p.display_name}</div>
+                <div className="col-span-4 truncate">{p.display_name}</div>
                 <div className="col-span-2 text-center font-mono text-green-400">{p.match_wins}-{p.match_losses}</div>
-                <div className="col-span-2 text-center font-mono opacity-70">{p.buchholz}</div>
+                <div className="col-span-2 text-center font-mono text-yellow-500/80">{p.point_diff > 0 ? `+${p.point_diff}` : p.point_diff}</div>
+                <div className="col-span-2 text-center font-mono opacity-50">{p.buchholz}</div>
             </div>
         );
     };
@@ -404,8 +405,9 @@ function StandingsView({ standings, cutSize }: { standings: any[], cutSize: numb
                     {/* Header */}
                     <div className="grid grid-cols-12 gap-1 px-4 py-1 bg-slate-900/50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-white/10 mb-1">
                         <div className="col-span-2 text-right pr-4">#</div>
-                        <div className="col-span-6">Blader</div>
+                        <div className="col-span-4">Blader</div>
                         <div className="col-span-2 text-center">W-L</div>
+                        <div className="col-span-2 text-center">PD</div>
                         <div className="col-span-2 text-center">BH</div>
                     </div>
                     {col1.map((p, i) => renderRow(p, i, 0))}
@@ -416,8 +418,9 @@ function StandingsView({ standings, cutSize }: { standings: any[], cutSize: numb
                     {/* Header Repeated */}
                     <div className="grid grid-cols-12 gap-1 px-4 py-1 bg-slate-900/50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-white/10 mb-1">
                         <div className="col-span-2 text-right pr-4">#</div>
-                        <div className="col-span-6">Blader</div>
+                        <div className="col-span-4">Blader</div>
                         <div className="col-span-2 text-center">W-L</div>
+                        <div className="col-span-2 text-center">PD</div>
                         <div className="col-span-2 text-center">BH</div>
                     </div>
                     {col2.map((p, i) => renderRow(p, i, midPoint))}

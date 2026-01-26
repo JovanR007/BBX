@@ -8,6 +8,9 @@ import { generateSwissRound } from "@/lib/swiss_round";
 import { generateTopCut } from "@/lib/top_cut";
 import { stackServerApp } from "@/lib/stack";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { Store } from "@/types";
+
+type ActionResult<T> = Promise<{ success: boolean; data?: T; error?: string; count?: number; page?: number; pageSize?: number; }>;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -83,7 +86,7 @@ export async function getTournamentDataAction(tournamentId: string) {
         const results = await Promise.all([
             supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
             supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
-            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped").eq("tournament_id", tournamentId),
+            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped, checked_in").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
         ]);
         const args = results; // Alias for minimal change to getRes or just use results directly
@@ -205,7 +208,8 @@ export async function addParticipantAction(formData: FormData) {
         .insert({
             display_name: name,
             tournament_id: tournamentId,
-            user_id: userId || null
+            user_id: userId || null,
+            checked_in: true // Manual walk-ins are auto checked-in
         })
         .select()
         .single();
@@ -338,6 +342,10 @@ export async function updateParticipantAction(formData: FormData) {
 
     if (!isOwner && !superAdmin) return { success: false, error: "Unauthorized" };
 
+    // Block updates for pre-registered users (linked to an account)
+    const { data: part } = await supabaseAdmin.from("participants").select("user_id").eq("id", participantId).single();
+    if (part?.user_id) return { success: false, error: "Pre-registered player names are locked to their accounts." };
+
     const { error } = await supabaseAdmin
         .from("participants")
         .update({ display_name: name })
@@ -412,23 +420,35 @@ export async function createTournamentAction(formData: FormData) {
     if (!store) return { success: false, error: "You must own a store to create tournaments." };
 
     const name = formData.get("name") as string;
+    const location = formData.get("location") as string;
+    const startTimeRaw = formData.get("start_time") as string;
+
+    // Ensure startTime is an ISO string if present
+    const startTime = startTimeRaw ? new Date(startTimeRaw).toISOString() : null;
+
     const cutSize = Number(formData.get("cut_size"));
-    let slug = formData.get("slug") as string | null;
 
     if (!name) return { success: false, error: "Name required" };
+    if (!location) return { success: false, error: "Location required" };
+    if (!startTime) return { success: false, error: "Start Time required" };
 
-    // Slug validation and normalization
-    if (slug) {
-        slug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        if (slug.length < 3) return { success: false, error: "Slug must be at least 3 characters" };
-    } else {
-        slug = null; // Ensure null if empty
-    }
+    // Auto-Generate Slug: name-date (e.g. week-1-local-2024-12-25)
+    // 1. Format Date YYYY-MM-DD
+    const dateObj = new Date(startTime);
+    const dateStr = dateObj.toISOString().split('T')[0];
+
+    // 2. Format Name
+    const nameSlug = name.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
+
+    // 3. Combine
+    const slug = `${nameSlug}-${dateStr}`;
 
     const { data, error } = await supabaseAdmin
         .from("tournaments")
         .insert({
             name,
+            location,
+            start_time: startTime,
             cut_size: cutSize || 16,
             status: "draft",
             slug,
@@ -1153,6 +1173,11 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
     if (city) updates.city = city;
     if (country) updates.country = country;
 
+    const lat = formData.get("latitude");
+    const lng = formData.get("longitude");
+    if (lat) updates.latitude = parseFloat(lat.toString());
+    if (lng) updates.longitude = parseFloat(lng.toString());
+
     // Branding only for Pro stores
     if (store?.plan === 'pro') {
         if (primaryColor !== undefined) updates.primary_color = primaryColor;
@@ -1374,20 +1399,28 @@ export async function uploadAvatarAction(formData: FormData) {
 
 // --- STORE DISCOVERY ACTIONS ---
 
-export async function getStoresAction(city?: string) {
-    let query = supabase.from("stores").select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan").order("created_at", { ascending: false });
+export async function getStoresAction(city?: string, page = 1, pageSize = 12) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+        .from("stores")
+        .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan, latitude, longitude", { count: 'exact' })
+        .order("plan", { ascending: false }) // Show Pro stores first
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
     if (city && city !== "all") {
-        query = query.ilike("city", city);
+        query = query.ilike("city", `%${city}%`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) return { success: false, error: error.message };
-    return { success: true, data };
+    return { success: true, data, count, page, pageSize };
 }
 
 export async function getLiveTournamentsAction(city?: string) {
-    // 1. Base Query: Active Tournaments (draft, pending, started)
+    // 1. Base Query: Active Tournaments (pending, started) - Filter Out Drafts for Cleaner Feed
     let query = supabase
         .from("tournaments")
         .select(`
@@ -1402,11 +1435,12 @@ export async function getLiveTournamentsAction(city?: string) {
             )
         `)
         .neq("status", "completed")
+        .neq("status", "draft") // Premium Feed: No Drafts
         .order("created_at", { ascending: false });
 
     // 2. Apply City Filter on the joined Store table
     if (city && city !== "all") {
-        query = query.ilike("stores.city", city);
+        query = query.ilike("stores.city", `%${city}%`);
     }
 
     const { data, error } = await query;
@@ -1418,3 +1452,333 @@ export async function getLiveTournamentsAction(city?: string) {
     return { success: true, data: data || [] };
 }
 
+
+
+
+
+export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // 1. Fetch Live Tournaments (No pagination, show all active)
+    let liveQuery = supabase
+        .from("tournaments")
+        .select(`
+            *,
+            stores (
+                name,
+                city,
+                image_url,
+                plan
+            )
+        `)
+        .eq("status", "started")
+        .order("start_time", { ascending: true });
+
+    if (city && city !== "all") {
+        liveQuery = liveQuery.ilike("location", `%${city}%`);
+    }
+
+    const { data: liveData, error: liveError } = await liveQuery;
+
+    // 2. Fetch Upcoming Tournaments (Paginated)
+    let upcomingQuery = supabase
+        .from("tournaments")
+        .select(`
+            *,
+            stores (
+                name,
+                city,
+                image_url,
+                plan
+            )
+        `, { count: 'exact' })
+        // Include both 'created' (Published) and 'draft' (user requested)
+        .in("status", ["created", "draft"])
+        .order("start_time", { ascending: true })
+        .range(from, to);
+
+    if (city && city !== "all") {
+        upcomingQuery = upcomingQuery.ilike("location", `%${city}%`);
+    }
+
+    const { data: upcomingData, error: upcomingError, count } = await upcomingQuery;
+
+    if (liveError) console.error("Live fetch error:", liveError);
+    if (upcomingError) return { success: false, error: upcomingError.message };
+
+    return {
+        success: true,
+        liveData: liveData || [],
+        upcomingData: upcomingData || [],
+        count,
+        page,
+        pageSize
+    };
+}
+
+// --- TOURNAMENT INVITE ACTIONS ---
+
+export async function getTournamentInvitesAction(tournamentId: string) {
+    if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { data, error } = await supabaseAdmin
+        .from("tournament_invites")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .order("created_at", { ascending: false });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, invites: data };
+}
+
+export async function createInviteAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const identifier = formData.get("email") as string; // This is now 'identifier' (Email or Username)
+
+    if (!tournamentId || !identifier) return { success: false, error: "Missing ID or Identifier" };
+
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    let targetEmail: string | null = null;
+
+    // 1. Check if it's an email
+    if (identifier.includes("@")) {
+        // Look up in profiles first
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .eq("email", identifier)
+            .single();
+
+        if (profile?.email) {
+            targetEmail = profile.email;
+        } else {
+            // Fallback to Stack search
+            const users = await stackServerApp.listUsers({ query: identifier });
+            const foundUser = users.find(u => u.primaryEmail === identifier);
+            if (foundUser?.primaryEmail) {
+                targetEmail = foundUser.primaryEmail;
+            }
+        }
+    } else {
+        // 2. Treat as Username
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("email")
+            .ilike("username", identifier)
+            .single();
+
+        if (profile?.email) {
+            targetEmail = profile.email;
+        }
+    }
+
+    if (!targetEmail) {
+        return {
+            success: false,
+            error: "User not found. Ensure they have a profile or a registered email."
+        };
+    }
+
+    // Check if invite already exists for this email
+    const { data: existing } = await supabaseAdmin
+        .from("tournament_invites")
+        .select("id")
+        .eq("tournament_id", tournamentId)
+        .eq("email", targetEmail)
+        .single();
+
+    if (existing) return { success: false, error: "Invite already exists for this user." };
+
+    const { data, error } = await supabaseAdmin
+        .from("tournament_invites")
+        .insert({
+            tournament_id: tournamentId,
+            email: targetEmail,
+            status: 'pending'
+        })
+        .select()
+        .single();
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true, invite: data };
+}
+
+export async function getUserInvitesAction() {
+    const user = await stackServerApp.getUser();
+    if (!user || !user.primaryEmail) return { success: false, invites: [] };
+
+    const { data, error } = await supabaseAdmin
+        .from("tournament_invites")
+        .select(`
+            *,
+            tournaments (
+                id,
+                name,
+                stores (
+                    name,
+                    city,
+                    country
+                )
+            )
+        `)
+        .eq("email", user.primaryEmail)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true, invites: data };
+}
+
+export async function deleteInviteAction(formData: FormData) {
+    const inviteId = formData.get("invite_id") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+
+    if (!inviteId || !tournamentId) return { success: false, error: "Missing ID" };
+
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { error } = await supabaseAdmin
+        .from("tournament_invites")
+        .delete()
+        .eq("id", inviteId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function getInviteByTokenAction(token: string) {
+    if (!token) return { success: false, error: "Token required" };
+
+    const { data, error } = await supabaseAdmin
+        .from("tournament_invites")
+        .select(`
+            *,
+            tournaments (
+                id,
+                name,
+                store_id,
+                status,
+                stores (
+                    name,
+                    city,
+                    country
+                )
+            )
+        `)
+        .eq("token", token)
+        .single();
+
+    if (error || !data) return { success: false, error: "Invalid or expired invite." };
+    return { success: true, invite: data };
+}
+
+export async function acceptInviteAction(token: string) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Authentication required", notAuthenticated: true };
+
+    // 1. Verify Invite
+    const { data: invite, error: invErr } = await supabaseAdmin
+        .from("tournament_invites")
+        .select("*")
+        .eq("token", token)
+        .single();
+
+    if (invErr || !invite) return { success: false, error: "Invalid invite." };
+    if (invite.status !== 'pending') return { success: false, error: `Invite is already ${invite.status}.` };
+
+    // 2. Check if already joined
+    const { data: existingPart } = await supabaseAdmin
+        .from("participants")
+        .select("id")
+        .eq("tournament_id", invite.tournament_id)
+        .eq("user_id", user.id)
+        .single();
+
+    if (existingPart) {
+        // Already joined, just update invite status to accepted if not already
+        await supabaseAdmin.from("tournament_invites").update({ status: 'accepted' }).eq("id", invite.id);
+        return { success: true, tournamentId: invite.tournament_id, alreadyJoined: true };
+    }
+
+    // 3. Register Participant
+    // We need a display name. Prefer Profile > User Email > "Player"
+    let displayName = user.displayName || user.primaryEmail?.split('@')[0] || "Player";
+
+    // Fetch profile to be sure? Stack user object usually has what we need. 
+    // If not, fetch profile from our DB (synced from Stack).
+    const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+
+    if (profile?.username) displayName = profile.username;
+
+    const { error: joinErr } = await supabaseAdmin
+        .from("participants")
+        .insert({
+            tournament_id: invite.tournament_id,
+            user_id: user.id,
+            display_name: displayName,
+            dropped: false
+        });
+
+    if (joinErr) return { success: false, error: "Failed to join: " + joinErr.message };
+
+    // 4. Update Invite Status
+    await supabaseAdmin
+        .from("tournament_invites")
+        .update({ status: 'accepted' })
+        .eq("id", invite.id);
+
+    revalidatePath(`/t/${invite.tournament_id}`);
+    return { success: true, tournamentId: invite.tournament_id };
+}
+
+export async function toggleCheckInAction(formData: FormData) {
+    const participantId = formData.get("participant_id") as string;
+    const tournamentId = formData.get("tournament_id") as string;
+    const status = formData.get("status") === "true";
+
+    if (!participantId || !tournamentId) return { success: false, error: "Missing ID" };
+
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ checked_in: status })
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true };
+}
+
+export async function getAllStoreCoordinatesAction(): Promise<ActionResult<Store[]>> {
+    // Uses global supabase instance from top of file
+    const { data, error } = await supabase
+        .from("stores")
+        .select("id, name, slug, address, latitude, longitude, contact_number, plan, primary_color")
+        .not("latitude", "is", null)
+        .not("longitude", "is", null);
+
+    if (error) {
+        console.error("Error fetching store coordinates:", error);
+        return { success: false, error: "Failed to fetch map data" };
+    }
+
+    return { success: true, data: data as Store[] };
+}

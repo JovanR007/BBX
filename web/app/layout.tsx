@@ -11,8 +11,8 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: {
-    default: "BeyBracket",
-    template: "%s | BeyBracket",
+    default: "Beybracket",
+    template: "%s | Beybracket",
   },
   description: "The Ultimate Beyblade X Tournament Manager. Create, manage, and share your tournaments with ease.",
   keywords: ["Beyblade", "Beyblade X", "Tournament", "Bracket", "Swiss", "Competition", "Manager"],
@@ -58,6 +58,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={cn(inter.className, "min-h-screen bg-background text-foreground antialiased")}>
+        {/* Google Maps API for Autocomplete - Force Rebuild */}
+        {/* Google Maps API handled by gmpx-api-loader in components */}
         <StackProvider app={stackServerApp}>
           <StackTheme>
             <ToastProvider>

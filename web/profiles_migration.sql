@@ -2,6 +2,7 @@
 create table if not exists profiles (
   id text primary key not null, -- Matches Stack Auth User ID
   username text unique, -- Public Handle (e.g. "JovanR007")
+  email text, -- User Email
   display_name text, -- Friendly Name
   bio text,
   avatar_url text,

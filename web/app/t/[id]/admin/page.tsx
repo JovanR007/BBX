@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction } from "@/app/actions";
+import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction } from "@/app/actions";
 import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban } from "lucide-react";
 import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
@@ -11,6 +11,7 @@ import { MatchScoringModal } from "@/components/features/match-scoring-modal";
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 import { useTournament } from "@/hooks/use-tournament";
 
@@ -359,6 +360,26 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
         setLoading(false);
     }
 
+    async function handleToggleCheckIn() {
+        setLoading(true);
+        const formData = new FormData();
+        formData.append("participant_id", participant.id);
+        formData.append("tournament_id", tournamentId);
+        formData.append("status", (!participant.checked_in).toString());
+
+        const res = await toggleCheckInAction(formData);
+        if (res.success) {
+            refresh();
+            toast({
+                title: participant.checked_in ? "Check-in Revoked" : "Player Checked In",
+                variant: "success"
+            });
+        } else {
+            toast({ title: "Error", description: parseError(res.error), variant: "destructive" });
+        }
+        setLoading(false);
+    }
+
     if (isEditing) {
         return (
             <form onSubmit={handleUpdate} className="flex items-center gap-2 p-1 rounded bg-muted/40 text-sm">
@@ -384,6 +405,22 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
             <div className={`flex items-center justify-between p-2 rounded transition-colors group ${participant.dropped ? "bg-red-500/10 hover:bg-red-500/20" : "bg-muted/40 hover:bg-muted/60"}`}>
                 <div className="flex items-center gap-3">
                     <span className="text-xs font-mono text-muted-foreground w-6">{index + 1}.</span>
+
+                    {/* Check-in Indicator */}
+                    <button
+                        onClick={handleToggleCheckIn}
+                        disabled={loading || readOnly}
+                        className={cn(
+                            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                            participant.checked_in
+                                ? "bg-green-500 border-green-500 text-white"
+                                : "border-muted-foreground/30 hover:border-primary"
+                        )}
+                        title={participant.checked_in ? "Click to Revoke Check-in" : "Click to Check-in"}
+                    >
+                        {participant.checked_in && <CheckCircle className="w-3 h-3" />}
+                    </button>
+
                     <span className={`font-medium text-sm ${participant.dropped ? "text-muted-foreground line-through" : ""}`}>
                         {participant.display_name}
                     </span>
@@ -392,13 +429,23 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
 
                 {!readOnly && !participant.dropped && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={() => setIsEditing(true)}
-                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
-                            title="Edit Name"
-                        >
-                            <Pencil className="w-3 h-3" />
-                        </button>
+                        {!participant.checked_in && (
+                            <button
+                                onClick={handleToggleCheckIn}
+                                className="text-[10px] bg-primary/10 text-primary hover:bg-primary px-2 py-1 rounded transition-all font-bold uppercase"
+                            >
+                                Check In
+                            </button>
+                        )}
+                        {!participant.user_id && (
+                            <button
+                                onClick={() => setIsEditing(true)}
+                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-background rounded-md transition-colors"
+                                title="Edit Name"
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </button>
+                        )}
                         {isStarted ? (
                             <button
                                 onClick={() => setShowDropModal(true)}

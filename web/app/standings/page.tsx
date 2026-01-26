@@ -34,8 +34,8 @@ export default function StandingsPage() {
                 .from("swiss_standings")
                 .select("*")
                 .order("match_wins", { ascending: false })
-                .order("buchholz", { ascending: false })
-                .order("point_diff", { ascending: false });
+                .order("point_diff", { ascending: false })
+                .order("buchholz", { ascending: false });
 
             if (stds) setStandings(stds);
             setLoading(false);
@@ -59,8 +59,8 @@ export default function StandingsPage() {
                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Rank</th>
                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Participant</th>
                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Wins</th>
-                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Buchholz</th>
                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Pt. Diff</th>
+                                <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Buchholz</th>
                                 <th className="h-12 px-4 align-middle font-medium text-muted-foreground">Status</th>
                             </tr>
                         </thead>
@@ -90,8 +90,8 @@ export default function StandingsPage() {
                                             </div>
                                         </td>
                                         <td className="p-4 align-middle">{player.match_wins}</td>
-                                        <td className="p-4 align-middle text-muted-foreground">{player.buchholz}</td>
                                         <td className="p-4 align-middle text-muted-foreground">{player.point_diff > 0 ? `+${player.point_diff}` : player.point_diff}</td>
+                                        <td className="p-4 align-middle text-muted-foreground">{player.buchholz}</td>
                                         <td className="p-4 align-middle">
                                             {isQualifying ? (
                                                 <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
