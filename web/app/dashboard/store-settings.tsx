@@ -20,7 +20,9 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
         city: string,
         country: string,
         primary_color?: string,
-        secondary_color?: string
+        secondary_color?: string,
+        latitude?: number,
+        longitude?: number
     }>({
         name: initialStore?.name || "",
         description: initialStore?.description || "",
@@ -30,7 +32,9 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
         city: initialStore?.city || "",
         country: initialStore?.country || "",
         primary_color: initialStore?.primary_color || "#22d3ee",
-        secondary_color: initialStore?.secondary_color || "#a855f7"
+        secondary_color: initialStore?.secondary_color || "#a855f7",
+        latitude: initialStore?.latitude,
+        longitude: initialStore?.longitude
     });
 
     const isPro = initialStore?.plan === 'pro';
@@ -125,18 +129,25 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                                     name="address"
                                     defaultValue={store.address}
                                     placeholder="Search specific store address..."
+                                    defaultLat={initialStore.latitude}
+                                    defaultLng={initialStore.longitude}
                                     onAddressSelect={(res) => {
                                         setStore(s => ({
                                             ...s,
                                             address: res.address,
                                             city: res.city,
-                                            country: res.country
+                                            country: res.country,
+                                            latitude: res.lat,
+                                            longitude: res.lng
                                         }));
                                     }}
                                 />
                                 <div className="flex gap-2 text-xs text-muted-foreground mt-1">
                                     <span className="bg-secondary/50 px-2 py-0.5 rounded">City: {store.city || "None"}</span>
                                     <span className="bg-secondary/50 px-2 py-0.5 rounded">Country: {store.country || "None"}</span>
+                                    <div className="ml-auto text-xs text-slate-500 font-mono">
+                                        {store.latitude?.toFixed(4) || "N/A"}, {store.longitude?.toFixed(4) || "N/A"}
+                                    </div>
                                 </div>
                             </div>
                         </div>

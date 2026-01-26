@@ -11,8 +11,8 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: {
-    default: "BeyBracket",
-    template: "%s | BeyBracket",
+    default: "Beybracket",
+    template: "%s | Beybracket",
   },
   description: "The Ultimate Beyblade X Tournament Manager. Create, manage, and share your tournaments with ease.",
   keywords: ["Beyblade", "Beyblade X", "Tournament", "Bracket", "Swiss", "Competition", "Manager"],

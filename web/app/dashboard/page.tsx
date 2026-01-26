@@ -108,6 +108,9 @@ export default async function Dashboard() {
             </div >
         );
     } catch (error: any) {
+        if (error?.message === 'NEXT_REDIRECT' || error?.digest?.startsWith('NEXT_REDIRECT')) {
+            throw error;
+        }
         console.error("[Dashboard] Critical Error:", error);
         return (
             <div className="container mx-auto py-24 text-center">

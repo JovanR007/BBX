@@ -8,6 +8,9 @@ import { generateSwissRound } from "@/lib/swiss_round";
 import { generateTopCut } from "@/lib/top_cut";
 import { stackServerApp } from "@/lib/stack";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { Store } from "@/types";
+
+type ActionResult<T> = Promise<{ success: boolean; data?: T; error?: string; count?: number; page?: number; pageSize?: number; }>;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -1154,6 +1157,11 @@ export async function updateStoreAction(previousState: any, formData: FormData) 
     if (city) updates.city = city;
     if (country) updates.country = country;
 
+    const lat = formData.get("latitude");
+    const lng = formData.get("longitude");
+    if (lat) updates.latitude = parseFloat(lat.toString());
+    if (lng) updates.longitude = parseFloat(lng.toString());
+
     // Branding only for Pro stores
     if (store.plan === 'pro') {
         if (primaryColor !== undefined) updates.primary_color = primaryColor;
@@ -1381,13 +1389,13 @@ export async function getStoresAction(city?: string, page = 1, pageSize = 12) {
 
     let query = supabase
         .from("stores")
-        .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan", { count: 'exact' })
+        .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan, latitude, longitude", { count: 'exact' })
         .order("plan", { ascending: false }) // Show Pro stores first
         .order("created_at", { ascending: false })
         .range(from, to);
 
     if (city && city !== "all") {
-        query = query.ilike("city", city);
+        query = query.ilike("city", `%${city}%`);
     }
 
     const { data, error, count } = await query;
@@ -1416,7 +1424,7 @@ export async function getLiveTournamentsAction(city?: string) {
 
     // 2. Apply City Filter on the joined Store table
     if (city && city !== "all") {
-        query = query.ilike("stores.city", city);
+        query = query.ilike("stores.city", `%${city}%`);
     }
 
     const { data, error } = await query;
@@ -1741,4 +1749,20 @@ export async function toggleCheckInAction(formData: FormData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     return { success: true };
+}
+
+export async function getAllStoreCoordinatesAction(): Promise<ActionResult<Store[]>> {
+    // Uses global supabase instance from top of file
+    const { data, error } = await supabase
+        .from("stores")
+        .select("id, name, slug, address, latitude, longitude, contact_number, plan, primary_color")
+        .not("latitude", "is", null)
+        .not("longitude", "is", null);
+
+    if (error) {
+        console.error("Error fetching store coordinates:", error);
+        return { success: false, error: "Failed to fetch map data" };
+    }
+
+    return { success: true, data: data as Store[] };
 }

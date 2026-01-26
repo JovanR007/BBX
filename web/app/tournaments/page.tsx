@@ -31,7 +31,7 @@ export default async function TournamentsPage({
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="mb-12 text-center space-y-4">
                     <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">
-                        TOURNAMENT EVENTS
+                        EVENTS
                     </h1>
                     <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
                         Find and join upcoming Beyblade X tournaments near you.
@@ -39,8 +39,8 @@ export default async function TournamentsPage({
                 </div>
 
                 {/* Filter Bar */}
-                <div className="max-w-md mx-auto mb-16 text-black">
-                    <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
+                <div className="max-w-md mx-auto mb-16">
+                    <FilterBar currentCity={filterCity === "all" ? "" : filterCity} baseUrl="/tournaments" />
                 </div>
 
                 {/* LIVE FEED (Dedicated Section) */}

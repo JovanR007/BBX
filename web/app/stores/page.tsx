@@ -1,16 +1,11 @@
 import { getStoresAction, getLiveTournamentsAction } from "@/app/actions";
 import Link from "next/link";
-import Image from "next/image";
 import { StoreCard } from "@/components/features/store-card";
-import { Trophy, Search, Loader2 } from "lucide-react";
-import { Store, Tournament } from "@/types";
-import { redirect } from "next/navigation";
+import { Store } from "@/types";
 
 // Client Component for filter interactivity
 import FilterBar from "./filter-bar";
 import { cn } from "@/lib/utils";
-
-export const dynamic = "force-dynamic";
 
 export default async function StoresPage({
     searchParams
@@ -19,19 +14,18 @@ export default async function StoresPage({
 }) {
     const { city, page } = await searchParams;
     const filterCity = city || "all";
-    const currentPage = Number(page) || 1;
-    const pageSize = 9;
+    const currentPage = parseInt(page || "1");
+    const pageSize = 12;
 
     // Fetch Data in Parallel
     const [storesRes, tournamentsRes] = await Promise.all([
-        getStoresAction(filterCity, currentPage, pageSize),
+        getStoresAction(filterCity !== "all" ? filterCity : undefined, currentPage, pageSize),
         getLiveTournamentsAction(filterCity)
     ]);
 
     const stores = storesRes.success ? (storesRes.data as Store[]) : [];
-    const totalStores = (storesRes as any).count || 0;
+    const totalStores = storesRes.count || 0;
     const totalPages = Math.ceil(totalStores / pageSize);
-    const activeTournaments = tournamentsRes.success ? (tournamentsRes.data as any[]) : [];
 
     return (
         <div className="min-h-screen bg-neutral-950 relative flex flex-col">
@@ -49,16 +43,16 @@ export default async function StoresPage({
                 </div>
 
                 {/* Filter Bar */}
-                <div className="max-w-md mx-auto mb-12 text-black">
+                <div className="max-w-4xl mx-auto mb-12 space-y-6">
                     <FilterBar currentCity={filterCity === "all" ? "" : filterCity} />
                 </div>
 
-                {/* STORE LIST */}
+                {/* CONTENT */}
                 <div>
                     <div className="flex items-center justify-between mb-10">
                         <h2 className="text-xl font-black tracking-widest text-white flex items-center gap-3 uppercase italic">
                             <div className="w-10 h-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" />
-                            {filterCity !== "all" ? `${filterCity} Partners` : "Tournament Organizers"}
+                            {filterCity !== "all" ? `${filterCity} Hobby Shops` : "Tournament Organizers"}
                         </h2>
                         {totalPages > 1 && (
                             <div className="flex gap-2">

@@ -102,9 +102,11 @@ export function SiteHeader() {
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
                         Directory
                     </Link>
-                    <Link href="/dashboard" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Dashboard
-                    </Link>
+                    {user && (
+                        <Link href="/dashboard" className="text-foreground/60 hover:text-foreground transition-colors">
+                            Dashboard
+                        </Link>
+                    )}
                 </nav>
 
                 <div className="flex items-center gap-2 md:gap-6 pr-1 md:pr-2">
