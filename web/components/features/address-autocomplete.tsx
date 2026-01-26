@@ -1,11 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// Import the Google Maps Extended Component Library web components
-import "@googlemaps/extended-component-library/place_picker.js";
-import "@googlemaps/extended-component-library/api_loader.js";
-
-
 
 export interface AddressResult {
     address: string;
@@ -30,12 +25,96 @@ export function AddressAutocomplete({
 }) {
     const pickerRef = useRef<any>(null);
     const loaderRef = useRef<any>(null);
+    const [libLoaded, setLibLoaded] = useState(false);
 
+    // Initialize Library (Client-Side Only)
     useEffect(() => {
-        if (loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+        async function loadLibrary() {
+            try {
+                // Dynamic import to avoid SSR issues
+                await import("@googlemaps/extended-component-library/place_picker.js");
+                await import("@googlemaps/extended-component-library/api_loader.js");
+                setLibLoaded(true);
+            } catch (err) {
+                console.error("Failed to load Google Maps library", err);
+            }
+        }
+        loadLibrary();
+    }, []);
+
+    // Set API Key
+    useEffect(() => {
+        if (libLoaded && loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
             loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
         }
-    }, []);
+    }, [libLoaded]);
+
+    // Attach Event Listener
+    useEffect(() => {
+        const picker = pickerRef.current;
+        if (!picker || !libLoaded) return;
+
+        const handlePlaceChange = () => {
+            const place = picker.value;
+            if (!place || !place.location) return;
+
+            const address = place.formattedAddress || "";
+            const lat = place.location.lat();
+            const lng = place.location.lng();
+
+            // Extract City and Country from address_components
+            let city = "";
+            let country = "";
+            const components = place.addressComponents || [];
+
+            for (const component of components) {
+                if (component.types.includes("country")) {
+                    country = component.longName;
+                }
+                if (component.types.includes("locality")) {
+                    city = component.longName;
+                }
+                if (!city && component.types.includes("administrative_area_level_2")) {
+                    city = component.longName;
+                }
+                if (!city && component.types.includes("administrative_area_level_1")) {
+                    // Fallback
+                }
+            }
+
+            if (!city) {
+                const town = components.find((c: any) => c.types.includes("postal_town"));
+                if (town) city = town.longName;
+            }
+
+            if (onAddressSelect) {
+                onAddressSelect({
+                    address,
+                    city,
+                    country,
+                    lat,
+                    lng
+                });
+            }
+        };
+
+        // Standard event listener for web components
+        picker.addEventListener("gmpx-placechange", handlePlaceChange);
+
+        return () => {
+            picker.removeEventListener("gmpx-placechange", handlePlaceChange);
+        };
+    }, [onAddressSelect, libLoaded]);
+
+    // Don't render until client-side library is ready (prevents hydration mismatch)
+    if (!libLoaded) {
+        // Return a skeleton or loading state
+        return (
+            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                Loading Maps...
+            </div>
+        );
+    }
 
     return (
         <div className="relative w-full">
