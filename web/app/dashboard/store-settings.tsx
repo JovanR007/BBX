@@ -33,7 +33,11 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
         secondary_color: initialStore?.secondary_color || "#a855f7"
     });
 
-    const isPro = initialStore.plan === 'pro';
+    const isPro = initialStore?.plan === 'pro';
+
+    if (!initialStore) {
+        return <div className="p-6 text-red-500">Error: Store data could not be loaded.</div>;
+    }
 
     return (
         <div className="bg-card border rounded-xl mb-8 overflow-hidden">
