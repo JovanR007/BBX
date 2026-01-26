@@ -205,12 +205,18 @@ export function AddressAutocomplete({
                     <style jsx global>{`
                         gmpx-place-picker {
                             --gmpx-color-surface: transparent; 
-                            --gmpx-color-on-surface: inherit;
+                            --gmpx-color-on-surface: hsl(var(--foreground));
                             --gmpx-color-primary: hsl(var(--primary));
                             --gmpx-font-family-base: inherit;
+                            font-size: 0.875rem; /* text-sm */
                         }
                         gmpx-place-picker input {
                             padding: 0 !important;
+                            color: hsl(var(--foreground)) !important; 
+                        }
+                        /* Hide the Google Logo/Search Icon if it clashes or looks bad */
+                        gmpx-place-picker::part(input) {
+                            color: hsl(var(--foreground));
                         }
                     `}</style>
 
