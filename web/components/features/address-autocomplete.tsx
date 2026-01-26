@@ -45,11 +45,46 @@ export function AddressAutocomplete({
 
     // Set API Key and mark ready
     useEffect(() => {
-        if (libLoaded && loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-            loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
-            // Small delay to ensure the attribute is registered before the picker tries to connect
-            setTimeout(() => setApiReady(true), 100);
-        }
+        if (!libLoaded) return;
+
+        const checkAndSetKey = () => {
+            // Debugging: Check if env var is loaded
+            if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+                console.error("Critical: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is missing!");
+                // Optional: alert("System Error: Google Maps API Key is missing. Please check Vercel settings.");
+                return false;
+            }
+
+            if (loaderRef.current) {
+                loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+                setApiReady(true);
+                return true;
+            }
+            return false;
+        };
+
+        // Try immediately
+        if (checkAndSetKey()) return;
+
+        // Retry a few times if ref isn't ready (React ref assignment can happen after effect in some edge cases with custom elements)
+        const interval = setInterval(() => {
+            if (checkAndSetKey()) {
+                clearInterval(interval);
+            }
+        }, 100);
+
+        // Warning timeout
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+            if (!loaderRef.current) {
+                console.error("Timeout: gmpx-api-loader ref never became available.");
+            }
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
     }, [libLoaded]);
 
     // Attach Event Listener
