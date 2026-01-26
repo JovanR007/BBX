@@ -28,6 +28,7 @@ export function AddressAutocomplete({
     defaultValue?: string,
     onAddressSelect?: (result: AddressResult) => void
 }) {
+    const pickerRef = useRef<any>(null);
     const loaderRef = useRef<any>(null);
 
     useEffect(() => {
