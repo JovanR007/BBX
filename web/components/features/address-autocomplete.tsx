@@ -28,71 +28,20 @@ export function AddressAutocomplete({
     defaultValue?: string,
     onAddressSelect?: (result: AddressResult) => void
 }) {
-    const pickerRef = useRef<any>(null);
+    const loaderRef = useRef<any>(null);
 
-    // Attach event listener for place changes
     useEffect(() => {
-        const picker = pickerRef.current;
-        if (!picker) return;
-
-        const handlePlaceChange = () => {
-            const place = picker.value;
-            if (!place || !place.location) return;
-
-            const address = place.formattedAddress || "";
-            const lat = place.location.lat();
-            const lng = place.location.lng();
-
-            // Extract City and Country from address_components
-            let city = "";
-            let country = "";
-            const components = place.addressComponents || [];
-
-            for (const component of components) {
-                if (component.types.includes("country")) {
-                    country = component.longName;
-                }
-                if (component.types.includes("locality")) {
-                    city = component.longName;
-                }
-                if (!city && component.types.includes("administrative_area_level_2")) {
-                    city = component.longName;
-                }
-                if (!city && component.types.includes("administrative_area_level_1")) {
-                    // Fallback
-                }
-            }
-
-            if (!city) {
-                const town = components.find((c: any) => c.types.includes("postal_town"));
-                if (town) city = town.longName;
-            }
-
-            if (onAddressSelect) {
-                onAddressSelect({
-                    address,
-                    city,
-                    country,
-                    lat,
-                    lng
-                });
-            }
-        };
-
-        // Standard event listener for web components
-        picker.addEventListener("gmpx-placechange", handlePlaceChange);
-
-        return () => {
-            picker.removeEventListener("gmpx-placechange", handlePlaceChange);
-        };
-    }, [onAddressSelect]);
+        if (loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+            loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+        }
+    }, []);
 
     return (
         <div className="relative w-full">
             {/* API Loader handles the Google Maps script injection */}
             {/* @ts-ignore */}
             <gmpx-api-loader
-                key={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                ref={loaderRef}
                 solution-channel="GMP_GE_placepicker_v2"
             />
 
