@@ -120,18 +120,23 @@ export function AddressAutocomplete({
 
             for (const component of components) {
                 // Check snake_case vs camelCase types just in case
-                const types = component.types || component.types;
+                const types = component.types || [];
+
+                // New Places API uses 'longText', Legacy uses 'long_name' or 'longName'
+                const value = component.longText || component.longName || component.long_name || "";
 
                 if (types.includes("country")) {
-                    country = component.longName || component.long_name;
+                    country = value;
                 }
                 if (types.includes("locality")) {
-                    city = component.longName || component.long_name;
+                    city = value;
                 }
                 if (!city && types.includes("administrative_area_level_2")) {
-                    city = component.longName || component.long_name;
+                    city = value;
                 }
-                // ...
+                if (!city && types.includes("administrative_area_level_1")) {
+                    // Fallback
+                }
             }
 
             console.log("📍 [DEBUG] Extracted:", { city, country });
