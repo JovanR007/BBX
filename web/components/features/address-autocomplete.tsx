@@ -135,75 +135,66 @@ export function AddressAutocomplete({
             }
 
             console.log("📍 [DEBUG] Extracted:", { city, country });
-            if (!city && component.types.includes("administrative_area_level_1")) {
-                // Fallback
+
+            if (onAddressSelect) {
+                onAddressSelect({
+                    address,
+                    city,
+                    country,
+                    lat,
+                    lng
+                });
             }
-        }
+        };
 
-        if (!city) {
-            const town = components.find((c: any) => c.types.includes("postal_town"));
-            if (town) city = town.longName;
-        }
+        // Standard event listener for web components
+        picker.addEventListener("gmpx-placechange", handlePlaceChange);
 
-        if (onAddressSelect) {
-            onAddressSelect({
-                address,
-                city,
-                country,
-                lat,
-                lng
-            });
-        }
-    };
+        return () => {
+            picker.removeEventListener("gmpx-placechange", handlePlaceChange);
+        };
+    }, [onAddressSelect, apiReady]);
 
-    // Standard event listener for web components
-    picker.addEventListener("gmpx-placechange", handlePlaceChange);
+    // Don't render until client-side library is ready (prevents hydration mismatch)
+    if (!libLoaded) {
+        return (
+            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                Loading Maps...
+            </div>
+        );
+    }
 
-    return () => {
-        picker.removeEventListener("gmpx-placechange", handlePlaceChange);
-    };
-}, [onAddressSelect, apiReady]);
-
-// Don't render until client-side library is ready (prevents hydration mismatch)
-if (!libLoaded) {
     return (
-        <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-            Loading Maps...
+        <div className="relative w-full">
+            {/* API Loader handles the Google Maps script injection */}
+            {/* @ts-ignore */}
+            <gmpx-api-loader
+                ref={loaderRef}
+                solution-channel="GMP_GE_placepicker_v2"
+            />
+
+            {/* The Place Picker Web Component - Only render when API key is set */}
+            {apiReady && (
+                <div className="w-full">
+                    {/* @ts-ignore */}
+                    <gmpx-place-picker
+                        ref={pickerRef}
+                        placeholder={placeholder}
+                        // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
+                        style={{ width: '100%' }}
+                    />
+                </div>
+            )}
+
+            {/* Show loading state while waiting for API Key injection */}
+            {!apiReady && (
+                <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Initializing...
+                </div>
+            )}
+
+            {/* Hidden Input for Form Submission compliance if needed */}
+            <input type="hidden" name={name} />
         </div>
     );
-}
-
-return (
-    <div className="relative w-full">
-        {/* API Loader handles the Google Maps script injection */}
-        {/* @ts-ignore */}
-        <gmpx-api-loader
-            ref={loaderRef}
-            solution-channel="GMP_GE_placepicker_v2"
-        />
-
-        {/* The Place Picker Web Component - Only render when API key is set */}
-        {apiReady && (
-            <div className="w-full">
-                {/* @ts-ignore */}
-                <gmpx-place-picker
-                    ref={pickerRef}
-                    placeholder={placeholder}
-                    // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
-                    style={{ width: '100%' }}
-                />
-            </div>
-        )}
-
-        {/* Show loading state while waiting for API Key injection */}
-        {!apiReady && (
-            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                Initializing...
-            </div>
-        )}
-
-        {/* Hidden Input for Form Submission compliance if needed */}
-        <input type="hidden" name={name} />
-    </div>
-);
 }
