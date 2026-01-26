@@ -5,21 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import "@googlemaps/extended-component-library/place_picker.js";
 import "@googlemaps/extended-component-library/api_loader.js";
 
-// Define the custom elements for TypeScript
-declare global {
-    namespace JSX {
-        interface IntrinsicElements {
-            "gmpx-api-loader": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-                key?: string;
-                "solution-channel"?: string;
-            };
-            "gmpx-place-picker": React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
-                placeholder?: string;
-                ref?: React.RefObject<any>;
-            };
-        }
-    }
-}
+
 
 export interface AddressResult {
     address: string;
