@@ -97,11 +97,21 @@ export function AddressAutocomplete({
 
         const handlePlaceChange = () => {
             const place = picker.value;
-            if (!place || !place.location) return;
+            console.log("📍 [DEBUG] Selected Place Object:", place);
+
+            if (!place || !place.location) {
+                console.warn("⚠️ [DEBUG] Place or Location missing:", place);
+                return;
+            }
 
             const address = place.formattedAddress || "";
-            const lat = place.location.lat();
-            const lng = place.location.lng();
+            // Debugging location access
+            const lat = typeof place.location.lat === 'function' ? place.location.lat() : place.location.lat;
+            const lng = typeof place.location.lng === 'function' ? place.location.lng() : place.location.lng;
+
+            console.log("📍 [DEBUG] Address:", address);
+            console.log("📍 [DEBUG] Lat/Lng:", lat, lng);
+            console.log("📍 [DEBUG] Raw Address Components:", place.addressComponents);
 
             // Extract City and Country from address_components
             let city = "";
@@ -109,84 +119,91 @@ export function AddressAutocomplete({
             const components = place.addressComponents || [];
 
             for (const component of components) {
-                if (component.types.includes("country")) {
-                    country = component.longName;
+                // Check snake_case vs camelCase types just in case
+                const types = component.types || component.types;
+
+                if (types.includes("country")) {
+                    country = component.longName || component.long_name;
                 }
-                if (component.types.includes("locality")) {
-                    city = component.longName;
+                if (types.includes("locality")) {
+                    city = component.longName || component.long_name;
                 }
-                if (!city && component.types.includes("administrative_area_level_2")) {
-                    city = component.longName;
+                if (!city && types.includes("administrative_area_level_2")) {
+                    city = component.longName || component.long_name;
                 }
-                if (!city && component.types.includes("administrative_area_level_1")) {
-                    // Fallback
-                }
+                // ...
             }
 
-            if (!city) {
-                const town = components.find((c: any) => c.types.includes("postal_town"));
-                if (town) city = town.longName;
+            console.log("📍 [DEBUG] Extracted:", { city, country });
+            if (!city && component.types.includes("administrative_area_level_1")) {
+                // Fallback
             }
+        }
 
-            if (onAddressSelect) {
-                onAddressSelect({
-                    address,
-                    city,
-                    country,
-                    lat,
-                    lng
-                });
-            }
-        };
+        if (!city) {
+            const town = components.find((c: any) => c.types.includes("postal_town"));
+            if (town) city = town.longName;
+        }
 
-        // Standard event listener for web components
-        picker.addEventListener("gmpx-placechange", handlePlaceChange);
+        if (onAddressSelect) {
+            onAddressSelect({
+                address,
+                city,
+                country,
+                lat,
+                lng
+            });
+        }
+    };
 
-        return () => {
-            picker.removeEventListener("gmpx-placechange", handlePlaceChange);
-        };
-    }, [onAddressSelect, apiReady]);
+    // Standard event listener for web components
+    picker.addEventListener("gmpx-placechange", handlePlaceChange);
 
-    // Don't render until client-side library is ready (prevents hydration mismatch)
-    if (!libLoaded) {
-        return (
-            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
-                Loading Maps...
-            </div>
-        );
-    }
+    return () => {
+        picker.removeEventListener("gmpx-placechange", handlePlaceChange);
+    };
+}, [onAddressSelect, apiReady]);
 
+// Don't render until client-side library is ready (prevents hydration mismatch)
+if (!libLoaded) {
     return (
-        <div className="relative w-full">
-            {/* API Loader handles the Google Maps script injection */}
-            {/* @ts-ignore */}
-            <gmpx-api-loader
-                ref={loaderRef}
-                solution-channel="GMP_GE_placepicker_v2"
-            />
-
-            {/* The Place Picker Web Component - Only render when API key is set */}
-            {apiReady && (
-                <div className="w-full">
-                    {/* @ts-ignore */}
-                    <gmpx-place-picker
-                        ref={pickerRef}
-                        placeholder={placeholder}
-                        // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
-                        style={{ width: '100%' }}
-                    />
-                </div>
-            )}
-
-            {/* Show loading state while waiting for API Key injection */}
-            {!apiReady && (
-                <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
-                    Initializing...
-                </div>
-            )}
-
-            {/* Hidden Input for Form Submission compliance if needed */}
-            <input type="hidden" name={name} />
+        <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
+            Loading Maps...
         </div>
     );
+}
+
+return (
+    <div className="relative w-full">
+        {/* API Loader handles the Google Maps script injection */}
+        {/* @ts-ignore */}
+        <gmpx-api-loader
+            ref={loaderRef}
+            solution-channel="GMP_GE_placepicker_v2"
+        />
+
+        {/* The Place Picker Web Component - Only render when API key is set */}
+        {apiReady && (
+            <div className="w-full">
+                {/* @ts-ignore */}
+                <gmpx-place-picker
+                    ref={pickerRef}
+                    placeholder={placeholder}
+                    // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
+                    style={{ width: '100%' }}
+                />
+            </div>
+        )}
+
+        {/* Show loading state while waiting for API Key injection */}
+        {!apiReady && (
+            <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                Initializing...
+            </div>
+        )}
+
+        {/* Hidden Input for Form Submission compliance if needed */}
+        <input type="hidden" name={name} />
+    </div>
+);
 }
