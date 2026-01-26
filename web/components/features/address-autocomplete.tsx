@@ -90,6 +90,7 @@ export function AddressAutocomplete({
     return (
         <div className="relative w-full">
             {/* API Loader handles the Google Maps script injection */}
+            {/* @ts-ignore */}
             <gmpx-api-loader
                 key={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                 solution-channel="GMP_GE_placepicker_v2"
@@ -97,6 +98,7 @@ export function AddressAutocomplete({
 
             {/* The Place Picker Web Component */}
             <div className="w-full">
+                {/* @ts-ignore */}
                 <gmpx-place-picker
                     ref={pickerRef}
                     placeholder={placeholder}
