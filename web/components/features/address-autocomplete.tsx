@@ -26,6 +26,7 @@ export function AddressAutocomplete({
     const pickerRef = useRef<any>(null);
     const loaderRef = useRef<any>(null);
     const [libLoaded, setLibLoaded] = useState(false);
+    const [apiReady, setApiReady] = useState(false);
 
     // Initialize Library (Client-Side Only)
     useEffect(() => {
@@ -42,17 +43,21 @@ export function AddressAutocomplete({
         loadLibrary();
     }, []);
 
-    // Set API Key
+    // Set API Key and mark ready
     useEffect(() => {
         if (libLoaded && loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
             loaderRef.current.setAttribute("key", process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+            // Small delay to ensure the attribute is registered before the picker tries to connect
+            setTimeout(() => setApiReady(true), 100);
         }
     }, [libLoaded]);
 
     // Attach Event Listener
     useEffect(() => {
+        if (!apiReady) return;
+
         const picker = pickerRef.current;
-        if (!picker || !libLoaded) return;
+        if (!picker) return;
 
         const handlePlaceChange = () => {
             const place = picker.value;
@@ -104,11 +109,10 @@ export function AddressAutocomplete({
         return () => {
             picker.removeEventListener("gmpx-placechange", handlePlaceChange);
         };
-    }, [onAddressSelect, libLoaded]);
+    }, [onAddressSelect, apiReady]);
 
     // Don't render until client-side library is ready (prevents hydration mismatch)
     if (!libLoaded) {
-        // Return a skeleton or loading state
         return (
             <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm">
                 Loading Maps...
@@ -125,16 +129,25 @@ export function AddressAutocomplete({
                 solution-channel="GMP_GE_placepicker_v2"
             />
 
-            {/* The Place Picker Web Component */}
-            <div className="w-full">
-                {/* @ts-ignore */}
-                <gmpx-place-picker
-                    ref={pickerRef}
-                    placeholder={placeholder}
-                    // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
-                    style={{ width: '100%' }}
-                />
-            </div>
+            {/* The Place Picker Web Component - Only render when API key is set */}
+            {apiReady && (
+                <div className="w-full">
+                    {/* @ts-ignore */}
+                    <gmpx-place-picker
+                        ref={pickerRef}
+                        placeholder={placeholder}
+                        // Apply rudimentary styling to match internal inputs (web components are isolated but inherit some fonts)
+                        style={{ width: '100%' }}
+                    />
+                </div>
+            )}
+
+            {/* Show loading state while waiting for API Key injection */}
+            {!apiReady && (
+                <div className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                    Initializing...
+                </div>
+            )}
 
             {/* Hidden Input for Form Submission compliance if needed */}
             <input type="hidden" name={name} />
