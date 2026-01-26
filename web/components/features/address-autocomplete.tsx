@@ -206,10 +206,11 @@ export function AddressAutocomplete({
                         /* Hide the Google Logo/Search Icon if it clashes or looks bad */
                         gmpx-place-picker::part(input) {
                             color: hsl(var(--foreground));
-                            background: transparent;
-                            border: none;
-                            outline: none;
-                            padding: 0;
+                            background: transparent !important;
+                            border: none !important;
+                            outline: none !important;
+                            box-shadow: none !important;
+                            padding: 0 !important;
                         }
                         /* Remove default box shadow or border if present on the host */
                          gmpx-place-picker {
