@@ -1160,12 +1160,14 @@ export async function deleteTournamentAction(tournamentId: string) {
         return { success: false, error: `Unauthorized: You do not own this tournament. (User: ${user.id}, Owner: ${store.owner_id})` };
     }
 
-    // 2. Delete
-    // Cascade should handle matches/participants if configured, otherwise might error.
-    // Assuming DB cascade or we manually delete matches?
-    // Let's assume manual deletion if cascade isn't robust, but "on delete cascade" is common.
-    // Given the migration, let's trust Supabase cascade or do a direct delete.
+    // 2. Fetch participants to update points later
+    const { data: participantsToUpdate } = await supabaseAdmin
+        .from("participants")
+        .select("user_id")
+        .eq("tournament_id", tournamentId)
+        .not("user_id", "is", null);
 
+    // 3. Delete
     // Safety: Delete children first
     await supabaseAdmin.from("matches").delete().eq("tournament_id", tournamentId);
     await supabaseAdmin.from("participants").delete().eq("tournament_id", tournamentId);
@@ -1176,6 +1178,15 @@ export async function deleteTournamentAction(tournamentId: string) {
         .eq("id", tournamentId);
 
     if (error) return { success: false, error: error.message };
+
+    // 4. Recalculate Points for affected users
+    if (participantsToUpdate && participantsToUpdate.length > 0) {
+        const uniqueUserIds = [...new Set(participantsToUpdate.map(p => p.user_id).filter(Boolean))];
+        console.log(`[DeleteTournament] Recalculating points for ${uniqueUserIds.length} users...`);
+
+        // Parallel execution might be heavy if many users, but fine for typical scale
+        await Promise.all(uniqueUserIds.map(uid => updatePlayerPoints(uid)));
+    }
 
     revalidatePath("/dashboard");
     return { success: true };

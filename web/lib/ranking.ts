@@ -43,7 +43,12 @@ export async function updatePlayerPoints(userId: string) {
             .select("id, tournament_id")
             .eq("user_id", userId);
 
-        if (!parts || parts.length === 0) return;
+        if (!parts || parts.length === 0) {
+            // User has no participants left (e.g. all deleted). Reset to 0.
+            await supabaseAdmin.from("profiles").update({ ranking_points: 0, tier: "Newbie" }).eq("id", userId);
+            console.log(`[Ranking] Reset ${userId} to 0 points.`);
+            return;
+        }
 
         const partIds = parts.map(p => p.id);
         const tourneyIds = parts.map(p => p.tournament_id);
