@@ -909,8 +909,8 @@ export async function endTournamentAction(formData: FormData) {
     }
 
     // Award Badge: The Architect (Host a tournament)
-    const user = await stackServerApp.getUser();
-    if (user) await awardBadge(user.id, "The Architect", tournamentId);
+    const currentUser = await stackServerApp.getUser();
+    if (currentUser) await awardBadge(currentUser.id, "The Architect", tournamentId);
 
     return { success: true };
 }
