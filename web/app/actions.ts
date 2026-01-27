@@ -9,6 +9,8 @@ import { generateTopCut } from "@/lib/top_cut";
 import { stackServerApp } from "@/lib/stack";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { Store } from "@/types";
+import { awardBadge, checkMatchBadges, checkTournamentBadges } from "@/lib/badges";
+import { updatePlayerPoints } from "@/lib/ranking";
 
 type ActionResult<T> = Promise<{ success: boolean; data?: T; error?: string; count?: number; page?: number; pageSize?: number; }>;
 
@@ -299,6 +301,12 @@ export async function addParticipantAction(formData: FormData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     revalidatePath(`/t/${tournamentId}/bracket`);
+
+    // Award Badge: First Strike
+    if (userId) {
+        await awardBadge(userId as string, "First Strike", tournamentId);
+    }
+
     return { success: true };
 }
 
@@ -381,7 +389,22 @@ export async function startTournamentAction(formData: FormData) {
     if (!tournamentId || !cutSize) return { success: false, error: "Missing ID or Cut Size" };
 
     try {
-        // 1. Update tournament settings & status
+        // 1. Remove unchecked-in participants (Per user request)
+        // We delete anyone who is NOT checked_in.
+        // NOTE: If 'checked_in' is null, we treat as false.
+        const { error: delError } = await supabaseAdmin
+            .from("participants")
+            .delete()
+            .eq("tournament_id", tournamentId)
+            .eq("checked_in", false);
+
+        if (delError) {
+            console.error("Error cleaning up unchecked players:", delError);
+            // Proceed? Or fail? Let's fail to be safe.
+            return { success: false, error: "Failed to remove unchecked players: " + delError.message };
+        }
+
+        // 2. Update tournament settings & status
         const { error } = await supabaseAdmin
             .from("tournaments")
             .update({
@@ -659,6 +682,25 @@ export async function reportMatchAction(formData: FormData) {
     if (mErr) return { success: false, error: mErr.message };
 
     revalidatePath("/", "layout");
+
+    // Trigger Match-based Badges
+    if (winnerId) {
+        // Find if this winnerId (participant ID) belongs to a registered user
+        const { data: part } = await supabaseAdmin.from("participants").select("user_id").eq("id", winnerId).single();
+        if (part?.user_id) {
+            await checkMatchBadges(part.user_id, matchId, match.tournament_id);
+            // Recalculate Points for Winner
+            await updatePlayerPoints(part.user_id);
+        }
+    }
+
+    // Also Recalculate Points for Loser (for games played / loss stats / potential participation pts)
+    const loserId = winnerId === pA ? pB : pA;
+    if (loserId) {
+        const { data: partL } = await supabaseAdmin.from("participants").select("user_id").eq("id", loserId).single();
+        if (partL?.user_id) await updatePlayerPoints(partL.user_id);
+    }
+
     return { success: true };
 }
 
@@ -848,6 +890,28 @@ export async function endTournamentAction(formData: FormData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     revalidatePath(`/`);
+
+    // Trigger Tournament Conclusion Badges
+    await checkTournamentBadges(tournamentId);
+
+    // Update Points for all participants in this tournament (to apply Top Cut / Win bonuses)
+    // Only verify those with linked users
+    const { data: participants } = await supabaseAdmin
+        .from("participants")
+        .select("user_id")
+        .eq("tournament_id", tournamentId)
+        .not("user_id", "is", null);
+
+    if (participants) {
+        for (const p of participants) {
+            if (p.user_id) await updatePlayerPoints(p.user_id);
+        }
+    }
+
+    // Award Badge: The Architect (Host a tournament)
+    const user = await stackServerApp.getUser();
+    if (user) await awardBadge(user.id, "The Architect", tournamentId);
+
     return { success: true };
 }
 
@@ -1189,6 +1253,8 @@ export async function updateProfileAction(formData: FormData) {
     const username = formData.get("username") as string;
     const displayName = formData.get("display_name") as string;
     const bio = formData.get("bio") as string;
+    const country = formData.get("country") as string;
+    const city = formData.get("city") as string;
     const avatarUrl = formData.get("avatar_url") as string; // URL from client-side upload
 
     if (!username) return { success: false, error: "Username is required" };
@@ -1248,6 +1314,8 @@ export async function updateProfileAction(formData: FormData) {
         username: username,
         display_name: displayName || username,
         bio: bio,
+        country: country || null,
+        city: city || null,
         updated_at: new Date().toISOString()
     };
 
@@ -1272,6 +1340,10 @@ export async function updateProfileAction(formData: FormData) {
     }
 
     revalidatePath(`/u/${username}`);
+
+    // Award Badge: Vanguard (Complete Profile)
+    await awardBadge(user.id, "Vanguard");
+
     return { success: true };
 }
 

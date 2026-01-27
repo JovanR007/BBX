@@ -17,13 +17,17 @@ export default function ProfileEditor({ user }: { user: any }) {
         display_name: string,
         bio: string,
         avatar_url: string | null,
-        display_name_updated_at: string | null
+        display_name_updated_at: string | null,
+        country?: string | null,
+        city?: string | null
     }>({
         username: '',
         display_name: '',
         bio: '',
         avatar_url: null,
-        display_name_updated_at: null
+        display_name_updated_at: null,
+        country: null,
+        city: null
     });
 
     // Fetch existing profile on mount
@@ -57,6 +61,9 @@ export default function ProfileEditor({ user }: { user: any }) {
         setLoading(false);
 
         if (res.success) {
+            // Award Badge: Vanguard (Complete Profile)
+            await awardBadge(user.id, "Vanguard");
+
             toast({ title: "Profile Updated", description: "Your profile has been saved.", variant: "success" });
             router.refresh(); // Refresh to update links if username changed
         } else {
@@ -142,6 +149,27 @@ export default function ProfileEditor({ user }: { user: any }) {
                         placeholder="Tell us about your Beyblade journey..."
                         data-lpignore="true" // Prevent extensions from messing with textarea
                     />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Country</label>
+                        <input
+                            name="country"
+                            defaultValue={profile.country || ""}
+                            className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
+                            placeholder="e.g. Japan"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">City</label>
+                        <input
+                            name="city"
+                            defaultValue={profile.city || ""}
+                            className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white"
+                            placeholder="e.g. Tokyo"
+                        />
+                    </div>
                 </div>
 
                 <button
