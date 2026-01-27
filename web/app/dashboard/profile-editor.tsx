@@ -61,8 +61,8 @@ export default function ProfileEditor({ user }: { user: any }) {
         setLoading(false);
 
         if (res.success) {
-            // Award Badge: Vanguard (Complete Profile)
-            await awardBadge(user.id, "Vanguard");
+            // Award Badge: Vanguard (Complete Profile) - MOVING TO SERVER ACTION
+            // await awardBadge(user.id, "Vanguard");
 
             toast({ title: "Profile Updated", description: "Your profile has been saved.", variant: "success" });
             router.refresh(); // Refresh to update links if username changed
