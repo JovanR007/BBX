@@ -319,14 +319,14 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                             resultText: m.score_a?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_a_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pA?.display_name || 'TBD'
+                            name: pA?.display_name || 'BYE'
                         },
                         {
                             id: m.participant_b_id || `bye-b-${m.id}`,
                             resultText: m.score_b?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_b_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pB?.display_name || 'TBD'
+                            name: pB?.display_name || 'BYE'
                         }
                     ]
                 };
@@ -600,7 +600,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                     "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pA?.display_name || "TBD"}
+                    {pA?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono min-w-[20px] text-right",
@@ -619,7 +619,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                     "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pB?.display_name || "TBD"}
+                    {pB?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono min-w-[20px] text-right",

@@ -166,26 +166,33 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                                     </p>
                                 </form>
 
-                                <ConfirmationModal
-                                    isOpen={showStartModal}
-                                    onClose={() => setShowStartModal(false)}
-                                    title="Start Swiss Stage?"
-                                    description="This will lock settings and generate the first round of matches. Are you sure you want to begin?"
-                                    confirmText="Yes, Begin Tournament"
-                                    onConfirm={async () => {
-                                        const form = document.querySelector('form[class="space-y-2"]') as HTMLFormElement; // Simple lookup for now
-                                        const formData = new FormData(form);
+                                {(() => {
+                                    const uncheckedCount = participants.filter((p: any) => !p.checked_in).length;
+                                    return (
+                                        <ConfirmationModal
+                                            isOpen={showStartModal}
+                                            onClose={() => setShowStartModal(false)}
+                                            title="Start Swiss Stage?"
+                                            description={uncheckedCount > 0
+                                                ? `⚠️ WARNING: ${uncheckedCount} players are NOT checked in. They will be REMOVED from the tournament if you proceed.`
+                                                : "This will lock settings and generate the first round of matches. Are you sure you want to begin?"}
+                                            confirmText={uncheckedCount > 0 ? "Remove Players & Start" : "Yes, Begin Tournament"}
+                                            onConfirm={async () => {
+                                                const form = document.querySelector('form[class="space-y-2"]') as HTMLFormElement; // Simple lookup for now
+                                                const formData = new FormData(form);
 
-                                        const res = await startTournamentAction(formData);
-                                        if (res?.success) {
-                                            toast({ title: "Tournament Started", description: "Swiss Round 1 pairings have been generated!", variant: "success", duration: 5000 });
-                                            router.push(`/t/${tournamentId}/bracket`);
-                                        } else {
-                                            toast({ title: "Error Starting", description: parseError(res.error), variant: "destructive" });
-                                            setShowStartModal(false);
-                                        }
-                                    }}
-                                />
+                                                const res = await startTournamentAction(formData);
+                                                if (res?.success) {
+                                                    toast({ title: "Tournament Started", description: "Swiss Round 1 pairings have been generated!", variant: "success", duration: 5000 });
+                                                    router.push(`/t/${tournamentId}/bracket`);
+                                                } else {
+                                                    toast({ title: "Error Starting", description: parseError(res.error), variant: "destructive" });
+                                                    setShowStartModal(false);
+                                                }
+                                            }}
+                                        />
+                                    );
+                                })()}
                             </>
                         )}
                     </section>
