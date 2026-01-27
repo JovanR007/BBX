@@ -23,11 +23,10 @@ export function AuthGuard() {
                 .from("profiles")
                 .select("id")
                 .eq("id", user!.id)
-                .maybeSingle(); // Use maybeSingle to assume null if not found
+                .maybeSingle();
 
             if (!data) {
                 // User logged in but no profile -> Onboarding
-                console.log("No profile found, redirecting to onboarding");
                 router.push("/onboarding");
             }
             setChecking(false);

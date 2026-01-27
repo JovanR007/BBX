@@ -32,6 +32,28 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
         .eq("store_id", store.id)
         .order("created_at", { ascending: false });
 
+    // 3. Fetch Unique Participants (Bladers)
+    // We get all participants for all tournaments of this store
+    const tournamentIds = tournaments?.map(t => t.id) || [];
+
+    let uniqueBladerCount = 0;
+    if (tournamentIds.length > 0) {
+        const { data: participants } = await supabaseAdmin
+            .from("participants")
+            .select("user_id, display_name")
+            .in("tournament_id", tournamentIds);
+
+        if (participants) {
+            // Count unique bladers:
+            // 1. All unique user_ids (where not null)
+            // 2. All display_names where user_id is null (treated as guests)
+            const uniqueUsers = new Set(participants.filter(p => p.user_id).map(p => p.user_id));
+            const guestNames = new Set(participants.filter(p => !p.user_id).map(p => p.display_name.toLowerCase().trim()));
+
+            uniqueBladerCount = uniqueUsers.size + guestNames.size;
+        }
+    }
+
     return (
         <BrandedContainer
             primaryColor={store.primary_color}
@@ -87,7 +109,7 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
                             </div>
                         </div>
 
-                        {/* RIGHT: Stats Panels (Mocked for now) */}
+                        {/* RIGHT: Stats Panels */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-xl flex flex-col justify-center items-center text-center hover:border-cyan-500/50 transition-colors group">
                                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider mb-1 group-hover:text-cyan-400">Tournaments</span>
@@ -98,7 +120,7 @@ export default async function StorePage({ params }: { params: Promise<{ slug: st
                             <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-xl flex flex-col justify-center items-center text-center hover:border-purple-500/50 transition-colors group">
                                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider mb-1 group-hover:text-purple-400">Bladers</span>
                                 <span className="text-3xl font-bold text-white group-hover:shadow-[0_0_15px_rgba(192,132,252,0.5)] transition-shadow">
-                                    128
+                                    {uniqueBladerCount}
                                 </span>
                             </div>
                         </div>
