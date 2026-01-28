@@ -150,28 +150,36 @@ export async function addParticipantAction(formData: FormData) {
         // For now, we'll allow public add in Draft, but secure Delete.
     }
 
-    // 2. Check subscription tier for player limits
+    // 2. Check limits based on Tournament Type & Plan
     const { data: tourneyData } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id")
+        .select("store_id, is_ranked")
         .eq("id", tournamentId)
         .single();
 
-    let plan = 'free';
-    if (tourneyData?.store_id) {
-        // Try to check both columns just in case of schema discrepancy
-        const { data: store } = await supabaseAdmin
-            .from("stores")
-            .select("plan, subscription_tier")
-            .eq("id", tourneyData.store_id)
-            .single();
+    let maxPlayers = 32; // Default limit for Casual
 
-        // Use 'pro' if either column says so
-        plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
+    if (tourneyData?.is_ranked) {
+        // Ranked Tournament Logic
+        let plan = 'free';
+        if (tourneyData.store_id) {
+            const { data: store } = await supabaseAdmin
+                .from("stores")
+                .select("plan, subscription_tier")
+                .eq("id", tourneyData.store_id)
+                .single();
+
+            plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
+        }
+
+        maxPlayers = plan === 'pro' ? 999 : 64;
     }
 
     const isSuper = await isSuperAdmin(ownerUser);
-    const maxPlayers = (plan === 'pro' || isSuper) ? Infinity : 64;
+    if (isSuper) maxPlayers = 999;
+
+    // Safety check just in case
+    if (!maxPlayers) maxPlayers = 32;
 
     // Count existing participants
     const { count: currentCount } = await supabaseAdmin
@@ -431,14 +439,16 @@ export async function createTournamentAction(formData: FormData) {
     const user = await stackServerApp.getUser();
     if (!user) return { success: false, error: "Unauthorized" };
 
-    // 1. Get Store ID
+    // 1. Get Store ID (if any)
     const { data: store } = await supabaseAdmin
         .from("stores")
         .select("id")
         .eq("owner_id", user.id)
         .single();
 
-    if (!store) return { success: false, error: "You must own a store to create tournaments." };
+    // Determine Status
+    const isStoreOwner = !!store;
+    const isRanked = isStoreOwner; // Only store owners creating tournaments are ranked by default
 
     const name = formData.get("name") as string;
     const location = formData.get("location") as string;
@@ -473,7 +483,9 @@ export async function createTournamentAction(formData: FormData) {
             cut_size: cutSize || 16,
             status: "draft",
             slug,
-            store_id: store.id
+            store_id: store?.id || null, // Optional now
+            organizer_id: user.id, // Track creator
+            is_ranked: isRanked
         })
         .select()
         .single();

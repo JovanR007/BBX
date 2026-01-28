@@ -54,20 +54,33 @@ export default function TournamentList({ tournaments }: { tournaments: Tournamen
                         >
                             <div className="p-6">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                        <Trophy className="h-6 w-6" />
+                                    <div className="flex gap-2">
+                                        <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                                            <Trophy className="h-6 w-6" />
+                                        </div>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            <span
+                                                className={`text-xs font-bold px-2 py-1 rounded-full ${{
+                                                    draft: "bg-gray-500/10 text-gray-500",
+                                                    pending: "bg-yellow-500/10 text-yellow-500",
+                                                    started: "bg-blue-500/10 text-blue-500",
+                                                    completed: "bg-muted text-muted-foreground",
+                                                }[t.status]}
+                                                    `}
+                                            >
+                                                {t.status.toUpperCase().replace("_", " ")}
+                                            </span>
+                                            {t.is_ranked === false ? (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
+                                                    CASUAL
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">
+                                                    RANKED
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span
-                                        className={`text-xs font-bold px-2 py-1 rounded-full ${{
-                                            draft: "bg-gray-500/10 text-gray-500",
-                                            pending: "bg-yellow-500/10 text-yellow-500",
-                                            started: "bg-blue-500/10 text-blue-500",
-                                            completed: "bg-muted text-muted-foreground",
-                                        }[t.status]}
-                                            `}
-                                    >
-                                        {t.status.toUpperCase().replace("_", " ")}
-                                    </span>
                                 </div>
 
                                 <h3 className="font-bold text-lg mb-2 truncate">{t.name}</h3>

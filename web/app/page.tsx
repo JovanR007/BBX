@@ -14,6 +14,7 @@ export default function LandingPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const user = useUser();
+  const [username, setUsername] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
@@ -28,8 +29,16 @@ export default function LandingPage() {
       if (data) setStores(data);
       setLoading(false);
 
-      // 2. Check Ownership (if user exists)
+      // 2. Check Ownership & Username (if user exists)
       if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) setUsername(profile.username);
+
         const { data: myStore } = await supabase
           .from("stores")
           .select("id")
@@ -66,7 +75,7 @@ export default function LandingPage() {
           <div className="flex gap-4">
             {user ? (
               <Link
-                href="/dashboard"
+                href={isOwner ? "/dashboard" : (username ? `/u/${username}` : "/account")}
                 className="relative inline-flex items-center justify-center rounded-full bg-slate-950 px-8 py-3 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:shadow-cyan-500/25 border border-slate-800 hover:border-cyan-500/50 group"
               >
                 <span className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 opacity-20 group-hover:opacity-40 blur transition-opacity" />
