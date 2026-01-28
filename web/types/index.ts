@@ -27,7 +27,7 @@ export interface Store {
 export interface Tournament {
     id: string;
     created_at: string;
-    store_id: string;
+    store_id: string | null;
     name: string;
     status: 'draft' | 'pending' | 'started' | 'completed';
     cut_size: number;
@@ -35,6 +35,8 @@ export interface Tournament {
     judge_code: string | null;
     match_target_points: number | null;
     swiss_rounds: number | null;
+    is_ranked?: boolean;
+    organizer_id?: string | null;
     stores?: {
         name: string | null;
         primary_color: string | null;

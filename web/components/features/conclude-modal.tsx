@@ -5,7 +5,7 @@ import { AlertTriangle, Lock, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-export function ConcludeModal({ isOpen, onClose, onConfirm, loading }: { isOpen: boolean; onClose: () => void; onConfirm: (pin: string) => void; loading: boolean }) {
+export function ConcludeModal({ isOpen, onClose, onConfirm, loading, isCasual = false }: { isOpen: boolean; onClose: () => void; onConfirm: (pin: string) => void; loading: boolean; isCasual?: boolean }) {
     const [pin, setPin] = useState("");
     const [error, setError] = useState(false);
 
@@ -39,20 +39,23 @@ export function ConcludeModal({ isOpen, onClose, onConfirm, loading }: { isOpen:
                     </div>
 
                     <form onSubmit={handleSubmit} className="w-full space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Admin Access</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
-                                <input
-                                    type="password"
-                                    placeholder="Enter Admin PIN"
-                                    value={pin}
-                                    onChange={(e) => setPin(e.target.value)}
-                                    className="w-full pl-9 h-10 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    autoFocus
-                                />
+                        {/* Only show PIN field for ranked tournaments */}
+                        {!isCasual && (
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Admin Access</label>
+                                <div className="relative">
+                                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                                    <input
+                                        type="password"
+                                        placeholder="Enter Admin PIN"
+                                        value={pin}
+                                        onChange={(e) => setPin(e.target.value)}
+                                        className="w-full pl-9 h-10 rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        autoFocus
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex gap-2">
                             <button
@@ -65,7 +68,7 @@ export function ConcludeModal({ isOpen, onClose, onConfirm, loading }: { isOpen:
                             </button>
                             <button
                                 type="submit"
-                                disabled={loading || !pin}
+                                disabled={loading || (!isCasual && !pin)}
                                 className="flex-1 h-10 items-center justify-center rounded-md bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex gap-2"
                             >
                                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}

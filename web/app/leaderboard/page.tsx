@@ -4,8 +4,12 @@ import { User, Trophy, MapPin, Crown, Medal } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { SeasonSelector } from "@/components/leaderboard/season-selector";
 
 export const dynamic = "force-dynamic";
+
+function SwordsIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" /><line x1="13" y1="19" x2="19" y2="13" /><line x1="16" y1="16" x2="20" y2="20" /><line x1="19" y1="21" x2="21" y2="19" /><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5" /><line x1="5" y1="14" x2="9" y2="18" /><line x1="7" y1="17" x2="4" y2="20" /><line x1="3" y1="19" x2="5" y2="21" /></svg> }
+function ShieldIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> }
 
 // Helper for Tier Icons
 const TIER_ICONS: any = {
@@ -26,19 +30,28 @@ const TIER_COLORS: any = {
     "Newbie": "text-slate-400 border-slate-500/50 bg-slate-900/50"
 };
 
-function SwordsIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" /><line x1="13" y1="19" x2="19" y2="13" /><line x1="16" y1="16" x2="20" y2="20" /><line x1="19" y1="21" x2="21" y2="19" /><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5" /><line x1="5" y1="14" x2="9" y2="18" /><line x1="7" y1="17" x2="4" y2="20" /><line x1="3" y1="19" x2="5" y2="21" /></svg> }
-function ShieldIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> }
+export default async function LeaderboardPage({ searchParams }: { searchParams: Promise<{ scope?: string, location?: string, season?: string }> }) {
+    const { scope = 'global', location = '', season = '' } = await searchParams;
 
-export default async function LeaderboardPage({ searchParams }: { searchParams: Promise<{ scope?: string, location?: string }> }) {
-    const { scope = 'global', location = '' } = await searchParams;
+    // Fetch All Seasons for Selector
+    const { data: seasons } = await supabaseAdmin.from('seasons').select('id, name, is_active').order('start_date', { ascending: false });
 
-    const data = await getLeaderboard(scope as any, location);
+    // Fetch Active Season Name for default display logic if needed
+    const activeSeason = seasons?.find(s => s.is_active);
+    const effectiveSeasonName = seasons?.find(s => s.id === season)?.name || activeSeason?.name || "Pre-Season";
+    const isHistorical = season && season !== activeSeason?.id;
+
+    // Fetch Leaderboard for specific season (or current if empty)
+    const data = await getLeaderboard(scope as any, location, season && season !== 'current' ? season : undefined);
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30">
             {/* Header */}
             <div className="bg-gradient-to-b from-slate-900 via-slate-950 to-black border-b border-white/5 py-12">
                 <div className="container mx-auto px-4 text-center">
+                    <div className="inline-block px-3 py-1 mb-4 rounded-full border border-yellow-500/30 bg-yellow-950/20 text-yellow-400 text-xs font-bold uppercase tracking-[0.2em] shadow-[0_0_15px_-3px_rgba(234,179,8,0.4)]">
+                        {effectiveSeasonName}
+                    </div>
                     <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-4 flex items-center justify-center gap-4">
                         <Trophy className="w-12 h-12 md:w-16 md:h-16 text-yellow-500" />
                         <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500">
@@ -53,15 +66,23 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
             {/* Filter Bar */}
             <div className="sticky top-[60px] z-30 bg-black/80 backdrop-blur-md border-b border-white/5 py-4">
-                <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Link href="/leaderboard?scope=global"
-                        className={cn("px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
-                            scope === 'global' ? "bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)]" : "bg-slate-900 border border-white/10 text-slate-400 hover:text-white")}>
-                        Global
-                    </Link>
-                    {/* Add Country/City filters later via client component or simplified links for now */}
-                    <div className="relative group">
-                        <span className="text-xs text-slate-600 uppercase font-black px-2">Local Filters Coming in Phase 3.1</span>
+                <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    {/* Left: Scope Filters */}
+                    <div className="flex items-center gap-2">
+                        <Link href={`/leaderboard?scope=global${season ? `&season=${season}` : ''}`}
+                            className={cn("px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                                scope === 'global' ? "bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)]" : "bg-slate-900 border border-white/10 text-slate-400 hover:text-white")}>
+                            Global
+                        </Link>
+                        {/* Placeholder for local filters */}
+                        <div className="relative group ml-2">
+                            <span className="text-xs text-slate-600 uppercase font-black px-2">Local Filters Coming Soon</span>
+                        </div>
+                    </div>
+
+                    {/* Right: Season Selector */}
+                    <div className="flex items-center gap-4">
+                        <SeasonSelector seasons={seasons || []} />
                     </div>
                 </div>
             </div>

@@ -103,8 +103,8 @@ export function SiteHeader() {
                         Directory
                     </Link>
                     {user && (
-                        <Link href="/dashboard" className="text-foreground/60 hover:text-foreground transition-colors">
-                            Dashboard
+                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
+                            Host Event
                         </Link>
                     )}
                 </nav>
@@ -148,6 +148,9 @@ export function SiteHeader() {
                                                 <p className="text-xs text-slate-400 truncate">{user.primaryEmail}</p>
                                             </div>
                                             <div className="p-2">
+                                                <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                    <Trophy className="w-4 h-4" /> My Dashboard
+                                                </Link>
                                                 <Link href="/leaderboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                                                     <Trophy className="w-4 h-4" /> Leaderboards
                                                 </Link>

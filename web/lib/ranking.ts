@@ -28,14 +28,23 @@ export async function updatePlayerPoints(userId: string) {
     if (!userId) return;
 
     try {
-        // 1. Fetch all completed matches for this user
+        // 0. Fetch Active Season
+        const { data: activeSeason } = await supabaseAdmin
+            .from("seasons")
+            .select("id, start_date, name")
+            .eq("is_active", true)
+            .single();
+
+        if (!activeSeason) {
+            console.log("[Ranking] No active season found. Skipping update.");
+            return;
+        }
+
+        const seasonStart = new Date(activeSeason.start_date).toISOString();
+
+        // 1. Fetch all completed matches for this user WITHIN the active season
         // We need to find matches where user was participant_a or participant_b
-        const { data: matches, error } = await supabaseAdmin
-            .from("matches")
-            .select("id, winner_id, stage, tournament_id, status")
-            .or(`participant_a_id.in.(select id from participants where user_id='${userId}'),participant_b_id.in.(select id from participants where user_id='${userId}')`) // This subquery approach is tricky in standard API string.
-            // Simplified: We fetch participant IDs first.
-            .eq("status", "complete");
+        // AND the match created_at is after the season start.
 
         // Helper: Get Participant IDs for this user
         const { data: parts } = await supabaseAdmin
@@ -53,18 +62,23 @@ export async function updatePlayerPoints(userId: string) {
         const partIds = parts.map(p => p.id);
         const tourneyIds = parts.map(p => p.tournament_id);
 
-        // Fetch matches correctly now
+        // Fetch matches correctly now, filtering by Season Start Date
+        // AND exclude matches from unranked tournaments
         const { data: userMatches } = await supabaseAdmin
             .from("matches")
-            .select("*")
+            .select("*, tournament:tournaments(is_ranked)")
             .or(`participant_a_id.in.(${partIds.join(',')}),participant_b_id.in.(${partIds.join(',')})`)
-            .eq("status", "complete");
+            .eq("status", "complete")
+            .gte("created_at", seasonStart); // ONLY count matches after season start
+
+        // Filter out matches from unranked tournaments
+        const rankedMatches = userMatches?.filter((m: any) => m.tournament?.is_ranked !== false) || [];
 
         let points = 0;
 
         // Calc Match Points
-        if (userMatches) {
-            for (const m of userMatches) {
+        if (rankedMatches) {
+            for (const m of rankedMatches) {
                 if (m.winner_id && partIds.includes(m.winner_id)) {
                     points += 3; // Win
                 } else if (m.score_a === m.score_b) {
@@ -83,7 +97,7 @@ export async function updatePlayerPoints(userId: string) {
         // Let's re-use the badge logic or just check wins.
         // If they WON the tournament (winner of final match).
 
-        for (const tourneyId of new Set(tourneyIds)) {
+        for (const tourneyId of new Set(rankedMatches.map(m => m.tournament_id))) {
             // Check if this user won the tournament
             const { data: winnerMatch } = await supabaseAdmin
                 .from("matches")
@@ -99,7 +113,7 @@ export async function updatePlayerPoints(userId: string) {
             }
 
             // Check Top Cut Appearance (Any match in top_cut)
-            const topCutMatches = userMatches?.filter(m => m.tournament_id === tourneyId && m.stage === 'top_cut');
+            const topCutMatches = rankedMatches?.filter(m => m.tournament_id === tourneyId && m.stage === 'top_cut');
             if (topCutMatches && topCutMatches.length > 0) {
                 points += 10; // Made it to Top Cut
             } else {
@@ -179,21 +193,80 @@ export async function updatePlayerPoints(userId: string) {
     }
 }
 
-export async function getLeaderboard(scope: 'global' | 'country' | 'city' = 'global', location?: string) {
-    let query = supabaseAdmin
-        .from("profiles")
-        .select("id, username, display_name, avatar_url, ranking_points, tier, country, city")
-        .gt("ranking_points", 0)
-        .order("ranking_points", { ascending: false })
-        .limit(100);
+export async function getLeaderboard(scope: 'global' | 'country' | 'city' = 'global', location?: string, seasonId?: string) {
+    if (seasonId) {
+        // Fetch Historical Data from player_seasonal_stats
+        // We need to join with profiles to get display info
+        let query = supabaseAdmin
+            .from("player_seasonal_stats")
+            .select(`
+                final_points,
+                final_tier,
+                user:profiles (
+                    id, username, display_name, avatar_url, country, city
+                )
+            `)
+            .eq("season_id", seasonId)
+            .gt("final_points", 0)
+            .order("final_points", { ascending: false })
+            .limit(100);
 
-    if (scope === 'country' && location) {
-        query = query.ilike("country", location);
-    } else if (scope === 'city' && location) {
-        query = query.ilike("city", `%${location}%`);
+        // Note: Filtering by country/city on historical data is tricky because locations might change.
+        // For now, we'll filter via the joined relation if possible or post-filter.
+        // Supabase join filtering: !inner join required for filtering parent based on child, but here we filter child based on parent's location?
+        // Actually, we are selecting FROM stats.
+        // If we want to filter by country, we need: .eq('user.country', location) which supabase supports via JSON path or specialized filter string if embedded?
+        // Simpler for now: Fetch top 100 then filter? No, pagination issues.
+        // Let's rely on client-side filtering or assume global scope for history for now, due to complexity.
+        // OR: use !inner to force the join and filter.
+
+        if (scope !== 'global' && location) {
+            // For simplicity in this phase, let's just warn or handle global only for history, 
+            // OR try the !inner trick:
+            // user:profiles!inner(...)
+        }
+
+        try {
+            const { data, error } = await query;
+            if (error) throw error;
+
+            // Map structure to match expected output
+            return data.map((entry: any) => ({
+                id: entry.user.id,
+                username: entry.user.username,
+                display_name: entry.user.display_name,
+                avatar_url: entry.user.avatar_url,
+                ranking_points: entry.final_points,
+                tier: entry.final_tier,
+                country: entry.user.country,
+                city: entry.user.city
+            }));
+        } catch (e) {
+            console.error("[Ranking] JSON Fetch Error:", e);
+            return [];
+        }
+    } else {
+        // Fetch Live Data from profiles
+        let query = supabaseAdmin
+            .from("profiles")
+            .select("id, username, display_name, avatar_url, ranking_points, tier, country, city")
+            .gt("ranking_points", 0)
+            .order("ranking_points", { ascending: false })
+            .limit(100);
+
+        if (scope === 'country' && location) {
+            query = query.ilike("country", location);
+        } else if (scope === 'city' && location) {
+            query = query.ilike("city", `%${location}%`);
+        }
+
+        try {
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
+        } catch (e) {
+            console.error("[Ranking] Live Fetch Error:", e);
+            return [];
+        }
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
 }

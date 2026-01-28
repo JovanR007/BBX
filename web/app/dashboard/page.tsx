@@ -36,36 +36,32 @@ export default async function Dashboard() {
             throw new Error(`Failed to fetch store: ${storeError.message}`);
         }
 
-        // 2. If NOT a store owner, redirect to their public profile
-        if (!store) {
-            console.log(`[Dashboard] No store found for user ${user.id}, redirecting...`);
-            // Fetch profile to get username
-            const { data: profile } = await supabaseAdmin
-                .from("profiles")
-                .select("username")
-                .eq("id", user.id)
-                .single();
+        // 2. If NOT a store owner, we originally redirected. Now we allow access.
+        // if (!store) ... redirect ... -> REMOVED
 
-            if (profile?.username) {
-                redirect(`/u/${profile.username}`);
-            } else {
-                // No username set? Go to account settings to set it
-                redirect("/account");
-            }
-        }
-
-        // 3. Store Dashboard Logic
+        // 3. User Dashboard Logic
         let tournaments = [];
+
+        // Fetch tournaments where this user is the organizer OR the store owner
+        // Since migration backfills organizer_id, we can rely on it mostly, 
+        // but for robustness if they are store owner, we should verify store_id too?
+        // Let's keep it simple: Fetch by organizer_id primarily now?
+        // Or stick to: If store -> fetch by store_id. Else -> fetch by organizer_id.
+
         if (store) {
-            const { data, error: tournamentError } = await supabaseAdmin
+            const { data } = await supabaseAdmin
                 .from("tournaments")
                 .select("*")
                 .eq("store_id", store.id)
                 .order("created_at", { ascending: false });
-
-            if (tournamentError) {
-                console.error("[Dashboard] Tournament fetch error:", tournamentError);
-            }
+            tournaments = data || [];
+        } else {
+            // Casual User
+            const { data } = await supabaseAdmin
+                .from("tournaments")
+                .select("*")
+                .eq("organizer_id", user.id)
+                .order("created_at", { ascending: false });
             tournaments = data || [];
         }
 
@@ -79,8 +75,8 @@ export default async function Dashboard() {
 
                 <header className="mb-8 flex flex-col md:flex-row justify-between md:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold">{store.name}</h1>
-                        <p className="text-muted-foreground">Manage your tournaments.</p>
+                        <h1 className="text-3xl font-bold">{store ? store.name : "My Dashboard"}</h1>
+                        <p className="text-muted-foreground">{store ? "Manage your store and tournaments." : "Manage your community tournaments."}</p>
                     </div>
                     <div>
                         <Link href="/create" className="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium inline-flex items-center hover:bg-primary/90 transition-colors">
@@ -90,20 +86,30 @@ export default async function Dashboard() {
                 </header>
 
                 <div className="flex flex-col gap-12">
-                    <section>
-                        <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
-                        <StoreSettings store={store} />
-                    </section>
+                    {store && (
+                        <section>
+                            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
+                            <StoreSettings store={store} />
+                        </section>
+                    )}
 
                     <section>
-                        <h2 className="text-2xl font-bold mb-4">Tournaments</h2>
+                        <h2 className="text-2xl font-bold mb-4">My Tournaments</h2>
+                        {tournaments.length === 0 && (
+                            <div className="p-8 border-2 border-dashed border-slate-800 rounded-lg text-center">
+                                <p className="text-muted-foreground mb-4">You haven't hosted any tournaments yet.</p>
+                                <Link href="/create" className="text-cyan-400 hover:underline">Host your first {store ? "Ranked" : "Casual"} Tournament</Link>
+                            </div>
+                        )}
                         <TournamentList tournaments={tournaments} />
                     </section>
 
-                    <div className="mt-8 pt-8 border-t text-sm text-muted-foreground">
-                        <p>Store ID: {store.id}</p>
-                        <p>Slug: {store.slug}</p>
-                    </div>
+                    {store && (
+                        <div className="mt-8 pt-8 border-t text-sm text-muted-foreground">
+                            <p>Store ID: {store.id}</p>
+                            <p>Slug: {store.slug}</p>
+                        </div>
+                    )}
                 </div>
             </div >
         );

@@ -587,7 +587,7 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                     )}
 
                     {/* Late Joiner Admin Bypass - ONLY IN ROUND 1 */}
-                    {isStarted && tournament.isRoundOne && <LateEntryForm tournamentId={tournamentId} refresh={fetchData} />}
+                    {isStarted && tournament.isRoundOne && <LateEntryForm tournamentId={tournamentId} refresh={fetchData} isCasual={!tournament?.store_id} />}
                     {isStarted && !tournament.isRoundOne && (
                         <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded flex items-center gap-2">
                             <Lock className="w-3 h-3" /> Late entry disabled after Round 1.
@@ -601,7 +601,7 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
     );
 }
 
-function LateEntryForm({ tournamentId, refresh }: { tournamentId: any, refresh: any }) {
+function LateEntryForm({ tournamentId, refresh, isCasual = false }: { tournamentId: any, refresh: any, isCasual?: boolean }) {
     const [isOpen, setIsOpen] = useState(false);
     const { toast } = useToast();
 
@@ -660,16 +660,19 @@ function LateEntryForm({ tournamentId, refresh }: { tournamentId: any, refresh: 
                         autoFocus
                     />
                 </div>
-                <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Admin Code</label>
-                    <input
-                        name="admin_pin"
-                        placeholder="••••"
-                        type="password"
-                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary font-mono tracking-widest"
-                        required
-                    />
-                </div>
+                {/* Only show PIN field for ranked tournaments */}
+                {!isCasual && (
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted-foreground">Admin Code</label>
+                        <input
+                            name="admin_pin"
+                            placeholder="••••"
+                            type="password"
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-primary font-mono tracking-widest"
+                            required
+                        />
+                    </div>
+                )}
                 <div className="flex justify-end pt-1">
                     <button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-6 rounded-md font-bold text-sm shadow-sm">
                         Add to Round 1
