@@ -25,19 +25,29 @@ async function verifyTournamentOwner(tournamentId: string) {
 
     const { data: tourney } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id")
+        .select("store_id, organizer_id")
         .eq("id", tournamentId)
         .single();
 
     if (!tourney) return null;
 
-    const { data: store } = await supabaseAdmin
-        .from("stores")
-        .select("owner_id")
-        .eq("id", tourney.store_id)
-        .single();
+    // Check if user is the organizer (for casual tournaments)
+    if (tourney.organizer_id && tourney.organizer_id === user.id) {
+        return user;
+    }
 
-    return store && store.owner_id === user.id ? user : null;
+    // Check if user owns the store (for ranked tournaments)
+    if (tourney.store_id) {
+        const { data: store } = await supabaseAdmin
+            .from("stores")
+            .select("owner_id")
+            .eq("id", tourney.store_id)
+            .single();
+
+        return store && store.owner_id === user.id ? user : null;
+    }
+
+    return null;
 }
 
 // --- HELPER: Check Superadmin ---
@@ -57,20 +67,26 @@ async function isSuperAdmin(user: any) {
 }
 
 // --- HELPER: Verify PIN ---
-// --- HELPER: Verify PIN ---
+// For casual tournaments (no store_id), PIN is not required
+// For ranked tournaments (with store_id), PIN is required unless user is owner
 async function verifyStorePin(tournamentId: string, providedPin: string) {
-    if (!providedPin) return false;
-    // Master Override
-    if (process.env.ADMIN_PIN && providedPin === process.env.ADMIN_PIN) return true;
-
-    // Fetch Store PIN via Tournament
+    // Fetch tournament to check if it's casual or ranked
     const { data: tourney } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id")
+        .select("store_id, organizer_id")
         .eq("id", tournamentId)
         .single();
 
     if (!tourney) return false;
+
+    // Casual tournament (no store): No PIN required, rely on owner check in calling function
+    if (!tourney.store_id) return true;
+
+    // Ranked tournament (has store): Verify PIN
+    if (!providedPin) return false;
+
+    // Master Override
+    if (process.env.ADMIN_PIN && providedPin === process.env.ADMIN_PIN) return true;
 
     const { data: store } = await supabaseAdmin
         .from("stores")
@@ -86,7 +102,7 @@ export async function getTournamentDataAction(tournamentId: string) {
 
     try {
         const results = await Promise.all([
-            supabaseAdmin.from("tournaments").select("id, created_at, store_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
+            supabaseAdmin.from("tournaments").select("id, created_at, store_id, organizer_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
             supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
             supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped, checked_in").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
@@ -629,35 +645,18 @@ export async function reportMatchAction(formData: FormData) {
     if (fetchErr) return { success: false, error: "DB Error (Match): " + fetchErr.message };
     if (!match) return { success: false, error: "Match not found" };
 
-    // Fetch tournament to get store_id
-    const { data: tourney, error: tErr } = await supabaseAdmin
-        .from("tournaments")
-        .select("store_id")
-        .eq("id", match.tournament_id)
-        .single();
-
-    if (tErr) return { success: false, error: "DB Error (Tourney): " + tErr.message };
-
-    // Fetch store to get owner_id
-    const { data: store, error: sErr } = await supabaseAdmin
-        .from("stores")
-        .select("owner_id")
-        .eq("id", tourney.store_id)
-        .single();
-
-    if (sErr) return { success: false, error: "DB Error (Store): " + sErr.message };
-
-    const ownerId = store.owner_id;
-    let isAuthorized = ownerId === user.id;
+    // Check if user is owner (store owner OR casual tournament organizer)
+    const ownerUser = await verifyTournamentOwner(match.tournament_id);
+    let isAuthorized = !!ownerUser;
 
     if (!isAuthorized) {
         // Check Judge
         const { data: judge } = await supabaseAdmin
             .from("tournament_judges")
-            .select("user_id") // Changed select to be simple
+            .select("user_id")
             .eq("tournament_id", match.tournament_id)
             .eq("user_id", user.id)
-            .maybeSingle(); // Use maybeSingle to avoid error if not found
+            .maybeSingle();
 
         if (judge) isAuthorized = true;
     }
@@ -890,8 +889,18 @@ export async function endTournamentAction(formData: FormData) {
     const tournamentId = formData.get("tournament_id") as string;
 
     if (!tournamentId) return { success: false, error: "Tournament ID required" };
+
+    // Verify ownership first (strict access control)
+    const ownerUser = await verifyTournamentOwner(tournamentId);
+    if (!ownerUser) {
+        return { success: false, error: "Unauthorized: Only the tournament host can conclude the tournament." };
+    }
+
+    // For ranked tournaments, also verify PIN
     const providedPin = formData.get("admin_pin") as string;
-    if (!await verifyStorePin(tournamentId, providedPin)) return { success: false, error: "Invalid Store PIN" };
+    if (!await verifyStorePin(tournamentId, providedPin)) {
+        return { success: false, error: "Invalid Store PIN" };
+    }
 
     const { error } = await supabaseAdmin
         .from("tournaments")
@@ -1085,27 +1094,36 @@ export async function updateTournamentAction(formData: FormData) {
     if (!tournamentId) return { success: false, error: "Tournament ID required" };
 
     // 1. Verify Ownership
-    // Fetch tournament to get store_id
+    // Fetch tournament to get store_id and organizer_id
     const { data: tourney, error: fetchError } = await supabaseAdmin
         .from("tournaments")
-        .select("store_id")
+        .select("store_id, organizer_id")
         .eq("id", tournamentId)
         .single();
 
     if (fetchError) return { success: false, error: "DB Error: " + fetchError.message };
     if (!tourney) return { success: false, error: "Tournament not found" };
 
-    // Fetch store to get owner_id
-    const { data: store, error: storeError } = await supabaseAdmin
-        .from("stores")
-        .select("owner_id")
-        .eq("id", tourney.store_id)
-        .single();
+    // Check ownership: either via store OR via organizer_id
+    let isOwner = false;
 
-    if (storeError) return { success: false, error: "DB Error (Store): " + storeError.message };
+    if (tourney.store_id) {
+        // Store-based tournament: check store ownership
+        const { data: store, error: storeError } = await supabaseAdmin
+            .from("stores")
+            .select("owner_id")
+            .eq("id", tourney.store_id)
+            .single();
 
-    if (store.owner_id !== user.id) {
-        return { success: false, error: `Unauthorized: You do not own this tournament. (User: ${user.id}, Owner: ${store.owner_id})` };
+        if (storeError) return { success: false, error: "DB Error (Store): " + storeError.message };
+        isOwner = store.owner_id === user.id;
+    } else if (tourney.organizer_id) {
+        // Casual tournament: check organizer_id
+        isOwner = tourney.organizer_id === user.id;
+    }
+
+    if (!isOwner) {
+        return { success: false, error: `Unauthorized: You do not own this tournament.` };
     }
 
     // 2. Update
