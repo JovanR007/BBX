@@ -1,10 +1,10 @@
 import { stackServerApp } from "@/lib/stack";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { createCheckoutUrl, TIERS, TIER_LIMITS } from "@/lib/lemonsqueezy";
+import { TIERS } from "@/lib/lemonsqueezy"; // Still using TIERS constants
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Crown, Check, Zap, X, MapPin, Store, User } from "lucide-react";
-import { UpgradeButton } from "@/components/billing/upgrade-button";
+import PayPalButton from "@/components/paypal-button";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function BillingPage() {
     // Get user's store
     const { data: store } = await supabaseAdmin
         .from("stores")
-        .select("id, name, plan, lemonsqueezy_customer_id")
+        .select("id, name, plan, subscription_tier")
         .eq("owner_id", user.id)
         .single();
 
@@ -105,8 +105,11 @@ export default async function BillingPage() {
         );
     }
 
-    const currentTier = store.plan || TIERS.FREE;
+    // Re-check plan from both possible columns
+    const currentTier = store.subscription_tier || store.plan || TIERS.FREE;
     const isPro = currentTier === TIERS.PRO;
+
+    const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
     return (
         <div className="container mx-auto px-4 py-12 max-w-4xl">
@@ -187,22 +190,70 @@ export default async function BillingPage() {
                     {isPro ? (
                         <div className="text-center text-sm text-yellow-500 font-bold">Current plan</div>
                     ) : (
-                        <UpgradeButton price="$15/month" />
+                        <div className="mt-auto">
+                            <PayPalButton clientId={paypalClientId} />
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* FAQ */}
             <div className="mt-12">
-                <h2 className="text-xl font-bold mb-4">FAQ</h2>
-                <div className="space-y-4 text-sm text-muted-foreground">
+                <h2 className="text-xl font-bold mb-6">Frequently Asked Questions</h2>
+                <div className="grid md:grid-cols-2 gap-8 text-sm">
                     <div>
-                        <p className="font-medium text-foreground">Can I cancel anytime?</p>
-                        <p>Yes, you can cancel your subscription at any time. You'll retain Pro features until the end of your billing period.</p>
+                        <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-primary" /> What is BeyBracket Pro?
+                        </h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Pro is a premium subscription for tournament organizers who need more power. It unlocks unlimited players per tournament, custom branding options, and advanced data export features.
+                        </p>
                     </div>
                     <div>
-                        <p className="font-medium text-foreground">What payment methods are accepted?</p>
-                        <p>We accept all major credit cards, PayPal, and more through our payment partner LemonSqueezy.</p>
+                        <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
+                            <Check className="w-4 h-4 text-green-500" /> What are the player limits?
+                        </h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Free users can host tournaments with up to **64 players**. If you're running larger regionals or national qualifiers, the Pro plan removes this cap entirely.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2">How does the automated payment work?</h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Once you complete the PayPal checkout, our system receives a confirmation. Your account status is updated **instantly**, and you'll see the Pro crown icon on your dashboard immediately.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2">Can I customize my tournament branding?</h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Yes! Pro users can set primary and secondary colors for their tournament pages. This helps you match your store's branding or your community's identity.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2">What happens if I cancel?</h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            You'll keep all Pro features until your current billing period ends. After that, your store will revert to the Free plan. Don't worry, your existing tournament data won't be deleted!
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2">Do you support Swiss and Top Cut?</h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Absolutely. BeyBracket supports standard Swiss rounds, single elimination, and the ability to "Top Cut" from Swiss into a final bracket (e.g., Swiss to Top 8).
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2">Can I export my tournament results?</h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            Pro users can export participant lists and final standings as CSV files. This is perfect for record-keeping or integrating with other ranking systems.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-foreground mb-2 flex items-center gap-2">
+                            <Crown className="w-4 h-4 text-yellow-500" /> Is support included?
+                        </h3>
+                        <p className="text-muted-foreground leading-relaxed">
+                            All users get access to our documentation, but Pro users receive **priority support** via email for any technical issues or feature requests.
+                        </p>
                     </div>
                 </div>
             </div>
