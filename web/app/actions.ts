@@ -308,11 +308,11 @@ export async function addParticipantAction(formData: FormData) {
                         participant_a_id: newPart.id,
                         participant_b_id: null, // BYE
 
-                        // New Bye Match -> Auto Win 4-3
+                        // New Bye Match -> Penalize Late Entry (Loss 3-4)
                         status: 'complete',
-                        score_a: 4,
-                        score_b: 3,
-                        winner_id: newPart.id,
+                        score_a: 3,
+                        score_b: 4,
+                        winner_id: null, // No winner (Bye phantom wins)
                         is_bye: true,
 
                         target_points: 4
