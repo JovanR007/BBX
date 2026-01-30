@@ -86,7 +86,7 @@ export function SiteFooter() {
                         </li>
                         <li>
                             <a
-                                href="https://ko-fi.com/godtis"
+                                href="https://ko-fi.com/beybracket"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="hover:text-amber-500 transition-colors"

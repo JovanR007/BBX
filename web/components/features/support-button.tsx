@@ -10,7 +10,7 @@ interface SupportButtonProps {
 }
 
 export function SupportButton({ className, variant = "full" }: SupportButtonProps) {
-    const link = "https://ko-fi.com/godtis  "; // Placeholder
+    const link = "https://ko-fi.com/beybracket";
 
     if (variant === "mobile") {
         return (
