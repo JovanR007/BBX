@@ -16,7 +16,7 @@ export function useBracketData(tournamentId: string | undefined) {
     const [isSwissFinished, setIsSwissFinished] = useState(false);
 
     // Permissions
-    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false });
+    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false, isSuperAdmin: false });
     const user = useUser();
 
     const fetchData = useCallback(async () => {
@@ -59,8 +59,9 @@ export function useBracketData(tournamentId: string | undefined) {
             }
 
             const isJudge = fetchedJudges?.some((j: any) => j.user_id === user.id) || false;
+            const isSuperAdmin = user.primaryEmail === "shearjovan7@gmail.com";
 
-            setPermissions({ isOwner, isJudge });
+            setPermissions({ isOwner, isJudge, isSuperAdmin });
         }
 
         // Ensure fetchedMatches is typed or fallback

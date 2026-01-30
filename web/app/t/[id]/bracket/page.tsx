@@ -52,7 +52,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     } = useBracketData(tournamentId);
 
     // Helpers
-    const { isOwner, isJudge } = permissions || { isOwner: false, isJudge: false };
+    const { isOwner, isJudge, isSuperAdmin } = permissions || { isOwner: false, isJudge: false, isSuperAdmin: false };
     const canEdit = isOwner || isJudge;
 
     // Actions Hook
@@ -134,9 +134,11 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <button onClick={handleAutoScore} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-purple-500 hover:text-purple-400 border border-purple-500/20 hover:border-purple-500/50 bg-purple-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Randomly score all pending matches">
                             <Wand2 className="w-3 h-3" /> Auto-Resolve
                         </button>
-                        <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
-                            <Trash2 className="w-3 h-3" /> Reset Round
-                        </button>
+                        {isSuperAdmin && (
+                            <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
+                                <Trash2 className="w-3 h-3" /> Reset Round
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
