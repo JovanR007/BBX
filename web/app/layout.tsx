@@ -48,6 +48,7 @@ export const metadata: Metadata = {
 import { Suspense } from "react";
 import Link from "next/link"; // Not used but keeps imports valid
 import { SiteHeader } from "@/components/layout/site-header";
+import { SiteFooter } from "@/components/layout/site-footer";
 import LiveMatchTicker from "@/components/features/live-match-ticker";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <SiteHeader />
                 </Suspense>
                 <main className="flex-1">{children}</main>
+                <SiteFooter />
               </div>
             </ToastProvider>
           </StackTheme>

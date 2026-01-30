@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, LogOut, Settings, Trophy } from "lucide-react";
+import { User, LogOut, Settings, Trophy, CreditCard, Shield } from "lucide-react";
 import Image from "next/image";
 import { NotificationCenter } from "@/components/features/notification-center";
+import { SupportButton } from "@/components/features/support-button";
 
 export function SiteHeader() {
     const user = useUser();
@@ -109,7 +110,17 @@ export function SiteHeader() {
                     )}
                 </nav>
 
-                <div className="flex items-center gap-2 md:gap-6 pr-1 md:pr-2">
+                <div className="flex items-center gap-2 md:gap-4 pr-1 md:pr-2">
+                    {/* Support Button (Desktop: Full, Mobile: Icon) */}
+                    <div>
+                        <div className="hidden md:block">
+                            <SupportButton variant="full" />
+                        </div>
+                        <div className="md:hidden">
+                            <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
+                        </div>
+                    </div>
+
                     {user ? (
                         <div className="flex items-center gap-2 md:gap-4">
                             <NotificationCenter />
@@ -148,6 +159,11 @@ export function SiteHeader() {
                                                 <p className="text-xs text-slate-400 truncate">{user.primaryEmail}</p>
                                             </div>
                                             <div className="p-2">
+                                                {user.primaryEmail === 'shearjovan7@gmail.com' && (
+                                                    <Link href="/admin" className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors mb-2 border border-red-500/20">
+                                                        <Shield className="w-4 h-4" /> Admin Console
+                                                    </Link>
+                                                )}
                                                 <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                                                     <Trophy className="w-4 h-4" /> My Dashboard
                                                 </Link>
@@ -168,6 +184,17 @@ export function SiteHeader() {
                                                 >
                                                     <Settings className="w-4 h-4" /> Account Settings
                                                 </Link>
+                                                <Link
+                                                    href="/dashboard/billing"
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                >
+                                                    <CreditCard className="w-4 h-4" /> Billing & Subscription
+                                                </Link>
+                                                {/* Mobile Only Support Button in Menu - Keeping it for consistency in menu flow as well */}
+                                                <div className="md:hidden pt-2 mt-2 border-t border-slate-800">
+                                                    <SupportButton variant="mobile" />
+                                                </div>
                                             </div>
                                             <div className="p-2 border-t border-slate-800">
                                                 <button onClick={() => { user.signOut(); setIsMenuOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors">
@@ -181,7 +208,8 @@ export function SiteHeader() {
                         </div>
                     ) : (
                         !isAuthPage && (
-                            <div className="flex gap-4">
+                            <div className="flex items-center gap-4">
+                                {/* Duplicate Button Removed Here */}
                                 <Link href="/sign-in" className="text-sm font-medium hover:text-primary transition-colors">
                                     Sign In
                                 </Link>

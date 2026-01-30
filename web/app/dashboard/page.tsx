@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import TournamentList from "./tournament-list";
 import StoreSettings from "./store-settings";
 import ProfileEditor from "./profile-editor";
-import { Store, ArrowLeft } from "lucide-react";
+import { Store, ArrowLeft, Trophy } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -87,10 +87,61 @@ export default async function Dashboard() {
 
                 <div className="flex flex-col gap-12">
                     {store && (
-                        <section>
-                            <h2 className="text-2xl font-bold mb-4">Store Settings</h2>
-                            <StoreSettings store={store} />
-                        </section>
+                        <>
+                            {/* Pro Upgrade Banner (Free Tier Only) */}
+                            {(!store.plan || store.plan === 'free') && (
+                                <div className="bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                                    <div className="space-y-2">
+                                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                            <span className="text-yellow-500">⚡</span> Upgrade to Pro
+                                        </h3>
+                                        <p className="text-slate-300 max-w-xl">
+                                            Unlock unlimited players, custom branding, and priority support for your store's tournaments.
+                                        </p>
+                                    </div>
+                                    <Link
+                                        href="/dashboard/billing"
+                                        className="whitespace-nowrap bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
+                                    >
+                                        View Plans &rarr;
+                                    </Link>
+                                </div>
+                            )}
+
+                            <section className="mb-8">
+                                <h2 className="text-2xl font-bold mb-4">Store Tools</h2>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <Link href="/dashboard/league" className="block group">
+                                        <div className="bg-card border rounded-xl p-6 hover:border-primary/50 transition-colors h-full shadow-sm">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="bg-primary/10 p-3 rounded-lg text-primary">
+                                                    <Trophy className="w-6 h-6" />
+                                                </div>
+                                                {store.plan === 'pro' && (
+                                                    <span className="bg-yellow-500/10 text-yellow-500 text-xs font-bold px-2 py-1 rounded-full border border-yellow-500/20">
+                                                        PRO
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors">Annual Season Standings</h3>
+                                            <p className="text-muted-foreground text-sm">
+                                                View your store's league leaderboard. Points are tracked automatically from your tournaments.
+                                            </p>
+                                        </div>
+                                    </Link>
+                                </div>
+                            </section>
+
+                            <section>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-2xl font-bold">Store Settings</h2>
+                                    <Link href="/dashboard/billing" className="text-sm font-medium text-cyan-400 hover:underline">
+                                        Manage Subscription
+                                    </Link>
+                                </div>
+                                <StoreSettings store={store} />
+                            </section>
+                        </>
                     )}
 
                     <section>
