@@ -62,21 +62,30 @@ function PayPalContent({ setError }: { setError: (err: string | null) => void })
     );
 }
 
-export default function PayPalButton({ clientId }: PayPalButtonProps) {
+export default function PayPalButton({ clientId: propClientId }: PayPalButtonProps) {
     const [error, setError] = useState<string | null>(null);
+
+    // Standard Next.js way: Read client-side variables directly (fallback if prop is empty)
+    const clientId = propClientId || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
 
     // If no client ID, show a clear warning (helpful for staging config)
     if (!clientId) {
         return (
             <div className="bg-yellow-500/10 text-yellow-500 text-xs p-3 rounded-lg border border-yellow-500/20">
                 <p className="font-bold mb-1">Payment Unavailable</p>
-                <p>PayPal Client ID is missing from environment variables (NEXT_PUBLIC_PAYPAL_CLIENT_ID).</p>
+                <p>PayPal Client ID is missing (NEXT_PUBLIC_PAYPAL_CLIENT_ID).</p>
+                <p className="mt-2 text-[10px] opacity-70 italic">Note: Make sure to click "Redeploy" in Vercel after adding variables.</p>
             </div>
         );
     }
 
     return (
         <div className="w-full">
+            {/* Truncated debug info to help verify it's working (Safely shows first 5 chars) */}
+            <div className="text-[10px] text-muted-foreground mb-2 text-right opacity-50">
+                SDK Loaded: {clientId.substring(0, 5)}...
+            </div>
+
             {error && (
                 <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-lg border border-destructive/20 mb-4">
                     {error}
