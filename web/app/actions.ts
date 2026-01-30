@@ -308,11 +308,13 @@ export async function addParticipantAction(formData: FormData) {
                         participant_a_id: newPart.id,
                         participant_b_id: null, // BYE
 
-                        // New Bye Match -> Penalize Late Entry (Loss 3-4)
-                        status: 'complete',
-                        score_a: 3,
-                        score_b: 4,
-                        winner_id: null, // No winner (Bye phantom wins)
+                        // New Bye Match -> PENDING (Deferred Penalty)
+                        // If another player joins, they will fill this slot.
+                        // If round advances, this becomes a loss (3-4).
+                        status: 'pending',
+                        score_a: 0,
+                        score_b: 0,
+                        winner_id: null,
                         is_bye: true,
 
                         target_points: 4
@@ -585,6 +587,32 @@ export async function advanceBracketAction(tournamentId: string) {
         if (lastMatch.stage === 'swiss') {
             const currentRound = lastMatch.swiss_round_number;
 
+            // 0. AUTO-RESOLVE Deferred Byes (Late Joiners who didn't get a match)
+            // Find all pending matches in this round with NO opponent (participant_b_id is null)
+            const { data: deferredByes } = await supabase
+                .from("matches")
+                .select("id")
+                .eq("tournament_id", tournamentId)
+                .eq("swiss_round_number", currentRound)
+                .is("participant_b_id", null)
+                .eq("status", "pending");
+
+            if (deferredByes && deferredByes.length > 0) {
+                console.log(`[Advance] Auto-resolving ${deferredByes.length} deferred bye matches as Losses...`);
+                const byeIds = deferredByes.map(m => m.id);
+
+                await supabaseAdmin
+                    .from("matches")
+                    .update({
+                        status: 'complete',
+                        score_a: 3,
+                        score_b: 4,   // Loss for the player
+                        winner_id: null,
+                        is_bye: true
+                    })
+                    .in("id", byeIds);
+            }
+
             // 1. Verify all matches in current round are complete
             const { data: incompleteMatches } = await supabase
                 .from("matches")
@@ -733,11 +761,23 @@ export async function autoScoreRoundAction(tournamentId: string) {
         const events: any[] = [];
 
         for (const m of matches) {
-            // Randomly decide winner (0 or 1)
-            const winA = Math.random() > 0.5;
-            const scoreA = winA ? 4 : Math.floor(Math.random() * 3);
-            const scoreB = winA ? Math.floor(Math.random() * 3) : 4;
-            const winnerId = winA ? m.participant_a_id : m.participant_b_id;
+            // Randomly decide winner (0 or 1), UNLESS it's a Bye Match (Deferred)
+            let winA = Math.random() > 0.5;
+            let scoreA = 0;
+            let scoreB = 0;
+            let winnerId = null;
+
+            if (!m.participant_b_id) {
+                // Deferred Bye found during auto-score -> Force Loss
+                scoreA = 3;
+                scoreB = 4;
+                winnerId = null;
+            } else {
+                // Normal Match
+                scoreA = winA ? 4 : Math.floor(Math.random() * 3);
+                scoreB = winA ? Math.floor(Math.random() * 3) : 4;
+                winnerId = winA ? m.participant_a_id : m.participant_b_id;
+            }
 
             // Update Match Object
             updates.push({
