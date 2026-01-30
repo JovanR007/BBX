@@ -885,6 +885,41 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
     return { success: true };
 }
 
+// --- HELPER: Perform Tournament Conclusion ---
+async function performTournamentConclusion(tournamentId: string) {
+    const { error } = await supabaseAdmin
+        .from("tournaments")
+        .update({ status: "completed" })
+        .eq("id", tournamentId);
+
+    if (error) throw error;
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    revalidatePath(`/`);
+
+    // Trigger Tournament Conclusion Badges
+    await checkTournamentBadges(tournamentId);
+
+    // Update Points for all participants in this tournament (to apply Top Cut / Win bonuses)
+    const { data: participants } = await supabaseAdmin
+        .from("participants")
+        .select("user_id")
+        .eq("tournament_id", tournamentId)
+        .not("user_id", "is", null);
+
+    if (participants) {
+        for (const p of participants) {
+            if (p.user_id) await updatePlayerPoints(p.user_id);
+        }
+    }
+
+    // Award Badge: The Architect (Host a tournament)
+    const { data: tourney } = await supabaseAdmin.from("tournaments").select("organizer_id").eq("id", tournamentId).single();
+    if (tourney?.organizer_id) {
+        await awardBadge(tourney.organizer_id, "The Architect", tournamentId);
+    }
+}
+
 export async function endTournamentAction(formData: FormData) {
     const tournamentId = formData.get("tournament_id") as string;
 
@@ -908,38 +943,12 @@ export async function endTournamentAction(formData: FormData) {
         }
     }
 
-    const { error } = await supabaseAdmin
-        .from("tournaments")
-        .update({ status: "completed" })
-        .eq("id", tournamentId);
-
-    if (error) return { success: false, error: error.message };
-
-    revalidatePath(`/t/${tournamentId}/admin`);
-    revalidatePath(`/`);
-
-    // Trigger Tournament Conclusion Badges
-    await checkTournamentBadges(tournamentId);
-
-    // Update Points for all participants in this tournament (to apply Top Cut / Win bonuses)
-    // Only verify those with linked users
-    const { data: participants } = await supabaseAdmin
-        .from("participants")
-        .select("user_id")
-        .eq("tournament_id", tournamentId)
-        .not("user_id", "is", null);
-
-    if (participants) {
-        for (const p of participants) {
-            if (p.user_id) await updatePlayerPoints(p.user_id);
-        }
+    try {
+        await performTournamentConclusion(tournamentId);
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
-
-    // Award Badge: The Architect (Host a tournament)
-    const currentUser = await stackServerApp.getUser();
-    if (currentUser) await awardBadge(currentUser.id, "The Architect", tournamentId);
-
-    return { success: true };
 }
 
 export async function addJudgeAction(formData: FormData) {
@@ -1559,7 +1568,53 @@ export async function getLiveTournamentsAction(city?: string) {
 
 
 
+export async function autoConcludeFinishedTournaments() {
+    const { data: startedTourneys } = await supabaseAdmin
+        .from("tournaments")
+        .select("id, name, created_at")
+        .eq("status", "started");
+
+    if (!startedTourneys || startedTourneys.length === 0) return;
+
+    const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+    const twelveHoursAgo = new Date(Date.now() - TWELVE_HOURS_MS).toISOString();
+
+    for (const t of startedTourneys) {
+        // Fetch matches to check status and last activity
+        const { data: matches } = await supabaseAdmin
+            .from("matches")
+            .select("status, created_at")
+            .eq("tournament_id", t.id);
+
+        if (!matches || matches.length === 0) continue;
+
+        // Condition 1: All matches must be complete
+        const allComplete = matches.every(m => m.status === 'complete');
+        if (!allComplete) continue;
+
+        // Condition 2: Last match activity must be > 12 hours ago
+        const latestMatchTime = matches.reduce((max, m) => m.created_at > max ? m.created_at : max, '');
+
+        if (latestMatchTime && latestMatchTime < twelveHoursAgo) {
+            console.log(`[Auto-Conclude] Automatically concluding "${t.name}" (${t.id}) after 12h inactivity.`);
+            try {
+                await performTournamentConclusion(t.id);
+            } catch (err) {
+                console.error(`[Auto-Conclude] Failed to conclude ${t.id}:`, err);
+            }
+        }
+    }
+}
+
+
 export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
+    // 0. Auto-cleanup old live tournaments
+    try {
+        await autoConcludeFinishedTournaments();
+    } catch (e) {
+        console.error("Auto-conclude error:", e);
+    }
+
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
