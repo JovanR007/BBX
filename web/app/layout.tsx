@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://beybracket.com"),
   title: {
     default: "Beybracket",
     template: "%s | Beybracket",
