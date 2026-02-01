@@ -1,6 +1,5 @@
 import { getGuideBySlug, getAllGuides } from "@/lib/mdx";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Calendar, User, Clock, Share2 } from "lucide-react";
 import { MDXRemote } from "next-mdx-remote/rsc";
@@ -86,22 +85,8 @@ export default async function GuidePage({ params }: Props) {
                     </div>
                 </header>
 
-                {/* Hero Image */}
-                {post.meta.image && (
-                    <div className="relative aspect-video w-full mb-12 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl shadow-cyan-900/10">
-                        <Image
-                            src={post.meta.image}
-                            alt={post.meta.title}
-                            fill
-                            className="object-cover"
-                            priority
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/50 to-transparent" />
-                    </div>
-                )}
-
                 {/* Content */}
-                <div className="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-img:rounded-xl prose-hr:border-slate-800">
+                <div className="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-img:rounded-xl prose-hr:border-slate-800 mt-12 pt-12 border-t border-slate-800/50">
                     <MDXRemote
                         source={post.content}
                         options={{

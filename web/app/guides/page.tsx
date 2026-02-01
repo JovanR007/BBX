@@ -29,46 +29,42 @@ export default function GuidesIndex() {
                 </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {guides.map((guide) => (
                     <Link key={guide.slug} href={`/guides/${guide.slug}`} className="group relative block h-full">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl opacity-20 group-hover:opacity-100 blur transition duration-500" />
-                        <div className="relative h-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden flex flex-col">
-                            <div className="aspect-video relative overflow-hidden bg-slate-900 border-b border-slate-800">
-                                {guide.image ? (
-                                    <Image
-                                        src={guide.image}
-                                        alt={guide.title}
-                                        fill
-                                        className="object-cover group-hover:scale-105 transition duration-500"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-700">
-                                        <BookOpen className="w-12 h-12 opacity-50" />
-                                    </div>
-                                )}
-                                <div className="absolute top-2 right-2 bg-slate-950/80 backdrop-blur border border-slate-700 text-xs px-2 py-1 rounded text-cyan-400 uppercase tracking-widest font-mono">
+                        {/* Glow Effect */}
+                        <div className="absolute -inset-0.5 bg-gradient-to-br from-cyan-500/20 to-purple-600/20 rounded-2xl opacity-0 group-hover:opacity-100 blur-md transition duration-500" />
+
+                        {/* Card Content */}
+                        <div className="relative h-full bg-slate-950 border border-slate-800 rounded-xl overflow-hidden p-8 flex flex-col hover:border-cyan-500/50 transition-colors duration-300">
+
+                            {/* Category Pill */}
+                            <div className="mb-6 flex justify-between items-start">
+                                <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-xs font-mono uppercase tracking-widest text-cyan-400 group-hover:bg-cyan-950 group-hover:border-cyan-500/50 transition-colors">
                                     {guide.category || 'Guide'}
-                                </div>
+                                </span>
+                                <BookOpen className="w-6 h-6 text-slate-800 group-hover:text-cyan-500/20 transition-colors" />
                             </div>
 
-                            <div className="p-6 flex flex-col flex-1">
-                                <h2 className="text-xl font-bold mb-3 group-hover:text-cyan-400 transition-colors line-clamp-2">
-                                    {guide.title}
-                                </h2>
-                                <p className="text-sm text-neutral-400 mb-4 line-clamp-3 flex-1">
-                                    {guide.description}
-                                </p>
+                            {/* Title */}
+                            <h2 className="text-2xl font-black tracking-tight text-white mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-cyan-200 transition-all duration-300">
+                                {guide.title}
+                            </h2>
 
-                                <div className="flex items-center justify-between text-xs text-slate-500 font-mono mt-auto pt-4 border-t border-slate-800">
-                                    <div className="flex items-center gap-2">
-                                        <User className="w-3 h-3" />
-                                        {guide.author}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-3 h-3" />
-                                        {guide.date}
-                                    </div>
+                            {/* Description */}
+                            <p className="text-slate-400 leading-relaxed mb-8 flex-1">
+                                {guide.description}
+                            </p>
+
+                            {/* Footer / Meta */}
+                            <div className="flex items-center justify-between text-xs text-slate-500 font-mono pt-6 border-t border-slate-900 group-hover:border-slate-800 transition-colors">
+                                <div className="flex items-center gap-2">
+                                    <User className="w-3 h-3" />
+                                    <span>{guide.author}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{guide.date}</span>
                                 </div>
                             </div>
                         </div>
