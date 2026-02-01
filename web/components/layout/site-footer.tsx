@@ -72,6 +72,11 @@ export function SiteFooter() {
                                 Leaderboards
                             </Link>
                         </li>
+                        <li>
+                            <Link href="/guides" className="hover:text-primary transition-colors">
+                                Academy & Guides
+                            </Link>
+                        </li>
                     </ul>
                 </div>
 
