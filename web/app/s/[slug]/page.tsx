@@ -4,10 +4,38 @@ import { ArrowLeft, MapPin, Phone, Store } from "lucide-react";
 import TournamentList from "../../dashboard/tournament-list";
 import StoreImage from "@/components/features/store-image";
 import { BrandedContainer } from "@/components/features/branded-container";
+import { Metadata } from 'next';
 
 export const dynamic = "force-dynamic";
 
-export default async function StorePage({ params }: { params: Promise<{ slug: string }> }) {
+type Props = {
+    params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const { slug } = await params;
+
+    // Minimal fetch for metadata
+    const { data: store } = await supabaseAdmin
+        .from("stores")
+        .select("name, city, bio, image_url")
+        .eq("slug", slug)
+        .single();
+
+    if (!store) return { title: 'Store Not Found | BeyBracket' };
+
+    return {
+        title: `${store.name} | BeyBracket`,
+        description: `View recent tournaments and events at ${store.name} in ${store.city || 'your area'}.`,
+        openGraph: {
+            title: `${store.name} - Official Store Page`,
+            description: store.bio || `Check out active tournaments at ${store.name}.`,
+            images: store.image_url ? [store.image_url] : [],
+        }
+    };
+}
+
+export default async function StorePage({ params }: Props) {
     const { slug } = await params;
 
     // 1. Fetch Store (Privileged read for Server Component)

@@ -29,6 +29,10 @@ export interface Tournament {
     created_at: string;
     store_id: string | null;
     name: string;
+    location: string;
+    start_time: string;
+    end_time?: string | null;
+    description?: string | null;
     status: 'draft' | 'pending' | 'started' | 'completed';
     cut_size: number;
     slug: string | null;
