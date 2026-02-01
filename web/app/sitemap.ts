@@ -1,15 +1,25 @@
 import { MetadataRoute } from 'next';
 import { supabase } from '@/lib/supabase';
+import { getAllGuides } from '@/lib/mdx';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = 'https://beybracket.com';
 
     // 1. Static Routes
-    const routes = ['', '/tournaments', '/stores', '/leaderboard'].map((route) => ({
+    const routes = ['', '/tournaments', '/stores', '/leaderboard', '/guides'].map((route) => ({
         url: `${baseUrl}${route}`,
         lastModified: new Date().toISOString(),
         changeFrequency: 'daily' as const,
         priority: 1.0,
+    }));
+
+    // 1.5 Dynamic Guides
+    const guides = getAllGuides();
+    const guideRoutes = guides.map((guide) => ({
+        url: `${baseUrl}/guides/${guide.slug}`,
+        lastModified: guide.date ? new Date(guide.date).toISOString() : new Date().toISOString(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.9,
     }));
 
     // 2. Dynamic Tournaments (Public: Started or Completed)
@@ -57,5 +67,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
     }));
 
-    return [...routes, ...tournamentRoutes, ...storeRoutes, ...profileRoutes];
+    return [...routes, ...guideRoutes, ...tournamentRoutes, ...storeRoutes, ...profileRoutes];
 }

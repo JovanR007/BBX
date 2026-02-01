@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Calendar, User, Clock, Share2 } from "lucide-react";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import remarkGfm from "remark-gfm";
 import { BrandedContainer } from "@/components/features/branded-container";
 import { Metadata } from "next";
 
@@ -101,7 +102,14 @@ export default async function GuidePage({ params }: Props) {
 
                 {/* Content */}
                 <div className="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-cyan-400 hover:prose-a:text-cyan-300 prose-img:rounded-xl prose-hr:border-slate-800">
-                    <MDXRemote source={post.content} />
+                    <MDXRemote
+                        source={post.content}
+                        options={{
+                            mdxOptions: {
+                                remarkPlugins: [remarkGfm],
+                            },
+                        }}
+                    />
                 </div>
 
                 {/* Share / Footer */}
