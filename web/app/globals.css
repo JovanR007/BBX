@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "../node_modules/tw-animate-css/dist/tw-animate.css";
 @source "../node_modules/@stackframe/stack";
 
