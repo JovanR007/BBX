@@ -60,8 +60,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={cn(inter.className, "min-h-screen bg-background text-foreground antialiased")}>
-        {/* Google Maps API for Autocomplete - Force Rebuild */}
-        {/* Google Maps API handled by gmpx-api-loader in components */}
         <StackProvider app={stackServerApp}>
           <StackTheme>
             <ToastProvider>
@@ -79,7 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ToastProvider>
           </StackTheme>
         </StackProvider>
-      </body>
-    </html>
+      </body >
+    </html >
   );
 }

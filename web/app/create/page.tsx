@@ -51,6 +51,34 @@ export default function CreateTournamentPage() {
                         />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Battle Format</label>
+                            <select
+                                name="battle_type"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                defaultValue="1on1"
+                            >
+                                <option value="1on1">1on1 Battle (Official)</option>
+                                <option value="3on3">3on3 Battle</option>
+                                <option value="counter">Counter Battle</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Win Condition</label>
+                            <select
+                                name="match_type"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                defaultValue="4pt"
+                            >
+                                <option value="4pt">4-Point Match (Official)</option>
+                                <option value="5pt">5-Point Match (WBO Swiss)</option>
+                                <option value="7pt">7-Point Match (WBO Finals)</option>
+                                <option value="best_of_3">Best of 3 Sets [4pts]</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Venue / Location</label>

@@ -41,6 +41,7 @@ export interface Tournament {
     swiss_rounds: number | null;
     is_ranked?: boolean;
     organizer_id?: string | null;
+    ruleset_config?: any; // JSONB
     stores?: {
         name: string | null;
         primary_color: string | null;
@@ -75,6 +76,9 @@ export interface Match {
     status: 'pending' | 'complete' | 'draw' | 'scheduled';
     is_bye: boolean;
     target_points: number;
+    bey_a?: string | null;
+    bey_b?: string | null;
+    metadata?: any; // JSONB
 }
 
 export interface MatchEvent {

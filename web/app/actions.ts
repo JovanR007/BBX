@@ -486,6 +486,25 @@ export async function createTournamentAction(formData: FormData) {
     const location = formData.get("location") as string;
     const startTimeRaw = formData.get("start_time") as string;
 
+    // Phase 3: Rulesets
+    const battleType = (formData.get("battle_type") as string) || "1on1";
+    const matchType = (formData.get("match_type") as string) || "4pt";
+
+    // Standard scoring rules (Official / WBO Unified)
+    const pointsConfig = {
+        spin: 1,
+        over: 2,
+        burst: 2,
+        xtreme: 3,
+        own_finish: 'opponent_point' // Modern B4/WBO rule
+    };
+
+    const rulesetConfig = {
+        battle_type: battleType,
+        match_type: matchType,
+        points_config: pointsConfig
+    };
+
     // Ensure startTime is an ISO string if present
     const startTime = startTimeRaw ? new Date(startTimeRaw).toISOString() : null;
 
@@ -517,7 +536,8 @@ export async function createTournamentAction(formData: FormData) {
             slug,
             store_id: store?.id || null, // Optional now
             organizer_id: user.id, // Track creator
-            is_ranked: isRanked
+            is_ranked: isRanked,
+            ruleset_config: rulesetConfig
         })
         .select()
         .single();
@@ -652,12 +672,16 @@ export async function reportMatchAction(formData: FormData) {
     const finishType = formData.get("finish_type") as string;
     const pA = formData.get("p_a") as string;
     const pB = formData.get("p_b") as string;
+    const beyA = formData.get("bey_a") as string;
+    const beyB = formData.get("bey_b") as string;
+    const metadataRaw = formData.get("metadata") as string;
+    const metadata = metadataRaw ? JSON.parse(metadataRaw) : {};
 
     // 1. Permission Check (Owner or Judge)
     // Fetch match to get tournament_id
     const { data: match, error: fetchErr } = await supabaseAdmin
         .from("matches")
-        .select("tournament_id")
+        .select("tournament_id, metadata") // Fetch existing metadata too
         .eq("id", matchId)
         .single();
 
@@ -687,14 +711,28 @@ export async function reportMatchAction(formData: FormData) {
     if (scoreA > scoreB) winnerId = pA;
     else if (scoreB > scoreA) winnerId = pB;
 
+    // Merge new metadata with existing if needed, or overwrite? 
+    // Usually simple overwrite for the latest state is fine, but lets merge carefully if we tracked something else.
+    // For now, we overwrite 'match_state' parts.
+    const updatedMetadata = {
+        ...match.metadata,
+        ...metadata
+    };
+
     // Finish Points
+    // Need to check ruleset? For now trusting the client sending correct win status, 
+    // but typically we'd fetch tournament ruleset here. 
+    // Assuming Points are calculated client-side effectively for 'winnerId' logic in this simplified view,
+    // OR trusting that 'finishType' is only for 'match_events' logs.
     const FINISH_POINTS: Record<string, number> = { spin: 1, over: 2, burst: 2, xtreme: 3 };
     const points = FINISH_POINTS[finishType] || 0;
 
     // 1. Insert Event
     const { error: evErr } = await supabaseAdmin.from("match_events").insert({
         match_id: matchId,
-        winner_participant_id: winnerId,
+        winner_participant_id: winnerId, // Note: For Best of 3, this might be Set Winner? No, this event is "Finish".
+        // Actually, if we are reporting the FINAL match result, winnerId is the Match Winner. 
+        // We might want separate events for Set wins if we get detailed.
         finish: finishType,
         points_awarded: points
     });
@@ -706,7 +744,10 @@ export async function reportMatchAction(formData: FormData) {
         score_a: scoreA,
         score_b: scoreB,
         winner_id: winnerId,
-        status: "complete"
+        status: "complete",
+        bey_a: beyA,
+        bey_b: beyB,
+        metadata: updatedMetadata
     }).eq("id", matchId);
 
     if (mErr) return { success: false, error: mErr.message };
@@ -1261,6 +1302,22 @@ export async function updateLiveScoreAction(matchId: string, scoreA: number, sco
         .update({
             score_a: scoreA,
             score_b: scoreB
+        })
+        .eq("id", matchId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function syncMatchStateAction(matchId: string, scoreA: number, scoreB: number, metadata: any) {
+    if (!matchId) return { success: false, error: "Match ID required" };
+
+    const { error } = await supabaseAdmin
+        .from("matches")
+        .update({
+            score_a: scoreA,
+            score_b: scoreB,
+            metadata: metadata
         })
         .eq("id", matchId);
 

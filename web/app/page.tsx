@@ -13,6 +13,7 @@ export default function LandingPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const user = useUser();
+  // const user = null; // TEMP: Isolation test
   const [username, setUsername] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
