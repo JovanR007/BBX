@@ -1,22 +1,22 @@
 # BeyBracket Project Roadmap
 *Heavily inspired by Silph.gg and tailored for the Beyblade community.*
 
-## 🏁 Phase 1: Player Identity (In Progress)
+## 🏁 Phase 1: Player Identity (Completed)
 Focusing on the individual player's journey and achievements.
 - [x] **Dynamic Store Stats**: Real-time blader counts and activity.
 - [x] **Classic Achievement System**: Trophy Cases and auto-earned badges.
 - [x] **Detailed Tournament History**: Searchable and filterable history on user profiles.
 
-## 🏆 Phase 2: Competitive Tiers & Leaderboards (CURRENT PRIORITY)
+## 🏆 Phase 2: Competitive Tiers & Leaderboards (Completed)
 Building the foundation for world rankings.
 - [x] **Global Leaderboard**: Ranking players by a points-based system.
-- [ ] **Seasonal Cycles**: Resetting leaderboards for "Competitive Seasons".
-- [ ] **Store-Specific Rankings**: Local legends and store champions.
+- [x] **Seasonal Cycles**: Resetting leaderboards for "Competitive Seasons".
+- [x] **Store-Specific Rankings**: Local legends and store champions.
 
-## 📋 Phase 3: Tournament Standardization
+## 📋 Phase 3: Tournament Standardization (In Progress)
 Simplifying the organizer experience with proven rulesets.
-- [ ] **Ruleset Templates**: Pre-configured tournament types (e.g., Swiss, Double Elim, Round Robin).
-- [ ] **Bey-Specific Match Reporting**: Recording the Bey used and the finish type (Burst, Ring-out, Survivor).
+- [x] **Ruleset Templates**: Pre-configured tournament types (e.g., Swiss, Double Elim, Round Robin).
+- [x] **Bey-Specific Match Reporting**: Recording the Bey used and the finish type (Burst, Ring-out, Survivor).
 - [ ] **Organizer PIN Enhancements**: Better security and management for storefront owners.
 
 ## 🤝 Phase 4: Communities & Hubs
