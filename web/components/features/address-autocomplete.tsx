@@ -74,8 +74,10 @@ export function AddressAutocomplete({
             const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
             if (!apiKey) {
-                console.error("Critical: API Key is really missing!");
-                return false;
+                console.warn("Google Maps API Key is missing. Falling back to standard text input.");
+                // We mark apiReady as true so we render the fallback UI instead of the loading state
+                setApiReady(false); // keep it false but we will handle it in render
+                return true; // stop trying
             }
 
             if (loaderRef.current) {
@@ -89,6 +91,9 @@ export function AddressAutocomplete({
         // Try immediately
         if (checkAndSetKey()) return;
 
+        // Carry on with retry logic if apiKey exists but loaderRef hasn't mounted
+        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) return;
+
         // Retry a few times if ref isn't ready
         const interval = setInterval(() => {
             if (checkAndSetKey()) {
@@ -99,7 +104,7 @@ export function AddressAutocomplete({
         // Warning timeout
         const timeout = setTimeout(() => {
             clearInterval(interval);
-            if (!loaderRef.current) {
+            if (!loaderRef.current && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
                 console.error("Timeout: gmpx-api-loader ref never became available.");
             }
         }, 5000);
@@ -318,9 +323,8 @@ export function AddressAutocomplete({
             {/* The Place Picker Web Component - Only render when API key is set */}
             {apiReady && (
                 <div className="w-full relative">
-                    {/* Global Styles for the shadow DOM of the picker */}
+                    {/* ... style jsx ... */}
                     <style jsx global>{`
-                        /* Hide the Google Logo/Search Icon if it clashes or looks bad */
                         gmpx-place-picker::part(input) {
                             color: hsl(var(--foreground));
                             background: transparent !important;
@@ -334,7 +338,6 @@ export function AddressAutocomplete({
                             appearance: none !important;
                         }
                         
-                        /* Hide browser default clear button */
                         gmpx-place-picker::part(input)::-webkit-search-cancel-button,
                         gmpx-place-picker::part(input)::-webkit-search-decoration {
                             -webkit-appearance: none;
@@ -342,17 +345,13 @@ export function AddressAutocomplete({
                             display: none;
                         }
 
-                        /* Remove default box shadow or border if present on the host */
                          gmpx-place-picker {
                             --gmpx-color-surface: transparent; 
                             --gmpx-color-on-surface: hsl(var(--foreground));
-                            
-                            /* CRITICAL: Set primary color (Focus Ring) to transparent */
                             --gmpx-color-primary: transparent !important;
                             --gmpx-color-outline: transparent !important;
                             --md-sys-color-outline: transparent !important;
                             --md-sys-color-outline-variant: transparent !important;
-
                             --gmpx-font-family-base: inherit;
                             font-size: 0.875rem;
                             border: none !important;
@@ -363,7 +362,6 @@ export function AddressAutocomplete({
                         }
                     `}</style>
 
-                    {/* Wrapper matching Shadcn Input Styles */}
                     <div className="flex h-10 w-full items-center rounded-md border border-input bg-background pl-3 pr-10 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 relative">
                         {/* @ts-ignore */}
                         <gmpx-place-picker
@@ -375,11 +373,9 @@ export function AddressAutocomplete({
                                 background: 'transparent',
                                 border: 'none',
                                 outline: 'none'
-                                // Removed paddingLeft (was 24px)
                             }}
                         />
 
-                        {/* Clear Button - Shows only when there is a value */}
                         {currentValue && (
                             <button
                                 type="button"
@@ -394,8 +390,40 @@ export function AddressAutocomplete({
                 </div>
             )}
 
-            {/* Show loading state while waiting for API Key injection */}
-            {!apiReady && (
+            {/* FALLBACK: Standard Input if API Key is missing or Maps failed to load */}
+            {!apiReady && libLoaded && !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+                <div className="flex h-10 w-full items-center rounded-md border border-input bg-background pl-3 pr-10 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 relative">
+                    <input
+                        type="text"
+                        className="w-full bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
+                        placeholder={placeholder}
+                        value={currentValue}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setCurrentValue(val);
+                            if (onAddressSelect) {
+                                // Manual text search doesn't provide coords/extracted fields easily
+                                onAddressSelect({ address: val, city: val, country: "", lat: 0, lng: 0 });
+                            }
+                        }}
+                    />
+                    {currentValue && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCurrentValue("");
+                                if (onAddressSelect) onAddressSelect({ address: "", city: "", country: "", lat: 0, lng: 0 });
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {/* Show loading state only while actively trying to load Maps OR if key exists but not ready */}
+            {!apiReady && (!libLoaded || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) && (
                 <div className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
                     <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -1,24 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
-import Image from "next/image";
 import { StoreCard } from "@/components/features/store-card";
 import { Loader2 } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
 import { Store } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 export default function LandingPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const user = useUser();
+  const [username, setUsername] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      // 1. Fetch Featured Stores (Only Pro Plan) - Premium Exclusivity
+      // 1. Fetch Featured Stores
       const { data } = await supabase
         .from("stores")
         .select("id, created_at, owner_id, name, slug, image_url, address, contact_number, city, country, primary_color, secondary_color, plan")
@@ -28,8 +28,16 @@ export default function LandingPage() {
       if (data) setStores(data);
       setLoading(false);
 
-      // 2. Check Ownership (if user exists)
+      // 2. Check Ownership & Username (if user exists)
       if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+
+        if (profile) setUsername(profile.username);
+
         const { data: myStore } = await supabase
           .from("stores")
           .select("id")
@@ -66,7 +74,7 @@ export default function LandingPage() {
           <div className="flex gap-4">
             {user ? (
               <Link
-                href="/dashboard"
+                href={isOwner ? "/dashboard" : (username ? `/u/${username}` : "/account")}
                 className="relative inline-flex items-center justify-center rounded-full bg-slate-950 px-8 py-3 text-sm font-medium text-white shadow-lg transition-all hover:scale-105 hover:shadow-cyan-500/25 border border-slate-800 hover:border-cyan-500/50 group"
               >
                 <span className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 opacity-20 group-hover:opacity-40 blur transition-opacity" />

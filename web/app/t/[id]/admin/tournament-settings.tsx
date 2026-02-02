@@ -86,43 +86,49 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Judge Code</label>
-                    <div className="flex gap-2">
-                        <input
-                            value={judgeCode}
-                            onChange={e => setJudgeCode(e.target.value)}
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono uppercase tracking-widest"
-                            placeholder="Set Code"
-                        />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                        Share this code with judges. They can enter it on the tournament page to get scoring access.
-                    </p>
-                </div>
 
-                {/* Judge List */}
-                <div className="space-y-2 pt-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                        <Users className="w-4 h-4" /> Active Judges ({judges.length})
-                    </label>
-                    <div className="border rounded-md bg-muted/20 p-2 space-y-2 max-h-40 overflow-y-auto">
-                        {judges.length === 0 ? (
-                            <div className="text-xs text-muted-foreground italic">No judges yet.</div>
-                        ) : judges.map(j => (
-                            <div key={j.user_id} className="flex items-center justify-between bg-card p-2 rounded text-xs border">
-                                <span className="font-mono">{j.user_id.substring(0, 8)}...</span>
-                                <button
-                                    type="button"
-                                    onClick={() => handleRemoveJudge(j.user_id)}
-                                    className="text-muted-foreground hover:text-destructive transition-colors"
-                                >
-                                    <X className="w-3 h-3" />
-                                </button>
+                {/* Judge Code & Active Judges - Only for Ranked Tournaments */}
+                {tournament.is_ranked && (
+                    <>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Judge Code</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={judgeCode}
+                                    onChange={e => setJudgeCode(e.target.value)}
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono uppercase tracking-widest"
+                                    placeholder="Set Code"
+                                />
                             </div>
-                        ))}
-                    </div>
-                </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                Share this code with judges. They can enter it on the tournament page to get scoring access.
+                            </p>
+                        </div>
+
+                        {/* Judge List */}
+                        <div className="space-y-2 pt-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <Users className="w-4 h-4" /> Active Judges ({judges.length})
+                            </label>
+                            <div className="border rounded-md bg-muted/20 p-2 space-y-2 max-h-40 overflow-y-auto">
+                                {judges.length === 0 ? (
+                                    <div className="text-xs text-muted-foreground italic">No judges yet.</div>
+                                ) : judges.map(j => (
+                                    <div key={j.user_id} className="flex items-center justify-between bg-card p-2 rounded text-xs border">
+                                        <span className="font-mono">{j.user_id.substring(0, 8)}...</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveJudge(j.user_id)}
+                                            className="text-muted-foreground hover:text-destructive transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 <div className="pt-2">
                     <button

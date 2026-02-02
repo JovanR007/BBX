@@ -54,7 +54,12 @@ export function useTournament(paramId: string | Promise<{ id: string }>): UseTou
                         .eq("id", tourney.store_id)
                         .single();
 
-                    const isOwner = store?.owner_id === user.id;
+                    let isOwner = store?.owner_id === user.id;
+
+                    // ALSO check if user is the tournament organizer (for casual tournaments)
+                    if (!isOwner && tourney.organizer_id) {
+                        isOwner = tourney.organizer_id === user.id;
+                    }
 
                     // Check Judge
                     const { count: judgeCount } = await supabase

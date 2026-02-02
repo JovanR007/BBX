@@ -52,7 +52,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     } = useBracketData(tournamentId);
 
     // Helpers
-    const { isOwner, isJudge } = permissions || { isOwner: false, isJudge: false };
+    const { isOwner, isJudge, isSuperAdmin } = permissions || { isOwner: false, isJudge: false, isSuperAdmin: false };
     const canEdit = isOwner || isJudge;
 
     // Actions Hook
@@ -134,9 +134,11 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <button onClick={handleAutoScore} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-purple-500 hover:text-purple-400 border border-purple-500/20 hover:border-purple-500/50 bg-purple-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Randomly score all pending matches">
                             <Wand2 className="w-3 h-3" /> Auto-Resolve
                         </button>
-                        <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
-                            <Trash2 className="w-3 h-3" /> Reset Round
-                        </button>
+                        {isSuperAdmin && (
+                            <button onClick={handleResetRound} disabled={advancing} className="flex items-center gap-2 text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 bg-red-500/5 px-3 py-1 rounded-full transition-all" title="Debug: Delete latest round matches">
+                                <Trash2 className="w-3 h-3" /> Reset Round
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -167,7 +169,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             <MatchScoringModal isOpen={!!selectedMatch} match={selectedMatch} participants={participants} onClose={() => setSelectedMatch(null)} refresh={refresh} />
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
             <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
-            <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} />
+            <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} isCasual={!tournament?.store_id} />
         </BrandedContainer>
     );
 }
@@ -319,14 +321,14 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                             resultText: m.score_a?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_a_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pA?.display_name || 'TBD'
+                            name: pA?.display_name || 'BYE'
                         },
                         {
                             id: m.participant_b_id || `bye-b-${m.id}`,
                             resultText: m.score_b?.toString() ?? '-',
                             isWinner: m.winner_id === m.participant_b_id && m.status === 'complete',
                             status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pB?.display_name || 'TBD'
+                            name: pB?.display_name || 'BYE'
                         }
                     ]
                 };
@@ -600,7 +602,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                     "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pA?.display_name || "TBD"}
+                    {pA?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono min-w-[20px] text-right",
@@ -619,7 +621,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                     "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pB?.display_name || "TBD"}
+                    {pB?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono min-w-[20px] text-right",

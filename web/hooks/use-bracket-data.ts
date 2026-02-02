@@ -16,7 +16,7 @@ export function useBracketData(tournamentId: string | undefined) {
     const [isSwissFinished, setIsSwissFinished] = useState(false);
 
     // Permissions
-    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false });
+    const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false, isSuperAdmin: false });
     const user = useUser();
 
     const fetchData = useCallback(async () => {
@@ -40,16 +40,28 @@ export function useBracketData(tournamentId: string | undefined) {
 
         // Check Permissions
         if (user && tourney) {
-            const { data: store } = await supabase
-                .from("stores")
-                .select("owner_id")
-                .eq("id", tourney.store_id)
-                .single();
+            let isOwner = false;
 
-            const isOwner = store?.owner_id === user.id;
+            // Check if user is organizer (for casual tournaments)
+            if (tourney.organizer_id && tourney.organizer_id === user.id) {
+                isOwner = true;
+            }
+
+            // Otherwise check store ownership (for ranked tournaments)
+            if (!isOwner && tourney.store_id) {
+                const { data: store } = await supabase
+                    .from("stores")
+                    .select("owner_id")
+                    .eq("id", tourney.store_id)
+                    .single();
+
+                isOwner = store?.owner_id === user.id;
+            }
+
             const isJudge = fetchedJudges?.some((j: any) => j.user_id === user.id) || false;
+            const isSuperAdmin = user.primaryEmail === "shearjovan7@gmail.com";
 
-            setPermissions({ isOwner, isJudge });
+            setPermissions({ isOwner, isJudge, isSuperAdmin });
         }
 
         // Ensure fetchedMatches is typed or fallback

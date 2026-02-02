@@ -27,14 +27,20 @@ export interface Store {
 export interface Tournament {
     id: string;
     created_at: string;
-    store_id: string;
+    store_id: string | null;
     name: string;
+    location: string;
+    start_time: string;
+    end_time?: string | null;
+    description?: string | null;
     status: 'draft' | 'pending' | 'started' | 'completed';
     cut_size: number;
     slug: string | null;
     judge_code: string | null;
     match_target_points: number | null;
     swiss_rounds: number | null;
+    is_ranked?: boolean;
+    organizer_id?: string | null;
     stores?: {
         name: string | null;
         primary_color: string | null;

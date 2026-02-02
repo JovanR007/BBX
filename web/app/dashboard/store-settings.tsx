@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useActionState, useState } from "react";
 import { updateStoreAction } from "@/app/actions";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
@@ -214,7 +216,9 @@ export default function StoreSettings({ store: initialStore }: { store: any }) {
                                 </div>
                             </div>
                             {!isPro && (
-                                <p className="text-xs text-muted-foreground italic">Upgrade to Pro to unlock custom colors for your store and tournament pages.</p>
+                                <p className="text-xs text-muted-foreground italic">
+                                    <Link href="/dashboard/billing" className="text-cyan-400 hover:underline font-bold">Upgrade to Pro</Link> to unlock custom colors for your store and tournament pages.
+                                </p>
                             )}
                         </div>
 
