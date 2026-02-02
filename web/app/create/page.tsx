@@ -57,10 +57,10 @@ export default function CreateTournamentPage() {
                             <select
                                 name="battle_type"
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                defaultValue="1on1"
+                                defaultValue="3on3"
                             >
-                                <option value="1on1">1on1 Battle (Official)</option>
-                                <option value="3on3">3on3 Battle</option>
+                                <option value="3on3">3on3 Battle (Official)</option>
+                                <option value="1on1">1on1 Battle</option>
                                 <option value="counter">Counter Battle</option>
                             </select>
                         </div>

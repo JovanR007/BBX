@@ -490,6 +490,15 @@ export async function createTournamentAction(formData: FormData) {
     const battleType = (formData.get("battle_type") as string) || "1on1";
     const matchType = (formData.get("match_type") as string) || "4pt";
 
+    // Map match_type to legacy match_target_points
+    let targetPoints = 4;
+    switch (matchType) {
+        case "5pt": targetPoints = 5; break;
+        case "7pt": targetPoints = 7; break;
+        case "best_of_3": targetPoints = 4; break; // Sets are usually 4pts
+        default: targetPoints = 4;
+    }
+
     // Standard scoring rules (Official / WBO Unified)
     const pointsConfig = {
         spin: 1,
@@ -537,7 +546,8 @@ export async function createTournamentAction(formData: FormData) {
             store_id: store?.id || null, // Optional now
             organizer_id: user.id, // Track creator
             is_ranked: isRanked,
-            ruleset_config: rulesetConfig
+            ruleset_config: rulesetConfig,
+            match_target_points: targetPoints
         })
         .select()
         .single();
@@ -799,15 +809,18 @@ export async function autoScoreRoundAction(tournamentId: string) {
             let scoreB = 0;
             let winnerId = null;
 
+            const target = m.target_points || 4;
+            const loserScore = Math.floor(Math.random() * (target - 1));
+
             if (!m.participant_b_id) {
                 // Deferred Bye found during auto-score -> Force Loss
-                scoreA = 3;
-                scoreB = 4;
+                scoreA = target - 1;
+                scoreB = target;
                 winnerId = null;
             } else {
                 // Normal Match
-                scoreA = winA ? 4 : Math.floor(Math.random() * 3);
-                scoreB = winA ? Math.floor(Math.random() * 3) : 4;
+                scoreA = winA ? target : loserScore;
+                scoreB = winA ? loserScore : target;
                 winnerId = winA ? m.participant_a_id : m.participant_b_id;
             }
 
@@ -825,7 +838,7 @@ export async function autoScoreRoundAction(tournamentId: string) {
                 match_id: m.id,
                 winner_participant_id: winnerId,
                 finish: "auto-debug",
-                points_awarded: 4 // Just a dummy value
+                points_awarded: target // Just a dummy value
             });
         }
 
