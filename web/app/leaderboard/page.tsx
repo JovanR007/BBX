@@ -1,34 +1,13 @@
 import { getLeaderboard } from "@/lib/ranking";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { User, Trophy, MapPin, Crown, Medal } from "lucide-react";
+import { Trophy, MapPin, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SeasonSelector } from "@/components/leaderboard/season-selector";
+import { TIER_COLORS, TIER_ICONS } from "@/components/leaderboard/constants";
 
 export const dynamic = "force-dynamic";
-
-function SwordsIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" /><line x1="13" y1="19" x2="19" y2="13" /><line x1="16" y1="16" x2="20" y2="20" /><line x1="19" y1="21" x2="21" y2="19" /><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5" /><line x1="5" y1="14" x2="9" y2="18" /><line x1="7" y1="17" x2="4" y2="20" /><line x1="3" y1="19" x2="5" y2="21" /></svg> }
-function ShieldIcon({ className }: { className?: string }) { return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg> }
-
-// Helper for Tier Icons
-const TIER_ICONS: any = {
-    "Legend": Crown,
-    "Master": Trophy,
-    "Elite Blader": SwordsIcon,
-    "Blader": Medal,
-    "Trainee": ShieldIcon,
-    "Newbie": User
-};
-
-const TIER_COLORS: any = {
-    "Legend": "text-yellow-400 border-yellow-500/50 bg-yellow-950/30",
-    "Master": "text-purple-400 border-purple-500/50 bg-purple-950/30",
-    "Elite Blader": "text-red-400 border-red-500/50 bg-red-950/30",
-    "Blader": "text-cyan-400 border-cyan-500/50 bg-cyan-950/30",
-    "Trainee": "text-green-400 border-green-500/50 bg-green-950/30",
-    "Newbie": "text-slate-400 border-slate-500/50 bg-slate-900/50"
-};
 
 export default async function LeaderboardPage({ searchParams }: { searchParams: Promise<{ scope?: string, location?: string, season?: string }> }) {
     const { scope = 'global', location = '', season = '' } = await searchParams;

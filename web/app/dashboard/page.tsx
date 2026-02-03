@@ -36,8 +36,7 @@ export default async function Dashboard() {
             throw new Error(`Failed to fetch store: ${storeError.message}`);
         }
 
-        // 2. If NOT a store owner, we originally redirected. Now we allow access.
-        // if (!store) ... redirect ... -> REMOVED
+        // 2. If NOT a store owner, we now allow access (Casual Mode)
 
         // 3. User Dashboard Logic
         let tournaments = [];

@@ -10,7 +10,7 @@ Focusing on the individual player's journey and achievements.
 ## 🏆 Phase 2: Competitive Tiers & Leaderboards (CURRENT PRIORITY)
 Building the foundation for world rankings.
 - [x] **Global Leaderboard**: Ranking players by a points-based system.
-- [ ] **Seasonal Cycles**: Resetting leaderboards for "Competitive Seasons".
+- [x] **Seasonal Cycles**: Resetting leaderboards for "Competitive Seasons".
 - [ ] **Store-Specific Rankings**: Local legends and store champions.
 
 ## 📋 Phase 3: Tournament Standardization
