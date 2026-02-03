@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { SeasonSelector } from "@/components/leaderboard/season-selector";
 import { TIER_COLORS, TIER_ICONS } from "@/components/leaderboard/constants";
+import { AdUnit } from "@/components/AdUnit";
 
 export const dynamic = "force-dynamic";
 
