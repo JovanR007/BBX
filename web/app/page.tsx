@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { cn } from "@/lib/utils";
 import { Store } from "@/types";
+import { supabase } from "@/lib/supabase";
 import { AdUnit } from "@/components/AdUnit";
 
 export default function LandingPage() {
