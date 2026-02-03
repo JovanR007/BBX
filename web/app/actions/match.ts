@@ -184,11 +184,26 @@ export async function autoScoreRoundAction(tournamentId: string) {
         const events: any[] = [];
 
         for (const m of matches) {
-            // Randomly decide winner (0 or 1)
-            const winA = Math.random() > 0.5;
-            const scoreA = winA ? 4 : Math.floor(Math.random() * 3);
-            const scoreB = winA ? Math.floor(Math.random() * 3) : 4;
-            const winnerId = winA ? m.participant_a_id : m.participant_b_id;
+            // Randomly decide winner (0 or 1), UNLESS it's a Bye Match (Deferred)
+            let winA = Math.random() > 0.5;
+            let scoreA = 0;
+            let scoreB = 0;
+            let winnerId = null;
+
+            const target = m.target_points || 4;
+            const loserScore = Math.floor(Math.random() * (target - 1));
+
+            if (!m.participant_b_id) {
+                // Deferred Bye found during auto-score -> Force Loss
+                scoreA = target - 1;
+                scoreB = target;
+                winnerId = null;
+            } else {
+                // Normal Match
+                scoreA = winA ? target : loserScore;
+                scoreB = winA ? loserScore : target;
+                winnerId = winA ? m.participant_a_id : m.participant_b_id;
+            }
 
             // Update Match Object
             updates.push({
@@ -204,7 +219,7 @@ export async function autoScoreRoundAction(tournamentId: string) {
                 match_id: m.id,
                 winner_participant_id: winnerId,
                 finish: "auto-debug",
-                points_awarded: 4 // Just a dummy value
+                points_awarded: target // Just a dummy value
             });
         }
 
@@ -343,6 +358,22 @@ export async function updateLiveScoreAction(matchId: string, scoreA: number, sco
         .update({
             score_a: scoreA,
             score_b: scoreB
+        })
+        .eq("id", matchId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function syncMatchStateAction(matchId: string, scoreA: number, scoreB: number, metadata: any) {
+    if (!matchId) return { success: false, error: "Match ID required" };
+
+    const { error } = await supabaseAdmin
+        .from("matches")
+        .update({
+            score_a: scoreA,
+            score_b: scoreB,
+            metadata: metadata
         })
         .eq("id", matchId);
 
