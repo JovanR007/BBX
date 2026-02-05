@@ -56,23 +56,24 @@ export const dynamic = "force-dynamic";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
 
-import Script from "next/script";
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        {process.env.NEXT_PUBLIC_ENABLE_ADS === 'true' && (
+          <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID}`}
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       <body
         className={cn(inter.className, "min-h-screen bg-background text-foreground antialiased")}
         suppressHydrationWarning
       >
-        {process.env.NEXT_PUBLIC_ENABLE_ADS === 'true' && (
-          <Script
-            async
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-        )}
         {/* Google Maps API for Autocomplete - Force Rebuild */}
         {/* Google Maps API handled by gmpx-api-loader in components */}
         <StackProvider app={stackServerApp}>
