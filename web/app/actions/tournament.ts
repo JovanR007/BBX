@@ -396,6 +396,7 @@ export async function getLiveTournamentsAction(city?: string) {
         `)
         .neq("status", "completed")
         .neq("status", "draft") // Premium Feed: No Drafts
+        .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("created_at", { ascending: false });
 
     // 2. Apply City Filter on the joined Store table
@@ -478,6 +479,7 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
             )
         `)
         .eq("status", "started")
+        .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("start_time", { ascending: true });
 
     if (city && city !== "all") {
