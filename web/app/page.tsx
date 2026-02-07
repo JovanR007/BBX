@@ -106,7 +106,7 @@ export default function LandingPage() {
         </div>
 
         <div className="max-w-6xl mx-auto">
-          <AdUnit slot="homepage-mid" className="mb-12" />
+          <AdUnit slot="homepage-mid" format="horizontal" className="mb-12 min-h-[100px] max-h-[280px] overflow-hidden" />
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold tracking-tight text-white">Featured Hobby Stores</h2>
             <span className="text-sm text-neutral-500">{stores.length} found</span>

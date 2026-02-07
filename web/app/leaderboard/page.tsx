@@ -69,7 +69,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
             {/* Leaderboard Table */}
             <div className="container mx-auto px-4 py-12">
-                <AdUnit slot="leaderboard-top" className="mb-8" />
+                <AdUnit slot="leaderboard-top" format="horizontal" className="mb-8 min-h-[100px] max-h-[280px] overflow-hidden" />
                 <div className="bg-slate-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
                     <table className="w-full text-left border-collapse">
                         <thead>
