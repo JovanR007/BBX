@@ -572,7 +572,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         </div>
                     </div>
                 </div>
-            )}/* REMOVED DEBUG SECTION */
+            )}
         </div>
     );
 }

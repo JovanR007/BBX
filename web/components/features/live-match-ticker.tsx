@@ -22,6 +22,7 @@ export default function LiveMatchTicker() {
           participant_a:participants!participant_a_id(display_name),
           participant_b:participants!participant_b_id(display_name),
           tournaments(
+            name,
             stores(name)
           )
         `)
@@ -69,12 +70,16 @@ export default function LiveMatchTicker() {
             const isZeroZero = (m.score_a === 0 && m.score_b === 0);
             const scoreDisplay = isZeroZero ? 'VS' : `${m.score_a}-${m.score_b}`;
 
+            const storeName = m.tournaments?.stores?.name;
+            const tournamentName = m.tournaments?.name;
+            const locationLabel = storeName || tournamentName || "Community";
+
             return {
                 id: m.id,
                 p1: m.participant_a?.display_name || "TBA",
                 p2: m.participant_b?.display_name || "TBA",
                 score: scoreDisplay,
-                store: m.tournaments?.stores?.name || "Unknown Store",
+                store: locationLabel,
                 status: m.status
             };
         });
