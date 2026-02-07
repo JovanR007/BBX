@@ -64,7 +64,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                     </p>
                 </div>
 
-                <AdUnit slot="tournament-dashboard" className="w-full max-w-4xl" />
+                <AdUnit slot="tournament-dashboard" className="w-full max-w-4xl min-h-[100px] max-h-[280px] overflow-hidden" />
 
                 <div className="flex flex-wrap justify-center gap-6 w-full max-w-4xl mt-8">
                     {/* Card 1: Standings */}

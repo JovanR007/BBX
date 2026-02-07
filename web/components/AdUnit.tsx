@@ -36,7 +36,7 @@ export function AdUnit({ slot, style, format = 'auto', layoutKey, className }: A
     }
 
     return (
-        <div className={`ad-container my-4 flex justify-center ${className || ''}`} aria-hidden={true}>
+        <div className={`ad-container relative my-4 flex justify-center ${className || ''}`} aria-hidden={true}>
             <ins
                 ref={adRef}
                 className="adsbygoogle"
