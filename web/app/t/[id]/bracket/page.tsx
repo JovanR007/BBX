@@ -277,6 +277,12 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         });
     }, []);
 
+    // Calculate total expected rounds based on cutSize
+    // cutSize = 4 -> 2 rounds (Semis, Finals)
+    // cutSize = 8 -> 3 rounds (Quarters, Semis, Finals)
+    // cutSize = 16 -> 4 rounds (Ro16, Quarters, Semis, Finals)
+    const totalRounds = useMemo(() => Math.log2(cutSize || 4), [cutSize]);
+
     // Transform our match data to the library's format
     const transformedMatches = useMemo(() => {
         if (!matches.length) return [];
@@ -287,21 +293,18 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
             return a.match_number - b.match_number;
         });
 
-        // Find max round (for finals detection)
-        const maxRound = Math.max(...sortedMatches.map(m => Number(m.bracket_round)));
-
-        // Get round names
+        // Get round names based on total expected rounds
         const getRoundName = (round: number) => {
-            if (round === maxRound) return 'Finals';
-            if (round === maxRound - 1) return 'Semifinals';
-            if (round === maxRound - 2) return 'Quarterfinals';
-            return `${round}`;
+            if (round === totalRounds) return 'Finals';
+            if (round === totalRounds - 1) return 'Semifinals';
+            if (round === totalRounds - 2) return 'Quarterfinals';
+            return `Round ${round}`;
         };
 
         return sortedMatches
             .filter(m => {
                 // Exclude 3rd place match (match_number 2 in final round)
-                if (Number(m.bracket_round) === maxRound && m.match_number === 2) return false;
+                if (Number(m.bracket_round) === totalRounds && m.match_number === 2) return false;
                 return true;
             })
             .map(m => {
@@ -340,14 +343,13 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     ]
                 };
             });
-    }, [matches, participants]);
+    }, [matches, participants, totalRounds]);
 
     // Find 3rd place match
     const thirdPlaceMatch = useMemo(() => {
         if (!matches.length) return null;
-        const maxRound = Math.max(...matches.map(m => Number(m.bracket_round)));
-        return matches.find(m => Number(m.bracket_round) === maxRound && m.match_number === 2) || null;
-    }, [matches]);
+        return matches.find(m => Number(m.bracket_round) === totalRounds && m.match_number === 2) || null;
+    }, [matches, totalRounds]);
 
     // Store original match by ID for onClick handler
     const matchById = useMemo(() => {
