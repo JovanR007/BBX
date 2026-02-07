@@ -285,15 +285,31 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
 
     // Transform our match data to the library's format
     const transformedMatches = useMemo(() => {
-        if (!matches.length) return [];
+        if (!cutSize || !matches) return [];
 
-        // Sort matches by bracket_round and match_number
-        const sortedMatches = [...matches].sort((a, b) => {
-            if (a.bracket_round !== b.bracket_round) return a.bracket_round - b.bracket_round;
-            return a.match_number - b.match_number;
+        // 1. Map real matches for easy lookup
+        const realMatchMap = new Map<string, Match>();
+        matches.forEach(m => {
+            realMatchMap.set(`${m.bracket_round}-${m.match_number}`, m);
         });
 
-        // Get round names based on total expected rounds
+        // 2. Generate all expected slots based on cutSize
+        // We need a connected graph, so we must generate placeholders for future rounds
+        const allSlots = [];
+        const slotMap = new Map<string, string>(); // map "round-match" -> id
+
+        for (let r = 1; r <= totalRounds; r++) {
+            const matchCount = cutSize / Math.pow(2, r);
+            for (let m = 1; m <= matchCount; m++) {
+                const key = `${r}-${m}`;
+                const realMatch = realMatchMap.get(key);
+                const id = realMatch ? realMatch.id : `ghost-${key}`;
+                allSlots.push({ key, round: r, matchNum: m, realMatch, id });
+                slotMap.set(key, id);
+            }
+        }
+
+        // 3. Round Naming Helper
         const getRoundName = (round: number) => {
             if (round === totalRounds) return 'Finals';
             if (round === totalRounds - 1) return 'Semifinals';
@@ -301,49 +317,47 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
             return `Round ${round}`;
         };
 
-        return sortedMatches
-            .filter(m => {
-                // Exclude 3rd place match (match_number 2 in final round)
-                if (Number(m.bracket_round) === totalRounds && m.match_number === 2) return false;
-                return true;
-            })
-            .map(m => {
-                const pA = m.participant_a_id ? participants[m.participant_a_id] : null;
-                const pB = m.participant_b_id ? participants[m.participant_b_id] : null;
+        // 4. Build Library Objects
+        return allSlots.map(slot => {
+            const { round, matchNum, realMatch, id } = slot;
 
-                // Calculate nextMatchId based on bracket logic
-                const nextRound = Number(m.bracket_round) + 1;
-                const nextMatchNumber = Math.ceil(m.match_number / 2);
-                const nextMatch = sortedMatches.find(nm =>
-                    Number(nm.bracket_round) === nextRound && nm.match_number === nextMatchNumber
-                );
+            // Calculate Next Match ID
+            let nextMatchId = null;
+            if (round < totalRounds) {
+                const nextRound = round + 1;
+                const nextMatchNum = Math.ceil(matchNum / 2);
+                nextMatchId = slotMap.get(`${nextRound}-${nextMatchNum}`) ?? null;
+            }
 
-                return {
-                    id: m.id,
-                    name: `M${m.match_number}`,
-                    nextMatchId: nextMatch?.id ?? null,
-                    tournamentRoundText: getRoundName(Number(m.bracket_round)),
-                    startTime: null,
-                    state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
-                    participants: [
-                        {
-                            id: m.participant_a_id || `bye-a-${m.id}`,
-                            resultText: m.score_a?.toString() ?? '-',
-                            isWinner: m.winner_id === m.participant_a_id && m.status === 'complete',
-                            status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pA?.display_name || 'BYE'
-                        },
-                        {
-                            id: m.participant_b_id || `bye-b-${m.id}`,
-                            resultText: m.score_b?.toString() ?? '-',
-                            isWinner: m.winner_id === m.participant_b_id && m.status === 'complete',
-                            status: m.status === 'complete' ? 'PLAYED' : null,
-                            name: pB?.display_name || 'BYE'
-                        }
-                    ]
-                };
-            });
-    }, [matches, participants, totalRounds]);
+            const pA = realMatch?.participant_a_id ? participants[realMatch.participant_a_id] : null;
+            const pB = realMatch?.participant_b_id ? participants[realMatch.participant_b_id] : null;
+
+            return {
+                id: id,
+                name: `M${matchNum}`,
+                nextMatchId: nextMatchId,
+                tournamentRoundText: getRoundName(round),
+                startTime: null,
+                state: realMatch?.status === 'complete' ? 'DONE' : 'SCHEDULED',
+                participants: [
+                    {
+                        id: realMatch?.participant_a_id || `tbd-a-${id}`,
+                        resultText: realMatch?.score_a?.toString() ?? '-',
+                        isWinner: realMatch?.winner_id === realMatch?.participant_a_id && realMatch?.status === 'complete',
+                        status: realMatch?.status === 'complete' ? 'PLAYED' : null,
+                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD')
+                    },
+                    {
+                        id: realMatch?.participant_b_id || `tbd-b-${id}`,
+                        resultText: realMatch?.score_b?.toString() ?? '-',
+                        isWinner: realMatch?.winner_id === realMatch?.participant_b_id && realMatch?.status === 'complete',
+                        status: realMatch?.status === 'complete' ? 'PLAYED' : null,
+                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD')
+                    }
+                ]
+            };
+        });
+    }, [matches, participants, cutSize, totalRounds]);
 
     // Find 3rd place match
     const thirdPlaceMatch = useMemo(() => {
@@ -558,45 +572,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* DEBUG SECTION */}
-            <div className="mt-12 p-4 bg-black/50 border border-red-500/30 rounded text-xs font-mono text-slate-400">
-                <h3 className="text-red-400 font-bold mb-2">DEBUG INFO (Temporary)</h3>
-                <div className="mb-2">
-                    <strong>Cut Size:</strong> {cutSize} <br />
-                    <strong>Total Rounds (Calc):</strong> {Math.log2(cutSize || 4)} <br />
-                    <strong>Total Matches:</strong> {matches.length}
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-slate-700">
-                                <th className="p-1">ID</th>
-                                <th className="p-1">Round</th>
-                                <th className="p-1">#</th>
-                                <th className="p-1">P1</th>
-                                <th className="p-1">P2</th>
-                                <th className="p-1">Winner</th>
-                                <th className="p-1">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {matches.sort((a, b) => (Number(a.bracket_round) - Number(b.bracket_round)) || (a.match_number - b.match_number)).map(m => (
-                                <tr key={m.id} className="border-b border-slate-800/50 hover:bg-white/5">
-                                    <td className="p-1">{m.id.slice(0, 4)}...</td>
-                                    <td className="p-1">{m.bracket_round}</td>
-                                    <td className="p-1">{m.match_number}</td>
-                                    <td className="p-1">{m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'BYE'}</td>
-                                    <td className="p-1">{m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'BYE'}</td>
-                                    <td className="p-1">{m.winner_id ? participants[m.winner_id]?.display_name : '-'}</td>
-                                    <td className="p-1">{m.status}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            )}/* REMOVED DEBUG SECTION */
         </div>
     );
 }
