@@ -559,6 +559,44 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     </div>
                 </div>
             )}
+
+            {/* DEBUG SECTION */}
+            <div className="mt-12 p-4 bg-black/50 border border-red-500/30 rounded text-xs font-mono text-slate-400">
+                <h3 className="text-red-400 font-bold mb-2">DEBUG INFO (Temporary)</h3>
+                <div className="mb-2">
+                    <strong>Cut Size:</strong> {cutSize} <br />
+                    <strong>Total Rounds (Calc):</strong> {Math.log2(cutSize || 4)} <br />
+                    <strong>Total Matches:</strong> {matches.length}
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-slate-700">
+                                <th className="p-1">ID</th>
+                                <th className="p-1">Round</th>
+                                <th className="p-1">#</th>
+                                <th className="p-1">P1</th>
+                                <th className="p-1">P2</th>
+                                <th className="p-1">Winner</th>
+                                <th className="p-1">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {matches.sort((a, b) => (Number(a.bracket_round) - Number(b.bracket_round)) || (a.match_number - b.match_number)).map(m => (
+                                <tr key={m.id} className="border-b border-slate-800/50 hover:bg-white/5">
+                                    <td className="p-1">{m.id.slice(0, 4)}...</td>
+                                    <td className="p-1">{m.bracket_round}</td>
+                                    <td className="p-1">{m.match_number}</td>
+                                    <td className="p-1">{m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'BYE'}</td>
+                                    <td className="p-1">{m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'BYE'}</td>
+                                    <td className="p-1">{m.winner_id ? participants[m.winner_id]?.display_name : '-'}</td>
+                                    <td className="p-1">{m.status}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }
