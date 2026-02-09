@@ -55,6 +55,7 @@ import LiveMatchTicker from "@/components/features/live-match-ticker";
 export const dynamic = "force-dynamic";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { Analytics } from '@vercel/analytics/next';
 
 
 
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ToastProvider>
           </StackTheme>
         </StackProvider>
+        <Analytics />
       </body >
     </html >
   );
