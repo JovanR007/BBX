@@ -73,7 +73,8 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     } = useBracketActions(tournamentId, refresh);
 
     // Local UI State
-    const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+    const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+    const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
 
     return (
         <BrandedContainer
@@ -158,10 +159,10 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <div className="mb-8 overflow-x-auto">
                             <BracketConnector matches={swissMatches} match_target_points={tournament?.match_target_points ?? 4} />
                         </div>
-                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
+                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
                     </>
                 ) : (
-                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
+                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
                 )}
             </div>
 
@@ -170,7 +171,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                 isOpen={!!selectedMatch}
                 match={selectedMatch}
                 participants={participants}
-                onClose={() => setSelectedMatch(null)}
+                onClose={() => setSelectedMatchId(null)}
                 refresh={refresh}
                 ruleset={tournament?.ruleset_config}
                 cutSize={tournament?.cut_size}

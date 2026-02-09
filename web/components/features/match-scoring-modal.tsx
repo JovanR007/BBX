@@ -84,7 +84,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             setLastMove(null);
             setHistory([]);
         }
-    }, [isOpen, match, isBestOf3]);
+    }, [isOpen, match?.id]);
 
     // --- HELPERS ---
     const saveState = () => {
