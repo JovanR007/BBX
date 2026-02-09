@@ -7,9 +7,14 @@ import { supabase } from "@/lib/supabase";
 import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction } from "@/app/actions"; // Updated import
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
+import { useUser } from "@stackframe/stack";
+import dynamic from "next/dynamic";
+
+const CameraStreamer = dynamic(() => import("./camera-streamer").then(mod => mod.CameraStreamer), { ssr: false });
 
 export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any }) {
     const { toast } = useToast();
+    const user = useUser();
 
     // --- STATE ---
     // Standard / Global Score (or Sets Won)
@@ -252,9 +257,16 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                             R{match.bracket_round} • Match {match.match_number}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {/* Camera Toggle for Finals */}
+                        {(match.metadata?.type === 'grand_final' || match.metadata?.type === '3rd_place') && (
+                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} />
+                        )}
+                        <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
+                            <X className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* GAME AREA */}
@@ -308,6 +320,14 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
                 </div>
             </div>
+
+            {/* Logic for Streamer */}
+            {user && match?.metadata?.streaming_judge_id === user.id && (
+                <CameraStreamer matchId={match.id} onClose={() => {
+                    // Optimistically update metadata locally or call toggle off
+                    import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false));
+                }} />
+            )}
         </div>
     );
 }
@@ -394,6 +414,41 @@ function ScoreBtn({ onClick, label, pts, color, disabled }: any) {
         >
             <span className="text-xl font-black">{pts}</span>
             <span className="text-[10px] font-bold uppercase opacity-75">{label}</span>
+        </button>
+    )
+}
+
+function CameraToggleButton({ matchId, currentStreamer }: { matchId: string, currentStreamer: string | null }) {
+    const [loading, setLoading] = useState(false);
+
+    // UI state: Active if ANYONE is streaming (red), Inactive if none (gray)
+    const isActive = !!currentStreamer;
+
+    async function handleToggle() {
+        setLoading(true);
+        // If active -> Turn Off. If inactive -> Turn On.
+        const { toggleCameraStreamAction } = await import("@/app/actions"); // Dynamic import
+        const res = await toggleCameraStreamAction(matchId, !isActive);
+
+        if (!res.success) {
+            alert(res.error);
+        }
+        setLoading(false);
+    }
+
+    return (
+        <button
+            onClick={handleToggle}
+            disabled={loading}
+            className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border",
+                isActive
+                    ? "bg-red-500/10 text-red-600 border-red-500/20 animate-pulse"
+                    : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+            )}
+        >
+            <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-red-600" : "bg-slate-400")} />
+            {loading ? "..." : (isActive ? "LIVE" : "CAM")}
         </button>
     )
 }

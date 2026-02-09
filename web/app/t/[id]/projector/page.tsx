@@ -13,6 +13,7 @@ import QRCode from "react-qr-code";
 // 2. Current Matches (Active Round)
 // 3. Bracket (If Top Cut)
 
+import { LiveCameraFeed } from "@/components/features/live-camera-feed";
 import { useTournament } from "@/hooks/use-tournament";
 
 export default function ProjectorPage() {
@@ -304,9 +305,19 @@ export default function ProjectorPage() {
                 </div>
 
                 <div className="absolute inset-0 p-4 lg:pl-8 lg:pt-8 lg:pb-12 lg:pr-72 transition-all duration-700 ease-in-out">
-                    {view === "bracket" && <BracketView matches={data.matches} participants={data.participants} cutSize={data.tournament.cut_size} />}
-                    {view === "matches" && <MatchesView matches={data.matches} participants={data.participants} />}
-                    {view === "standings" && <StandingsView standings={data.standings} cutSize={data.tournament.cut_size} />}
+                    {(() => {
+                        const streamingMatch = data?.matches?.find((m: any) => m.metadata?.streaming_judge_id);
+                        if (streamingMatch) {
+                            return <LiveCameraFeed matchId={streamingMatch.id} isActive={true} />;
+                        }
+                        return (
+                            <>
+                                {view === "bracket" && <BracketView matches={data.matches} participants={data.participants} cutSize={data.tournament.cut_size} />}
+                                {view === "matches" && <MatchesView matches={data.matches} participants={data.participants} />}
+                                {view === "standings" && <StandingsView standings={data.standings} cutSize={data.tournament.cut_size} />}
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
 
