@@ -30,12 +30,29 @@ export async function getTournamentDataAction(tournamentId: string) {
         if (results[1].error) throw results[1].error;
         if (results[2].error) throw results[2].error;
 
+        const judgesRaw = results[3].data || [];
+
+        // Fetch Judge Names
+        let judgesWithNames = judgesRaw;
+        if (judgesRaw.length > 0) {
+            const judgeIds = judgesRaw.map(j => j.user_id);
+            const { data: profiles } = await supabaseAdmin
+                .from("profiles")
+                .select("id, display_name")
+                .in("id", judgeIds);
+
+            judgesWithNames = judgesRaw.map(j => {
+                const profile = profiles?.find(p => p.id === j.user_id);
+                return { ...j, display_name: profile?.display_name || j.user_id };
+            });
+        }
+
         return {
             success: true,
             tournament: results[0].data,
             matches: results[0].data ? results[1].data || [] : [], // Only return matches if tournament found
             participants: results[2].data || [],
-            judges: (results[3].data) || []
+            judges: judgesWithNames
         };
 
     } catch (e: unknown) {

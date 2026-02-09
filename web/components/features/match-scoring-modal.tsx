@@ -12,9 +12,22 @@ import dynamic from "next/dynamic";
 
 const CameraStreamer = dynamic(() => import("./camera-streamer").then(mod => mod.CameraStreamer), { ssr: false });
 
-export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any }) {
+export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset, cutSize }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any, cutSize?: number }) {
     const { toast } = useToast();
     const user = useUser();
+
+    // --- FINAL MATCH DETECTION ---
+    const isFinalsMatch = (() => {
+        if (!match) return false;
+        if (match.metadata?.type === 'grand_final' || match.metadata?.type === '3rd_place') return true;
+        // Fallback: If Top Cut and Last Round
+        if (cutSize && match.stage === 'top_cut') {
+            const totalRounds = Math.log2(cutSize);
+            // match.bracket_round is usually a number, ensure type safety
+            if (Number(match.bracket_round) === totalRounds) return true;
+        }
+        return false;
+    })();
 
     // --- STATE ---
     // Standard / Global Score (or Sets Won)
@@ -260,7 +273,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
                     <div className="flex items-center gap-2">
                         {/* Camera Toggle for Finals */}
-                        {(match.metadata?.type === 'grand_final' || match.metadata?.type === '3rd_place') && (
+                        {isFinalsMatch && (
                             <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} />
                         )}
                         <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
