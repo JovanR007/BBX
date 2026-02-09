@@ -383,3 +383,72 @@ export async function toggleCheckInAction(formData: FormData) {
     revalidatePath(`/t/${tournamentId}/admin`);
     return { success: true };
 }
+
+export async function bulkAddParticipantsAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const bulkNames = formData.get("bulk_names") as string;
+
+    if (!tournamentId || !bulkNames) return { success: false, error: "Missing information" };
+
+    // 1. Verify Permissions & Status
+    const isOwner = await verifyTournamentOwner(tournamentId);
+    if (!isOwner) return { success: false, error: "Unauthorized" };
+
+    const { data: tourney } = await supabaseAdmin.from("tournaments").select("status, store_id, is_ranked").eq("id", tournamentId).single();
+    if (tourney?.status !== "draft") return { success: false, error: "Bulk Add is only available in Draft mode for now." };
+
+    // 2. Parse Names
+    const names = bulkNames.split(/\r?\n/).map(n => n.trim()).filter(n => n.length > 0);
+    if (names.length === 0) return { success: false, error: "No valid names found." };
+
+    // 3. Check Limits
+    let maxPlayers = 32;
+    if (tourney?.is_ranked) {
+        let plan = 'free';
+        if (tourney.store_id) {
+            const { data: store } = await supabaseAdmin.from("stores").select("plan, subscription_tier").eq("id", tourney.store_id).single();
+            plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
+        }
+        maxPlayers = plan === 'pro' ? 999 : 64;
+    }
+
+    // Check current count
+    const { count: currentCount } = await supabaseAdmin
+        .from("participants")
+        .select("*", { count: "exact", head: true })
+        .eq("tournament_id", tournamentId)
+        .eq("dropped", false);
+
+    if ((currentCount || 0) + names.length > maxPlayers) {
+        return {
+            success: false,
+            error: `Adding ${names.length} players would exceed the limit of ${maxPlayers} (Current: ${currentCount}). Upgrade to Pro for more.`
+        };
+    }
+
+    // 4. Prepare Data
+    // Get all profiles that match ANY of the names
+    const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, username")
+        .in("username", names);
+
+    const profileMap = new Map();
+    if (profiles) {
+        profiles.forEach((p: any) => profileMap.set(p.username.toLowerCase(), p.id));
+    }
+
+    const participantsToInsert = names.map(name => ({
+        tournament_id: tournamentId,
+        display_name: name,
+        user_id: profileMap.get(name.toLowerCase()) || null,
+        checked_in: true
+    }));
+
+    const { error } = await supabaseAdmin.from("participants").insert(participantsToInsert);
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath(`/t/${tournamentId}/admin`);
+    return { success: true, count: names.length };
+}

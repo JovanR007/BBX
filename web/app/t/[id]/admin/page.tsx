@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction } from "@/app/actions";
+import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction, bulkAddParticipantsAction, seedTournamentAction } from "@/app/actions";
 import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban } from "lucide-react";
 import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
@@ -564,6 +564,10 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                             Add all players here before locking.
                         </p>
 
+                        <div className="pt-2">
+                            <BulkAddParticipantsModal tournamentId={tournamentId} refresh={fetchData} />
+                        </div>
+
                         {/* Debug Seed Button */}
                         <div className="pt-4 border-t border-dashed">
                             {isOwner && <DebugSeedButton tournamentId={tournamentId} />}
@@ -801,29 +805,99 @@ function DebugSeedButton({ tournamentId }: { tournamentId: any }) {
     const [loading, setLoading] = useState(false);
 
     async function handleSeed() {
-        if (!confirm("Add 64 Test Players? This cannot be easily undone manually.")) return;
+        if (!confirm("Generate dummy players?")) return;
         setLoading(true);
-        // Dynamic import to avoid server action import issues in client component if strictly separated
-        const { seedTournamentAction } = await import("@/app/actions");
-        const res = await seedTournamentAction(tournamentId, 64);
-        setLoading(false);
-
+        const res = await seedTournamentAction(tournamentId);
         if (res.success) {
-            toast({ title: "Seeded 64 Players", description: "Ready for testing within limits.", variant: "success" });
+            toast({ title: "Seeded", description: "Added dummy players.", variant: "success" });
             window.location.reload();
         } else {
-            toast({ title: "Seed Failed", description: res.error, variant: "destructive" });
+            toast({ title: "Error", description: parseError(res.error), variant: "destructive" });
         }
+        setLoading(false);
     }
 
     return (
-        <button
-            onClick={handleSeed}
-            disabled={loading}
-            className="w-full py-2 text-xs font-mono text-muted-foreground hover:text-foreground border border-dashed rounded hover:bg-muted/50 transition-colors flex items-center justify-center gap-2"
-        >
-            <Users className="w-3 h-3" />
-            {loading ? "Seeding..." : "Debug: Add 64 Test Players"}
+        <button onClick={handleSeed} disabled={loading} className="text-xs text-muted-foreground hover:text-foreground underline">
+            {loading ? "Seeding..." : "Debug: Add Dummy Players"}
         </button>
     )
 }
+
+function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: string, refresh: any }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+
+    if (!isOpen) {
+        return (
+            <button
+                onClick={() => setIsOpen(true)}
+                className="w-full mt-2 py-2 border border-dashed rounded-md text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors flex items-center justify-center gap-2"
+            >
+                <Users className="w-4 h-4" /> Bulk Add Players
+            </button>
+        )
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+            <div className="bg-card border rounded-lg shadow-lg max-w-md w-full p-6 space-y-4 animate-in zoom-in-95">
+                <div className="flex justify-between items-center">
+                    <h3 className="font-bold flex items-center gap-2">
+                        <Users className="w-5 h-5 text-primary" /> Bulk Add Players
+                    </h3>
+                    <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground">
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                    Paste a list of names below, one per line.
+                </p>
+
+                <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    setLoading(true);
+                    const formData = new FormData(e.currentTarget);
+
+                    const res = await bulkAddParticipantsAction(formData);
+
+                    if (res.success) {
+                        toast({ title: "Bulk Add Complete", description: `Successfully added ${res.count || 'players'}.`, variant: "success" });
+                        refresh();
+                        setIsOpen(false);
+                    } else {
+                        toast({ title: "Error", description: parseError(res.error), variant: "destructive" });
+                    }
+                    setLoading(false);
+                }} className="space-y-4">
+                    <input type="hidden" name="tournament_id" value={tournamentId} />
+
+                    <textarea
+                        name="bulk_names"
+                        className="w-full h-48 rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary font-mono"
+                        placeholder={`Player One\nPlayer Two\nPlayer Three...`}
+                        autoFocus
+                        required
+                    />
+
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md">
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
+                        >
+                            {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                            Add Players
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    )
+}
+
