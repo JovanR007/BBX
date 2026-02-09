@@ -10,6 +10,7 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
     const localVideoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
+        console.log("CameraStreamer MOUNTED for match:", matchId);
         // 1. Get Local Stream
         navigator.mediaDevices.getUserMedia({ video: true, audio: false })
             .then((s) => {

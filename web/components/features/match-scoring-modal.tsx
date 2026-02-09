@@ -336,10 +336,15 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
             {/* Logic for Streamer */}
             {user && match?.metadata?.streaming_judge_id === user.id && (
-                <CameraStreamer matchId={match.id} onClose={() => {
-                    // Optimistically update metadata locally or call toggle off
-                    import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false)).then(() => refresh());
-                }} />
+                <>
+                    {/* Debug Indicator */}
+                    <div className="hidden">Streamer Check: Match {match.id} | User {user.id} | Streamer {match.metadata.streaming_judge_id}</div>
+                    <CameraStreamer matchId={match.id} onClose={() => {
+                        console.log("Closing Camera Streamer manually");
+                        // Optimistically update metadata locally or call toggle off
+                        import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false)).then(() => refresh());
+                    }} />
+                </>
             )}
         </div>
     );
