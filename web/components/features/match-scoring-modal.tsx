@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { X, RefreshCcw, AlertTriangle, Trophy, Undo2, Swords, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction, createDailyRoomAction } from "@/app/actions"; // Updated import
+import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction } from "@/app/actions"; // Updated import
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import { useUser } from "@stackframe/stack";
@@ -335,8 +335,8 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             </div>
 
             {/* Logic for Streamer */}
-            {user && match?.metadata?.streaming_judge_id === user.id && match?.metadata?.daily_room_url && (
-                <CameraStreamer roomUrl={match.metadata.daily_room_url} onClose={() => {
+            {user && match?.metadata?.streaming_judge_id === user.id && (
+                <CameraStreamer matchId={match.id} onClose={() => {
                     // Optimistically update metadata locally or call toggle off
                     import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false)).then(() => refresh());
                 }} />
@@ -442,12 +442,7 @@ function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: st
         setLoading(true);
         try {
             // If active -> Turn Off. If inactive -> Turn On.
-            let res;
-            if (isActive) {
-                res = await toggleCameraStreamAction(matchId, false);
-            } else {
-                res = await createDailyRoomAction(matchId);
-            }
+            const res = await toggleCameraStreamAction(matchId, !isActive);
 
             if (!res.success) {
                 alert(res.error || "Failed to toggle camera stream");

@@ -1,56 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import DailyIframe from "@daily-co/daily-js";
-import { DailyProvider, useParticipantIds, DailyVideo } from "@daily-co/daily-react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import Peer from "peerjs";
 
-export function LiveCameraFeed({ roomUrl }: { roomUrl: string }) {
-    const [callObject, setCallObject] = useState<any>(null);
+export function LiveCameraFeed({ matchId }: { matchId: string }) {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const peerRef = useRef<Peer | null>(null);
+    const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting");
 
     useEffect(() => {
-        if (!roomUrl) return;
+        if (!matchId) return;
 
-        const newCallObject = DailyIframe.createCallObject({
-            url: roomUrl,
-            subscribeToTracksAutomatically: true,
-        });
-        setCallObject(newCallObject);
+        // ID of the broadcaster we want to call
+        const broadcasterId = `beybracket-match-${matchId}-broadcaster`;
+        console.log("Attempting to connect to:", broadcasterId);
 
-        // Join as viewer (no cam, no mic)
-        newCallObject.join({
-            url: roomUrl,
-            startVideoOff: true,
-            startAudioOff: true
+        // Initialize Peer (we are the viewer, ID can be random)
+        const peer = new Peer({
+            debug: 1
         });
+        peerRef.current = peer;
+
+        peer.on('open', (id) => {
+            console.log('My Viewer ID:', id);
+
+            // Initiate call to broadcaster
+            // We send no stream (undefined) because we are just viewing
+            // PeerJS might require a stream to call? No, allows one-way.
+            // Actually, `call` requires a media stream usually? 
+            // Docs: `peer.call(id, stream, [options])`
+            // If we don't have a stream, we can pass a dummy stream or check if it allows null.
+            // PeerJS often expects a local stream.
+            // Let's try creating a dummy audio-only stream or just empty?
+            // A better way for one-way is usually for the broadcaster to call us?
+            // BUT we don't know the viewer IDs easily.
+            // Standard PeerJS pattern: Call with dummy stream or `createMediaStreamDestination`.
+
+            // Hack: Create a dummy stream (black silent) to satisfy the API if needed,
+            // OR just try passing null/undefined if supported by version.
+            // Checking docs... usually requires stream.
+            // Let's try to just connect a data connection first to signal "I'm here"?
+            // Or simpler: The "receiving" side (Broadcaster) answers.
+
+            // Let's try creating a receive-only call.
+            // Actually PeerJS `call` method signature is `call(peerId, stream, options)`.
+            // Providing a dummy stream is safest.
+            const canvas = document.createElement('canvas');
+            canvas.width = 1; canvas.height = 1;
+            const stream = canvas.captureStream();
+            const call = peer.call(broadcasterId, stream);
+
+            handleCall(call);
+        });
+
+        peer.on('error', (err) => {
+            console.error("PeerJS Error:", err);
+            // If peer-unavailable, it means judge isn't streaming yet.
+            if (err.type === 'peer-unavailable') {
+                setStatus("connecting"); // Keep trying? Or failed?
+                // Retry logic could go here
+                setTimeout(() => {
+                    // Simple retry by forcing re-render or just re-calling?
+                    // For now, let's just leave it pending.
+                }, 2000);
+            } else {
+                setStatus("failed");
+            }
+        });
+
+        function handleCall(call: any) {
+            call.on('stream', (remoteStream: MediaStream) => {
+                console.log("Received Remote Stream");
+                if (videoRef.current) {
+                    videoRef.current.srcObject = remoteStream;
+                    setStatus("connected");
+                }
+            });
+
+            call.on('close', () => {
+                console.log("Call ended");
+                setStatus("connecting"); // Maybe they restart?
+            });
+
+            call.on('error', (e: any) => console.error(e));
+        }
 
         return () => {
-            newCallObject.destroy();
+            if (peerRef.current) {
+                peerRef.current.destroy();
+            }
         };
-    }, [roomUrl]);
-
-    if (!callObject) return null;
-
-    return (
-        <DailyProvider callObject={callObject}>
-            <FeedView />
-        </DailyProvider>
-    );
-}
-
-function FeedView() {
-    // Get remote participants
-    const participantIds = useParticipantIds({ filter: 'remote' });
-    const broadcasterId = participantIds[0]; // Assuming one broadcaster for now
-
-    if (!broadcasterId) {
-        return (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm z-50">
-                <Loader2 className="w-16 h-16 text-red-500 animate-spin" />
-                <p className="mt-4 text-white font-mono uppercase tracking-widest text-sm">Waiting for Signal...</p>
-            </div>
-        );
-    }
+    }, [matchId]);
 
     return (
         <div className="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
@@ -62,13 +103,26 @@ function FeedView() {
                 </div>
             </div>
 
-            {/* Video Player - Full Screen */}
-            <DailyVideo
-                sessionId={broadcasterId}
-                type="video"
+            {/* Video Player */}
+            <video
+                ref={videoRef}
+                autoPlay
+                playsInline
                 className="w-full h-full object-contain"
-                fit="contain"
             />
+
+            {status === 'connecting' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <Loader2 className="w-16 h-16 text-red-500 animate-spin" />
+                    <p className="mt-4 text-white font-mono uppercase tracking-widest">Connecting to Ringside...</p>
+                </div>
+            )}
+
+            {status === 'failed' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
+                    <p className="text-white font-mono uppercase tracking-widest text-red-500">Connection Failed</p>
+                </div>
+            )}
         </div>
-    );
+    )
 }
