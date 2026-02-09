@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { X, RefreshCcw, AlertTriangle, Trophy, Undo2, Swords, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction } from "@/app/actions"; // Updated import
+import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction } from "@/app/actions"; // Updated import
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import { useUser } from "@stackframe/stack";
@@ -432,6 +432,7 @@ function ScoreBtn({ onClick, label, pts, color, disabled }: any) {
 }
 
 function CameraToggleButton({ matchId, currentStreamer }: { matchId: string, currentStreamer: string | null }) {
+    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
 
     // UI state: Active if ANYONE is streaming (red), Inactive if none (gray)
@@ -439,14 +440,21 @@ function CameraToggleButton({ matchId, currentStreamer }: { matchId: string, cur
 
     async function handleToggle() {
         setLoading(true);
-        // If active -> Turn Off. If inactive -> Turn On.
-        const { toggleCameraStreamAction } = await import("@/app/actions"); // Dynamic import
-        const res = await toggleCameraStreamAction(matchId, !isActive);
+        try {
+            // If active -> Turn Off. If inactive -> Turn On.
+            const res = await toggleCameraStreamAction(matchId, !isActive);
 
-        if (!res.success) {
-            alert(res.error);
+            if (!res.success) {
+                alert(res.error || "Failed to toggle camera stream");
+            } else {
+                toast({ title: !isActive ? "Gone Live!" : "Stream Ended", description: !isActive ? "You are now streaming this match." : "Camera stream unavailable." });
+            }
+        } catch (error) {
+            console.error("Camera Toggle Error:", error);
+            alert("An unexpected error occurred while toggling the camera.");
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }
 
     return (
