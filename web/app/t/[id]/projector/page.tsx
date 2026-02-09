@@ -307,8 +307,8 @@ export default function ProjectorPage() {
                 <div className="absolute inset-0 p-4 lg:pl-8 lg:pt-8 lg:pb-12 lg:pr-72 transition-all duration-700 ease-in-out">
                     {(() => {
                         const streamingMatch = data?.matches?.find((m: any) => m.metadata?.streaming_judge_id);
-                        if (streamingMatch) {
-                            return <LiveCameraFeed matchId={streamingMatch.id} isActive={true} />;
+                        if (streamingMatch && streamingMatch.metadata?.daily_room_url) {
+                            return <LiveCameraFeed roomUrl={streamingMatch.metadata.daily_room_url} />;
                         }
                         return (
                             <>

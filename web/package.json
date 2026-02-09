@@ -12,6 +12,8 @@
     "test:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@daily-co/daily-js": "^0.87.0",
+    "@daily-co/daily-react": "^0.24.0",
     "@googlemaps/extended-component-library": "^0.6.14",
     "@paypal/react-paypal-js": "^8.9.2",
     "@radix-ui/react-popover": "^1.1.15",
