@@ -274,7 +274,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     <div className="flex items-center gap-2">
                         {/* Camera Toggle for Finals */}
                         {isFinalsMatch && (
-                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} />
+                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} />
                         )}
                         <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
                             <X className="w-5 h-5 md:w-6 md:h-6" />
@@ -431,7 +431,7 @@ function ScoreBtn({ onClick, label, pts, color, disabled }: any) {
     )
 }
 
-function CameraToggleButton({ matchId, currentStreamer }: { matchId: string, currentStreamer: string | null }) {
+function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: string, currentStreamer: string | null, refresh: () => void }) {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
 
@@ -448,6 +448,7 @@ function CameraToggleButton({ matchId, currentStreamer }: { matchId: string, cur
                 alert(res.error || "Failed to toggle camera stream");
             } else {
                 toast({ title: !isActive ? "Gone Live!" : "Stream Ended", description: !isActive ? "You are now streaming this match." : "Camera stream unavailable." });
+                refresh();
             }
         } catch (error) {
             console.error("Camera Toggle Error:", error);

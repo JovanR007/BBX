@@ -149,4 +149,4 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
     );
 }
 
-// Fix Syntax Error in createOffer line above "constoffer" -> "const offer"
+// Fix Syntax Error in createOffer line above "const offer" -> "const offer"
