@@ -283,7 +283,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                 </div>
 
                 {/* GAME AREA */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-col lg:flex-row gap-8">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-col lg:flex-row gap-4 md:gap-8">
 
                     {/* LEFT PLAYER */}
                     <PlayerConsole
@@ -334,8 +334,8 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                 </div>
             </div>
 
-            {/* DEBUG: Always Visible */}
-            <div className="z-[9999] bg-black/80 text-red-500 p-2 text-xs font-mono border border-red-500 mb-2">
+            {/* DEBUG: Hidden now that logic is verified */}
+            <div className="hidden z-[9999] bg-black/80 text-red-500 p-2 text-xs font-mono border border-red-500 mb-2">
                 DEBUG INFO:<br />
                 User: {user?.id}<br />
                 Streamer: {match?.metadata?.streaming_judge_id}<br />

@@ -12,64 +12,46 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
     useEffect(() => {
         if (!matchId) return;
 
-        // ID of the broadcaster we want to call
+        let retryTimeout: NodeJS.Timeout;
         const broadcasterId = `beybracket-match-${matchId}-broadcaster`;
         console.log("Attempting to connect to:", broadcasterId);
 
-        // Initialize Peer (we are the viewer, ID can be random)
-        const peer = new Peer({
-            debug: 1
-        });
+        // Initialize Peer
+        const peer = new Peer({ debug: 1 });
         peerRef.current = peer;
 
         peer.on('open', (id) => {
             console.log('My Viewer ID:', id);
+            connectToBroadcaster();
+        });
 
-            // Initiate call to broadcaster
-            // We send no stream (undefined) because we are just viewing
-            // PeerJS might require a stream to call? No, allows one-way.
-            // Actually, `call` requires a media stream usually? 
-            // Docs: `peer.call(id, stream, [options])`
-            // If we don't have a stream, we can pass a dummy stream or check if it allows null.
-            // PeerJS often expects a local stream.
-            // Let's try creating a dummy audio-only stream or just empty?
-            // A better way for one-way is usually for the broadcaster to call us?
-            // BUT we don't know the viewer IDs easily.
-            // Standard PeerJS pattern: Call with dummy stream or `createMediaStreamDestination`.
+        function connectToBroadcaster() {
+            if (!peer || peer.destroyed) return;
 
-            // Hack: Create a dummy stream (black silent) to satisfy the API if needed,
-            // OR just try passing null/undefined if supported by version.
-            // Checking docs... usually requires stream.
-            // Let's try to just connect a data connection first to signal "I'm here"?
-            // Or simpler: The "receiving" side (Broadcaster) answers.
-
-            // Let's try creating a receive-only call.
-            // Actually PeerJS `call` method signature is `call(peerId, stream, options)`.
-            // Providing a dummy stream is safest.
+            // Dummy steam for compatibility
             const canvas = document.createElement('canvas');
             canvas.width = 1; canvas.height = 1;
             const stream = canvas.captureStream();
-            const call = peer.call(broadcasterId, stream);
 
+            console.log("Calling broadcaster...");
+            const call = peer.call(broadcasterId, stream);
             handleCall(call);
-        });
+        }
 
         peer.on('error', (err) => {
             console.error("PeerJS Error:", err);
-            // If peer-unavailable, it means judge isn't streaming yet.
             if (err.type === 'peer-unavailable') {
-                setStatus("connecting"); // Keep trying? Or failed?
-                // Retry logic could go here
-                setTimeout(() => {
-                    // Simple retry by forcing re-render or just re-calling?
-                    // For now, let's just leave it pending.
-                }, 2000);
+                setStatus("connecting");
+                console.log("Broadcaster not found, retrying in 2s...");
+                retryTimeout = setTimeout(connectToBroadcaster, 2000);
             } else {
                 setStatus("failed");
             }
         });
 
         function handleCall(call: any) {
+            if (!call) return;
+
             call.on('stream', (remoteStream: MediaStream) => {
                 console.log("Received Remote Stream");
                 if (videoRef.current) {
@@ -79,14 +61,20 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
             });
 
             call.on('close', () => {
-                console.log("Call ended");
-                setStatus("connecting"); // Maybe they restart?
+                console.log("Call ended by remote");
+                setStatus("connecting");
+                // Retry if connection drops
+                retryTimeout = setTimeout(connectToBroadcaster, 2000);
             });
 
-            call.on('error', (e: any) => console.error(e));
+            call.on('error', (e: any) => {
+                console.error("Call error:", e);
+                setStatus("connecting");
+            });
         }
 
         return () => {
+            clearTimeout(retryTimeout);
             if (peerRef.current) {
                 peerRef.current.destroy();
             }
