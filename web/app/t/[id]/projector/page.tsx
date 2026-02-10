@@ -42,20 +42,22 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         participants,
         viewMode,
         derived: {
-            swissMatches,
-            topCutMatches,
+            swissMatches = [],
+            topCutMatches = [],
             winner,
             runnerUp,
             thirdPlace,
             isTournamentComplete
-        }
+        } = {}
     } = useBracketData(tournamentId);
 
     const [origin, setOrigin] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
-        setOrigin(window.location.origin);
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+        }
 
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
@@ -78,7 +80,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
     // ... (swissKing logic unchanged)
     const swissKing = useMemo(() => {
-        if (!swissMatches || swissMatches.length === 0) return null;
+        if (!swissMatches || swissMatches.length === 0 || !participants) return null;
         const scores: Record<string, { wins: number }> = {};
         Object.keys(participants).forEach(pid => scores[pid] = { wins: 0 });
         swissMatches.forEach(m => {
@@ -92,7 +94,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
     // Transformed matches for bracket view
     const transformedMatches = useMemo(() => {
-        if (viewMode !== 'top_cut' || topCutMatches.length === 0) return [];
+        if (viewMode !== 'top_cut' || !topCutMatches || topCutMatches.length === 0) return [];
         return topCutMatches.map(m => ({
             id: m.id,
             nextMatchId: (m as any).next_match_id || null,
