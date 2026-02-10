@@ -282,12 +282,12 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     </div>
                 </div>
 
-                {/* GAME AREA */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-col lg:flex-row gap-4 md:gap-8">
+                {/* GAME AREA - Force Row even on mobile */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-row gap-1 md:gap-8">
 
                     {/* LEFT PLAYER */}
                     <PlayerConsole
-                        player={pA} label="Player 1"
+                        player={pA} label="P1"
                         score={scoreA} setScore={currentSetScoreA}
                         warnings={warningsA}
                         isWinner={scoreA >= WINNING_SCORE}
@@ -299,20 +299,20 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         disabled={isGameOver}
                     />
 
-                    {/* CENTER CONTROLS (Undo, Submit) */}
-                    <div className="flex flex-row lg:flex-col items-center justify-center gap-4 p-4 lg:p-0 border-t lg:border-t-0 lg:border-x bg-background/50 lg:w-32 shrink-0">
-                        <button onClick={handleUndo} disabled={history.length === 0} className="md:w-16 md:h-16 w-12 h-12 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
-                            <Undo2 className="w-5 h-5 md:w-6 md:h-6" />
+                    {/* CENTER CONTROLS (Undo, Submit) - Narrow Column */}
+                    <div className="flex flex-col items-center justify-center gap-2 p-1 border-x bg-background/50 w-12 md:w-32 shrink-0 z-10">
+                        <button onClick={handleUndo} disabled={history.length === 0} className="md:w-16 md:h-16 w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
+                            <Undo2 className="w-4 h-4 md:w-6 md:h-6" />
                         </button>
 
                         {isGameOver && (
                             <button
                                 onClick={handleSubmit}
                                 disabled={submitting}
-                                className="flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 shadow-green-500/20 shadow-lg transition-all hover:scale-105 w-full lg:w-auto"
+                                className="flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-1 md:p-3 shadow-green-500/20 shadow-lg transition-all hover:scale-105 w-full"
                             >
-                                <Trophy className="w-6 h-6" />
-                                <span className="text-[10px] font-black uppercase">Finish</span>
+                                <Trophy className="w-4 h-4 md:w-6 md:h-6" />
+                                <span className="text-[8px] md:text-[10px] font-black uppercase hidden md:block">Finish</span>
                             </button>
                         )}
                     </div>
@@ -334,21 +334,12 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                 </div>
             </div>
 
-            {/* DEBUG: Hidden now that logic is verified */}
-            <div className="hidden z-[9999] bg-black/80 text-red-500 p-2 text-xs font-mono border border-red-500 mb-2">
-                DEBUG INFO:<br />
-                User: {user?.id}<br />
-                Streamer: {match?.metadata?.streaming_judge_id}<br />
-                Match Metadata: {JSON.stringify(match?.metadata)}
-            </div>
+
 
             {/* Logic for Streamer */}
             {user && match?.metadata?.streaming_judge_id === user.id && (
                 <>
-                    {/* Debug Indicator */}
-                    <div className="text-xs text-red-500 font-mono bg-black/50 p-2 rounded mb-2">
-                        DEBUG: Match: {match.id.substring(0, 4)} | User: {user?.id?.substring(0, 4)} | Streamer: {match.metadata?.streaming_judge_id?.substring(0, 4) || "None"} | URL: {match.metadata?.daily_room_url || "None"}
-                    </div>
+
                     <CameraStreamer matchId={match.id} onClose={() => {
                         console.log("Closing Camera Streamer manually");
                         // Optimistically update metadata locally or call toggle off
