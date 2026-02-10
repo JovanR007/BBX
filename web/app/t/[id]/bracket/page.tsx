@@ -75,6 +75,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     // Local UI State
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
     const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
+    const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
 
     return (
         <BrandedContainer
@@ -84,9 +85,9 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
             {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-                <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+            <div className="flex justify-between items-center mb-8 landscape:mb-2">
+                <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors landscape:text-xs">
+                    <ArrowLeft className="w-4 h-4 mr-2 landscape:w-3 landscape:h-3" /> <span className="landscape:hidden">Back to </span>Dashboard
                 </Link>
 
                 {/* Swiss Controls */}
@@ -126,8 +127,8 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {/* Title & Debug */}
-            <div className="flex items-center gap-4 mb-8">
-                <h1 className="text-3xl font-bold">
+            <div className="flex items-center gap-4 mb-8 landscape:mb-2">
+                <h1 className="text-3xl font-bold landscape:text-xl">
                     {viewMode === "top_cut" ? "Elimination Bracket" : "Swiss Standings & Matches"}
                 </h1>
                 {isOwner && (
@@ -171,10 +172,11 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                 isOpen={!!selectedMatch}
                 match={selectedMatch}
                 participants={participants}
-                onClose={() => setSelectedMatchId(null)}
+                onClose={() => { refresh(); setSelectedMatchId(null); }}
                 refresh={refresh}
                 ruleset={tournament?.ruleset_config}
                 cutSize={tournament?.cut_size}
+                currentlyStreamingMatchId={currentlyStreamingMatch?.id}
             />
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
             <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />

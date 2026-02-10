@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 
 const CameraStreamer = dynamic(() => import("./camera-streamer").then(mod => mod.CameraStreamer), { ssr: false });
 
-export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset, cutSize }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any, cutSize?: number }) {
+export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset, cutSize, currentlyStreamingMatchId }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any, cutSize?: number, currentlyStreamingMatchId?: string | null }) {
     const { toast } = useToast();
     const user = useUser();
 
@@ -313,9 +313,9 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     <div className="flex items-center gap-2">
                         {/* Camera Toggle for Finals */}
                         {isFinalsMatch && (
-                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} />
+                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} currentlyStreamingMatchId={currentlyStreamingMatchId} />
                         )}
-                        <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
+                        <button onClick={() => { refresh(); onClose(); }} className="p-2 hover:bg-muted rounded-full">
                             <X className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
@@ -476,12 +476,13 @@ function ScoreBtn({ onClick, label, pts, color, disabled }: any) {
     )
 }
 
-function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: string, currentStreamer: string | null, refresh: () => void }) {
+function CameraToggleButton({ matchId, currentStreamer, refresh, currentlyStreamingMatchId }: { matchId: string, currentStreamer: string | null, refresh: () => void, currentlyStreamingMatchId?: string | null }) {
     const { toast } = useToast();
     const [loading, setLoading] = useState(false);
 
     // UI state: Active if ANYONE is streaming (red), Inactive if none (gray)
     const isActive = !!currentStreamer;
+    const isLocked = !!currentlyStreamingMatchId && currentlyStreamingMatchId !== matchId;
 
     async function handleToggle() {
         setLoading(true);
@@ -510,16 +511,19 @@ function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: st
     return (
         <button
             onClick={handleToggle}
-            disabled={loading}
+            disabled={loading || isLocked}
+            title={isLocked ? "Another match is currently live" : ""}
             className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border",
                 isActive
                     ? "bg-red-500/10 text-red-600 border-red-500/20 animate-pulse"
-                    : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+                    : isLocked
+                        ? "bg-muted/30 text-muted-foreground/50 border-transparent cursor-not-allowed"
+                        : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
             )}
         >
-            <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-red-600" : "bg-slate-400")} />
-            {loading ? "..." : (isActive ? "LIVE" : "CAM")}
+            <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-red-600" : isLocked ? "bg-slate-500/50" : "bg-slate-400")} />
+            {loading ? "..." : (isActive ? "LIVE" : isLocked ? "BUSY" : "CAM")}
         </button>
     )
 }

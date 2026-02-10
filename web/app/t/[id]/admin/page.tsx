@@ -32,7 +32,8 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
     // const [tournament, setTournament] = useState(null); // Use hook data
     const [loadingData, setLoadingData] = useState(true);
     const [showStartModal, setShowStartModal] = useState(false);
-    const [selectedMatch, setSelectedMatch] = useState(null);
+    const [selectedMatch, setSelectedMatch] = useState<any>(null);
+    const currentlyStreamingMatch = matches.find(m => m.metadata?.streaming_judge_id);
     const { toast } = useToast();
 
     // Data Load
@@ -205,6 +206,18 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
 
                 {/* Dangerous Zone Removed as per User Request (Advance moved to Bracket) */}
             </div>
+            {selectedMatch && (
+                <MatchScoringModal
+                    isOpen={!!selectedMatch}
+                    match={selectedMatch}
+                    participants={participants.reduce((acc: any, p: any) => ({ ...acc, [p.id]: p }), {})}
+                    onClose={() => { fetchData(); setSelectedMatch(null); }}
+                    refresh={fetchData}
+                    ruleset={tournament?.ruleset_config}
+                    cutSize={tournament?.cut_size}
+                    currentlyStreamingMatchId={currentlyStreamingMatch?.id}
+                />
+            )}
         </div>
     );
 }
