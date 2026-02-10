@@ -495,14 +495,30 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                     const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalRounds && Number(m.match_number) === 2);
                     if (!p3Match) return null;
 
+                    // Transform to match key shape expected by ProjectorMatch
+                    const p3Transformed = {
+                        participants: [
+                            {
+                                id: p3Match.participant_a_id || 'tbd-a-3rd',
+                                resultText: p3Match.score_a?.toString() ?? '-',
+                                isWinner: p3Match.winner_id === p3Match.participant_a_id,
+                                status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_a_id ? 'WON' : 'LOST') : null,
+                                name: p3Match.participant_a_id ? participants[p3Match.participant_a_id]?.display_name : 'TBD',
+                            },
+                            {
+                                id: p3Match.participant_b_id || 'tbd-b-3rd',
+                                resultText: p3Match.score_b?.toString() ?? '-',
+                                isWinner: p3Match.winner_id === p3Match.participant_b_id,
+                                status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_b_id ? 'WON' : 'LOST') : null,
+                                name: p3Match.participant_b_id ? participants[p3Match.participant_b_id]?.display_name : 'TBD',
+                            }
+                        ]
+                    };
+
                     return (
                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
                             <div className="mb-2 text-sm font-bold uppercase tracking-widest text-amber-600/80">3rd Place Match</div>
-                            <ProjectorMatchCard
-                                match={p3Match}
-                                participants={participants}
-                                participantStats={participantStats}
-                            />
+                            <ProjectorMatch match={p3Transformed} />
                         </div>
                     );
                 })()}
