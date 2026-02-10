@@ -200,6 +200,12 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         return stats;
     }, [matches, participants]);
 
+    // 0. Check for LIVE STREAM (Moved up to avoid conditional hook call)
+    const streamingMatch = useMemo(() => {
+        if (!matches) return null;
+        return matches.find(m => m.metadata?.broadcaster_id);
+    }, [matches]);
+
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>
     }
