@@ -75,7 +75,7 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
     };
 
     return (
-        <div className="fixed bottom-4 left-4 z-[9999] w-32 md:w-48 bg-black rounded-lg shadow-2xl overflow-hidden border border-red-500 animate-in slide-in-from-bottom-10">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] w-28 md:w-48 bg-black rounded-lg shadow-2xl overflow-hidden border border-red-500 animate-in slide-in-from-top-10">
             <div className="relative aspect-video bg-slate-900">
                 <video
                     ref={localVideoRef}

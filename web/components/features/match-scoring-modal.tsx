@@ -63,17 +63,16 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     useEffect(() => {
         if (isOpen && match && match.id) {
             // Restore from Match Data
-            setScoreA(match.score_a || 0);
-            setScoreB(match.score_b || 0);
+            const restoredScoreA = match.score_a || 0;
+            const restoredScoreB = match.score_b || 0;
+            setScoreA(restoredScoreA);
+            setScoreB(restoredScoreB);
 
             // Restore Metadata Logic for Best of 3
-            if (isBestOf3 && match.metadata) {
-                setCurrentSetScoreA(match.metadata.current_set_score_a || 0);
-                setCurrentSetScoreB(match.metadata.current_set_score_b || 0);
-            } else {
-                setCurrentSetScoreA(0);
-                setCurrentSetScoreB(0);
-            }
+            const restoredSetA = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_a || 0) : 0;
+            const restoredSetB = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_b || 0) : 0;
+            setCurrentSetScoreA(restoredSetA);
+            setCurrentSetScoreB(restoredSetB);
 
             // Restore Beys
             setBeyA(match.bey_a || "");
@@ -82,34 +81,55 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             setWarningsA(0);
             setWarningsB(0);
             setLastMove(null);
-            setHistory([]);
+
+            // Seed history: if match already has scores, push a "zero" baseline
+            // so the judge can always undo back to 0-0
+            if (match.metadata?.scoring_history && match.metadata.scoring_history.length > 0) {
+                // Restore persisted history
+                setHistory(match.metadata.scoring_history);
+            } else if (restoredScoreA > 0 || restoredScoreB > 0) {
+                // Seed with zero state so user can revert
+                setHistory([{
+                    scoreA: 0, scoreB: 0,
+                    currentSetScoreA: 0, currentSetScoreB: 0,
+                    warningsA: 0, warningsB: 0,
+                    lastMove: null
+                }]);
+            } else {
+                setHistory([]);
+            }
         }
     }, [isOpen, match?.id]);
 
     // --- HELPERS ---
     const saveState = () => {
-        setHistory(prev => [...prev, {
+        const newEntry = {
             scoreA, scoreB,
             currentSetScoreA, currentSetScoreB,
             warningsA, warningsB,
             lastMove
-        }]);
+        };
+        const newHistory = [...history, newEntry];
+        setHistory(newHistory);
+        return newHistory;
     };
 
-    const syncDB = async (sA: number, sB: number, curA: number, curB: number) => {
-        // Syncs global score AND internal set score
-        const metadata = isBestOf3 ? {
-            current_set_score_a: curA,
-            current_set_score_b: curB,
-            // We could store set history here too
-        } : {};
+    const syncDB = async (sA: number, sB: number, curA: number, curB: number, updatedHistory?: any[]) => {
+        // Syncs global score AND internal set score, preserving existing metadata
+        const existingMeta = match?.metadata || {};
+        const newMeta = {
+            ...existingMeta,
+            ...(isBestOf3 ? { current_set_score_a: curA, current_set_score_b: curB } : {}),
+            scoring_history: updatedHistory ?? history,
+        };
 
-        syncMatchStateAction(match.id, sA, sB, metadata).catch(console.error);
+        syncMatchStateAction(match.id, sA, sB, newMeta).catch(console.error);
     };
 
     const handleUndo = () => {
         if (history.length === 0) return;
         const prev = history[history.length - 1];
+        const newHistory = history.slice(0, -1);
         setScoreA(prev.scoreA);
         setScoreB(prev.scoreB);
         setCurrentSetScoreA(prev.currentSetScoreA);
@@ -117,16 +137,16 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         setWarningsA(prev.warningsA);
         setWarningsB(prev.warningsB);
         setLastMove(prev.lastMove);
-        setHistory(prev => prev.slice(0, -1));
+        setHistory(newHistory);
 
-        syncDB(prev.scoreA, prev.scoreB, prev.currentSetScoreA, prev.currentSetScoreB);
+        syncDB(prev.scoreA, prev.scoreB, prev.currentSetScoreA, prev.currentSetScoreB, newHistory);
         toast({ title: "Undone", description: "Reverted last action." });
     };
 
     // --- SCORING LOGIC ---
     const handleScore = (player: string, pts: number, type: string) => {
         if (isGameOver) return;
-        saveState();
+        const newHistory = saveState();
 
         let sA = scoreA;
         let sB = scoreB;
@@ -180,7 +200,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         setWarningsA(0);
         setWarningsB(0);
 
-        syncDB(sA, sB, cA, cB);
+        syncDB(sA, sB, cA, cB, newHistory);
     };
 
     // Warning Logic (Simplified: Adds point to opponent)

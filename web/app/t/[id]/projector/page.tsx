@@ -90,6 +90,9 @@ export default function ProjectorPage() {
         if (currentView === 'matches') {
             return 15000; // 15 Seconds strict limit for Pairings
         }
+        if (currentView === 'results') {
+            return 60000; // 1 minute for Final Results
+        }
         return 30000; // Default 30s for other views
     };
 
@@ -107,8 +110,11 @@ export default function ProjectorPage() {
         // Active Swiss check
         const hasActiveSwiss = swissMatches.some((m: any) => m.status !== 'complete');
         const hasTopCut = topCutMatches.length > 0;
+        const isTournamentComplete = data.tournament.status === 'complete' || (hasTopCut && topCutMatches.every((m: any) => m.status === 'complete'));
 
-        if (hasActiveSwiss || (!hasTopCut && swissMatches.length > 0)) {
+        if (isTournamentComplete) {
+            views.push("results");
+        } else if (hasActiveSwiss || (!hasTopCut && swissMatches.length > 0)) {
             views.push("matches");
         } else if (hasTopCut) {
             views.push("bracket");
@@ -315,6 +321,7 @@ export default function ProjectorPage() {
                                 {view === "bracket" && <BracketView matches={data.matches} participants={data.participants} cutSize={data.tournament.cut_size} />}
                                 {view === "matches" && <MatchesView matches={data.matches} participants={data.participants} />}
                                 {view === "standings" && <StandingsView standings={data.standings} cutSize={data.tournament.cut_size} />}
+                                {view === "results" && <FinalResultsView data={data} />}
                             </>
                         );
                     })()}
@@ -690,6 +697,121 @@ function BracketView({ matches, participants, cutSize }: { matches: any[], parti
                         </div>
                     )
                 })}
+            </div>
+        </div>
+    )
+}
+
+function FinalResultsView({ data }: { data: any }) {
+    // 1. Find Swiss King (First in standings)
+    const swissKing = data.standings && data.standings.length > 0 ? data.standings[0] : null;
+
+    // 2. Find Podiums (Top 3)
+    const topCutMatches = data.matches?.filter((m: any) => m.stage === 'top_cut') || [];
+    const participants = data.participants;
+
+    if (topCutMatches.length === 0) return null;
+
+    const cutSize = data.tournament.cut_size || 4;
+    const totalRounds = Math.ceil(Math.log2(cutSize));
+
+    // Grand Final is the match in the last round that is NOT the 3rd place match
+    // Typically Match 1 in latest round
+    const grandFinal = topCutMatches.find((m: any) => m.bracket_round === totalRounds && m.match_number === 1);
+    const thirdPlaceMatch = topCutMatches.find((m: any) => m.bracket_round === totalRounds && m.match_number === 2);
+
+    let champion = null;
+    let runnerUp = null;
+    let thirdPlace = null;
+
+    if (grandFinal && grandFinal.winner_id) {
+        champion = participants[grandFinal.winner_id];
+        runnerUp = participants[grandFinal.winner_id === grandFinal.participant_a_id ? grandFinal.participant_b_id : grandFinal.participant_a_id];
+    }
+
+    if (thirdPlaceMatch && thirdPlaceMatch.winner_id) {
+        thirdPlace = participants[thirdPlaceMatch.winner_id];
+    } else if (!thirdPlaceMatch) {
+        // If no 3rd place match, maybe Semi-Final losers? (Implied 3rd/4th)
+        // For now, simpler to just show Champion & Runner Up if no 3rd place match defined
+    }
+
+    return (
+        <div className="h-full flex flex-col items-center justify-center animate-in zoom-in duration-1000">
+            {/* Header */}
+            <div className="mb-8 text-center">
+                <h1 className="text-6xl lg:text-8xl font-black uppercase italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 via-white to-yellow-600 drop-shadow-[0_0_25px_rgba(234,179,8,0.5)]">
+                    Tournament Complete
+                </h1>
+                <p className="text-2xl font-mono text-slate-400 tracking-[1em] mt-4 uppercase">Final Standings</p>
+            </div>
+
+            <div className="flex flex-wrap items-end justify-center gap-8 lg:gap-16 w-full max-w-7xl">
+
+                {/* 2nd Place */}
+                {runnerUp && (
+                    <div className="flex flex-col items-center gap-4 order-2 lg:order-1 animate-in slide-in-from-left-20 duration-1000 delay-300">
+                        <div className="w-48 h-48 lg:w-64 lg:h-64 rounded-full border-4 border-slate-400 bg-slate-800 flex items-center justify-center shadow-[0_0_30px_rgba(148,163,184,0.3)] relative overflow-hidden">
+                            {/* Placeholder for Avatar */}
+                            <div className="text-6xl font-black text-slate-600 uppercase">{runnerUp.display_name.substring(0, 2)}</div>
+                            <div className="absolute inset-x-0 bottom-0 bg-slate-400/20 h-1/2 backdrop-blur-sm" />
+                        </div>
+                        <div className="text-center">
+                            <div className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-1">2nd Place</div>
+                            <div className="text-3xl lg:text-4xl font-black text-white">{runnerUp.display_name}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Champion */}
+                {champion && (
+                    <div className="flex flex-col items-center gap-6 order-1 lg:order-2 z-10 -mt-12 lg:-mt-24 animate-in zoom-in-50 duration-1000 delay-500">
+                        <div className="relative">
+                            <Trophy className="w-24 h-24 lg:w-32 lg:h-32 text-yellow-500 absolute -top-12 -right-12 animate-bounce drop-shadow-[0_0_15px_rgba(234,179,8,0.8)]" />
+                            <div className="w-64 h-64 lg:w-80 lg:h-80 rounded-full border-8 border-yellow-500 bg-gradient-to-br from-slate-900 to-black flex items-center justify-center shadow-[0_0_100px_rgba(234,179,8,0.4)] relative overflow-hidden">
+                                <div className="text-8xl font-black text-yellow-500/20 uppercase">{champion.display_name.substring(0, 2)}</div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/20 to-transparent" />
+                            </div>
+                        </div>
+
+                        <div className="text-center relative">
+                            <div className="absolute -inset-8 bg-yellow-500/20 blur-2xl rounded-full" />
+                            <div className="text-lg font-black uppercase tracking-[0.5em] text-yellow-500 mb-2 relative">Champion</div>
+                            <div className="text-5xl lg:text-7xl font-black text-white relative drop-shadow-xl">{champion.display_name}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* 3rd Place / Swiss King */}
+                <div className="flex flex-col gap-8 order-3 lg:order-3 animate-in slide-in-from-right-20 duration-1000 delay-700">
+
+                    {thirdPlace && (
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-48 h-48 lg:w-64 lg:h-64 rounded-full border-4 border-amber-700 bg-slate-800 flex items-center justify-center shadow-[0_0_30px_rgba(180,83,9,0.3)] relative overflow-hidden">
+                                <div className="text-6xl font-black text-amber-900 uppercase">{thirdPlace.display_name.substring(0, 2)}</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-sm font-bold uppercase tracking-widest text-amber-700 mb-1">3rd Place</div>
+                                <div className="text-3xl lg:text-4xl font-black text-white">{thirdPlace.display_name}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Swiss King Card */}
+                    {swissKing && (
+                        <div className="bg-slate-900/80 border border-yellow-500/30 p-4 rounded-xl flex items-center gap-4 shadow-lg backdrop-blur-sm">
+                            <div className="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center text-yellow-500">
+                                <Trophy className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-yellow-500">Swiss King (1st Seed)</div>
+                                <div className="text-xl font-bold text-white">{swissKing.display_name}</div>
+                                <div className="text-xs font-mono text-slate-500">{swissKing.match_wins} Wins • {swissKing.buchholz} BH</div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
             </div>
         </div>
     )
