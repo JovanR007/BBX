@@ -4,6 +4,7 @@ import { stackServerApp } from "@/lib/stack";
 import "./globals.css";
 import { Inter } from "next/font/google"; // Using Inter for clean premium look
 import { cn } from "@/lib/utils";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ToastProvider>
           </StackTheme>
         </StackProvider>
+        <Analytics />
       </body >
     </html >
   );
