@@ -256,8 +256,8 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
     // --- RENDER ---
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
+            <div className="bg-card w-full max-w-7xl rounded-xl shadow-2xl overflow-hidden flex flex-col h-[95vh] md:h-auto md:max-h-[90vh]">
 
                 {/* HEADER */}
                 <div className="p-3 md:p-4 border-b flex justify-between items-center bg-muted/20 shrink-0">
