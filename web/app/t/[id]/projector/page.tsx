@@ -12,6 +12,9 @@ import { Loader2, Crown, Trophy, Maximize2, Minimize2, LogOut, Medal, Sparkles }
 import { BrandedContainer } from "@/components/features/branded-container";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import dynamic from "next/dynamic";
+
+const LiveCameraFeed = dynamic(() => import("@/components/features/live-camera-feed").then(mod => mod.LiveCameraFeed), { ssr: false });
 
 // Re-use theme from BracketPage
 const BeybladeTheme = {
@@ -241,6 +244,26 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             </Link>
         </div>
     );
+
+    // 0. Check for LIVE STREAM
+    // If any match has a broadcaster_id, we switch to "Live View"
+    const streamingMatch = useMemo(() => {
+        if (!matches) return null;
+        return matches.find(m => m.metadata?.broadcaster_id);
+    }, [matches]);
+
+    if (streamingMatch && streamingMatch.metadata?.broadcaster_id) {
+        return (
+            <div className="fixed inset-0 z-50 bg-black">
+                <LiveCameraFeed matchId={streamingMatch.id} broadcasterId={streamingMatch.metadata.broadcaster_id} />
+                {/* Overlay Controls if needed, e.g. exit */}
+                <div className="absolute top-4 right-4 z-[60]">
+                    <Controls />
+                </div>
+                {/* Optional: Overlay Scoreboard? LiveCameraFeed is usually full screen */}
+            </div>
+        );
+    }
 
     // 1. Tournament Complete / Winner View (Custom Inline Layout)
     if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
