@@ -219,9 +219,6 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         const topParty = match.participants[0];
         const bottomParty = match.participants[1];
 
-        // Don't render empty ghost matches if we want a cleaner look, OR render them as skeletons?
-        // Let's render them to show the path.
-
         return (
             <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
                 <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
@@ -236,7 +233,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         );
     }
 
-    const Controls = () => (
+    const Controls = ({ isFullscreen, toggleFullscreen, tournamentId }: { isFullscreen: boolean, toggleFullscreen: () => void, tournamentId: string }) => (
         <div className="flex gap-2">
             <button
                 onClick={toggleFullscreen}
@@ -265,7 +262,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 />
                 {/* Overlay Controls if needed, e.g. exit */}
                 <div className="absolute top-4 right-4 z-[60]">
-                    <Controls />
+                    <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
                 </div>
                 {/* Optional: Overlay Scoreboard? LiveCameraFeed is usually full screen */}
             </div>
@@ -294,7 +291,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                             {tournament?.stores?.name || "Official Result"}
                         </p>
                     </div>
-                    <Controls />
+                    <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
                 </header>
 
                 {/* Podium Area - Scaled Up */}
@@ -404,7 +401,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                         </div>
                     </div>
                 </div>
-                <Controls />
+                <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
             </header>
 
             {/* Main Content - Split Screen */}
