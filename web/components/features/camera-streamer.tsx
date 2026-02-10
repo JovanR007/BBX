@@ -75,7 +75,7 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
     };
 
     return (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[9999] w-28 md:w-48 bg-black rounded-lg shadow-2xl overflow-hidden border border-red-500 animate-in slide-in-from-top-10">
+        <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[9999] w-24 md:w-48 bg-black rounded-lg shadow-[0_0_15px_rgba(234,179,8,0.5)] overflow-hidden border border-yellow-500 animate-in slide-in-from-bottom-10">
             <div className="relative aspect-video bg-slate-900">
                 <video
                     ref={localVideoRef}
@@ -85,15 +85,15 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
                     className="w-full h-full object-cover -scale-x-100" // Mirror local view
                 />
 
-                <div className="absolute top-2 right-2 w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_red]" />
+                <div className="absolute top-2 right-2 w-3 h-3 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_yellow]" />
                 <div className="absolute bottom-1 left-2 text-[10px] font-mono text-white/80 font-bold bg-black/50 px-1 rounded">BROADCASTING</div>
             </div>
 
             <div className="flex bg-slate-900 border-t border-slate-800">
-                <button onClick={toggleCamera} className="flex-1 py-2 text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 uppercase transition-colors border-r border-slate-700">
-                    Switch Cam
+                <button onClick={toggleCamera} className="flex-1 py-1 text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-700 uppercase transition-colors border-r border-slate-700">
+                    Flip
                 </button>
-                <button onClick={onClose} className="flex-1 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 uppercase transition-colors">
+                <button onClick={onClose} className="flex-1 py-1 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 uppercase transition-colors">
                     Stop
                 </button>
             </div>

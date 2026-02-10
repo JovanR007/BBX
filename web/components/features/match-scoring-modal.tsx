@@ -87,15 +87,9 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             if (match.metadata?.scoring_history && match.metadata.scoring_history.length > 0) {
                 // Restore persisted history
                 setHistory(match.metadata.scoring_history);
-            } else if (restoredScoreA > 0 || restoredScoreB > 0) {
-                // Seed with zero state so user can revert
-                setHistory([{
-                    scoreA: 0, scoreB: 0,
-                    currentSetScoreA: 0, currentSetScoreB: 0,
-                    warningsA: 0, warningsB: 0,
-                    lastMove: null
-                }]);
             } else {
+                // DO NOT seed 0-0 if no history exists.
+                // This prevents "Undoing" to 0-0 when the user just opened the modal to edit a score.
                 setHistory([]);
             }
         }

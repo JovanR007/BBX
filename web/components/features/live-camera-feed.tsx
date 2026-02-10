@@ -8,6 +8,16 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting");
+    const [retryCount, setRetryCount] = useState(0);
+
+    const forceReconnect = () => {
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        setStatus("connecting");
+        setRetryCount(prev => prev + 1);
+    };
 
     useEffect(() => {
         if (!matchId) return;
@@ -77,9 +87,10 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
             clearTimeout(retryTimeout);
             if (peerRef.current) {
                 peerRef.current.destroy();
+                peerRef.current = null;
             }
         };
-    }, [matchId]);
+    }, [matchId, retryCount]); // Depend on retryCount to trigger re-run
 
     return (
         <div className="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
@@ -107,10 +118,26 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
             )}
 
             {status === 'failed' && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
-                    <p className="text-white font-mono uppercase tracking-widest text-red-500">Connection Failed</p>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 p-4 text-center">
+                    <p className="text-white font-mono uppercase tracking-widest text-red-500 mb-4">Connection Failed</p>
+                    <button
+                        onClick={forceReconnect}
+                        className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-full border border-slate-600 transition-all active:scale-95"
+                    >
+                        Force Reconnect
+                    </button>
                 </div>
             )}
+
+            {/* Invisible hover area for controls if needed, or just a small button always visible */}
+            <div className="absolute bottom-4 right-4 z-50 opacity-0 hover:opacity-100 transition-opacity">
+                <button
+                    onClick={forceReconnect}
+                    className="p-2 bg-black/50 hover:bg-black/80 text-white text-xs rounded border border-white/10 backdrop-blur-sm"
+                >
+                    Diff Reconnect
+                </button>
+            </div>
         </div>
     )
 }
