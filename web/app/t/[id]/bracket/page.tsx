@@ -105,37 +105,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
     const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
 
-    // Force "Tournament Completed" View
-    // If the tournament is marked completed in DB, OR if we have a winner and no more matches (local completion)
-    // We prefer DB status if available, or local inference.
-    // The user wants it to "only stay on this screen and nowhere else".
-    if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
-        return (
-            <BrandedContainer
-                primaryColor={tournament?.stores?.primary_color}
-                secondaryColor={tournament?.stores?.secondary_color}
-                plan={tournament?.stores?.plan}
-                className="container mx-auto px-4 py-8 min-h-screen flex flex-col items-center justify-center"
-            >
-                <div className="w-full">
-                    <Link href={`/t/${tournamentId}`} className="absolute top-4 left-4 flex items-center text-muted-foreground hover:text-foreground transition-colors z-50">
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
-                    </Link>
-
-                    <VictoryModal
-                        isOpen={true}
-                        onClose={() => { }} // No-op, it's locked
-                        winner={winner}
-                        runnerUp={runnerUp}
-                        thirdPlace={thirdPlace}
-                        swissKing={swissKing}
-                        tournamentName={tournament?.name ?? ""}
-                        organizerName={tournament?.stores?.name || "Official Result"}
-                    />
-                </div>
-            </BrandedContainer>
-        );
-    }
+    // Force "Tournament Completed" Modal Open on load if complete
+    useEffect(() => {
+        if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
+            setShowVictoryModal(true);
+        }
+    }, [tournament?.status, viewMode, winner, setShowVictoryModal]);
 
     return (
         <BrandedContainer
@@ -245,7 +220,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                 currentlyStreamingMatchId={currentlyStreamingMatch?.id}
             />
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
-            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
+            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={swissKing} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
             <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} isCasual={!tournament?.store_id} />
         </BrandedContainer>
     );

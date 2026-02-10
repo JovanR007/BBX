@@ -338,7 +338,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             </main>
 
             {/* Footer / QR */}
-            <div className="absolute bottom-8 right-8 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
+            <div className="absolute bottom-12 right-12 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
                 <div className="text-right">
                     <div className="text-lg font-bold text-slate-200">Scan for Live Updates</div>
                     <div className="text-sm text-slate-500">beybracket.com</div>
