@@ -418,7 +418,57 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                             )}
                         </div>
                     ) : (
-                        <div className="h-full flex items-center justify-center transform scale-110">
+                        <div className="h-full flex items-center justify-start overflow-x-hidden" ref={(el) => {
+                            // Auto-scroll logic
+                            if (!el) return;
+
+                            // Simple auto-scroll implementation
+                            const scrollContainer = el;
+
+                            // Clear any existing interval to prevent dupes if re-rendering
+                            if ((scrollContainer as any)._autoScrollInterval) {
+                                clearInterval((scrollContainer as any)._autoScrollInterval);
+                            }
+
+                            const startScrolling = () => {
+                                // Only scroll if content overflows
+                                if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) return;
+
+                                const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+                                let direction = 1; // 1 = right, -1 = left
+                                let currentScroll = scrollContainer.scrollLeft;
+                                let isPaused = false;
+
+                                (scrollContainer as any)._autoScrollInterval = setInterval(() => {
+                                    if (isPaused) return;
+
+                                    // Move
+                                    currentScroll += direction * 2; // Speed: 1px per tick
+
+                                    // Check bounds
+                                    if (currentScroll >= maxScroll) {
+                                        currentScroll = maxScroll;
+                                        isPaused = true;
+                                        setTimeout(() => {
+                                            direction = -1;
+                                            isPaused = false;
+                                        }, 3000); // Pause at end for 3s
+                                    } else if (currentScroll <= 0) {
+                                        currentScroll = 0;
+                                        isPaused = true;
+                                        setTimeout(() => {
+                                            direction = 1;
+                                            isPaused = false;
+                                        }, 3000); // Pause at start for 3s
+                                    }
+
+                                    scrollContainer.scrollLeft = currentScroll;
+                                }, 16); // ~60fps
+                            };
+
+                            // Start after a slight delay to allow layout to settle
+                            setTimeout(startScrolling, 1000);
+                        }}>
                             <SingleEliminationBracket
                                 matches={transformedMatches}
                                 matchComponent={ProjectorMatch}
