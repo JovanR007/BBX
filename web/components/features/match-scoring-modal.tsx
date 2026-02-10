@@ -315,7 +315,14 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         {isFinalsMatch && (
                             <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} currentlyStreamingMatchId={currentlyStreamingMatchId} />
                         )}
-                        <button onClick={() => { refresh(); onClose(); }} className="p-2 hover:bg-muted rounded-full">
+                        <button onClick={() => {
+                            // If streaming, ensure we stop it before closing
+                            if (match?.metadata?.streaming_judge_id === user?.id) {
+                                toggleCameraStreamAction(match.id, false).catch(console.error);
+                            }
+                            refresh();
+                            onClose();
+                        }} className="p-2 hover:bg-muted rounded-full">
                             <X className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
                     </div>
