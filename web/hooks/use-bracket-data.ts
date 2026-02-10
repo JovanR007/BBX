@@ -126,14 +126,18 @@ export function useBracketData(tournamentId: string | undefined) {
     let winner = null, runnerUp = null, thirdPlace = null;
 
     // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
-    if (totalBracketRounds > 0) {
-        const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === totalBracketRounds && m.match_number === 1);
+    // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
+    const actualMaxBracketRound = Math.max(0, ...topCutMatches.map(m => Number(m.bracket_round)));
+    const targetRound = actualMaxBracketRound > 0 ? actualMaxBracketRound : totalBracketRounds;
+
+    if (targetRound > 0) {
+        const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 1);
         if (gfMatch && gfMatch.status === 'complete' && gfMatch.winner_id) {
             winner = participants[gfMatch.winner_id];
             const loserId = gfMatch.winner_id === gfMatch.participant_a_id ? gfMatch.participant_b_id : gfMatch.participant_a_id;
             if (loserId) runnerUp = participants[loserId];
         }
-        const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalBracketRounds && m.match_number === 2);
+        const p3Match = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 2);
         if (p3Match && p3Match.status === 'complete' && p3Match.winner_id) {
             thirdPlace = participants[p3Match.winner_id];
         }

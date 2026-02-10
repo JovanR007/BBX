@@ -203,6 +203,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         )}
                     </div>
                 )}
+                {/* Projector Link (Visible to everyone or just owners? Let's make it visible to owners/judges for now, or everyone?) */}
+                {(isOwner || isJudge) && (
+                    <Link href={`/t/${tournamentId}/projector`} target="_blank" className="ml-2 flex items-center gap-2 text-xs font-bold text-cyan-500 hover:text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/50 bg-cyan-500/5 px-3 py-1 rounded-full transition-all landscape:hidden">
+                        <Loader2 className="w-3 h-3" /> Projector
+                    </Link>
+                )}
             </div>
 
             {/* Main Content */}
