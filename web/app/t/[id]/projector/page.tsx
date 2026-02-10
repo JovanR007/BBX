@@ -63,3 +63,291 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch((err) => {
+                console.error(`Error attempting to enable fullscreen: ${err.message} (${err.name})`);
+            });
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
+    // ... (swissKing logic unchanged)
+    const swissKing = useMemo(() => {
+        if (!swissMatches || swissMatches.length === 0) return null;
+        const scores: Record<string, { wins: number }> = {};
+        Object.keys(participants).forEach(pid => scores[pid] = { wins: 0 });
+        swissMatches.forEach(m => {
+            if (m.status !== 'complete' || !m.winner_id) return;
+            if (scores[m.winner_id]) scores[m.winner_id].wins++;
+        });
+        const kingId = Object.keys(scores).sort((a, b) => scores[b].wins - scores[a].wins)[0];
+        if (!kingId) return null;
+        return { ...participants[kingId], match_wins: scores[kingId].wins, buchholz: 0 };
+    }, [swissMatches, participants]);
+
+    // Transformed matches for bracket view
+    const transformedMatches = useMemo(() => {
+        if (viewMode !== 'top_cut' || topCutMatches.length === 0) return [];
+        return topCutMatches.map(m => ({
+            id: m.id,
+            nextMatchId: (m as any).next_match_id || null,
+            tournamentRoundText: `${m.bracket_round}`,
+            startTime: '',
+            state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
+            participants: [
+                {
+                    id: m.participant_a_id || 'tbd-a',
+                    resultText: m.score_a?.toString(),
+                    isWinner: m.winner_id === m.participant_a_id,
+                    status: m.status === 'complete' ? (m.winner_id === m.participant_a_id ? 'WON' : 'LOST') : null,
+                    name: m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'TBD',
+                },
+                {
+                    id: m.participant_b_id || 'tbd-b',
+                    resultText: m.score_b?.toString(),
+                    isWinner: m.winner_id === m.participant_b_id,
+                    status: m.status === 'complete' ? (m.winner_id === m.participant_b_id ? 'WON' : 'LOST') : null,
+                    name: m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'TBD',
+                }
+            ]
+        }));
+    }, [topCutMatches, participants, viewMode]);
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>
+    }
+
+    // Custom Match Component for Projector
+    const ProjectorMatch = ({ match }: { match: any }) => {
+        const topParty = match.participants[0];
+        const bottomParty = match.participants[1];
+        return (
+            <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
+                <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                    <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
+                    <span className="text-base font-mono font-bold">{topParty.resultText || '-'}</span>
+                </div>
+                <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                    <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
+                    <span className="text-base font-mono font-bold">{bottomParty.resultText || '-'}</span>
+                </div>
+            </div>
+        );
+    }
+
+    const Controls = () => (
+        <div className="flex gap-2">
+            <button
+                onClick={toggleFullscreen}
+                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-sm"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+                {isFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
+            </button>
+            <Link
+                href={`/t/${tournamentId}`}
+                className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-full text-red-500 transition-all backdrop-blur-sm border border-red-500/20"
+                title="Exit Projector Mode"
+            >
+                <LogOut className="w-6 h-6" />
+            </Link>
+        </div>
+    );
+
+    // 1. Tournament Complete / Winner View (Custom Inline Layout)
+    if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
+        return (
+            <BrandedContainer
+                primaryColor={tournament?.stores?.primary_color}
+                secondaryColor={tournament?.stores?.secondary_color}
+                plan={tournament?.stores?.plan}
+                className="min-h-screen bg-black overflow-hidden relative font-sans text-white flex flex-col"
+            >
+                {/* Background */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-yellow-500/10 via-slate-900 to-black pointer-events-none" />
+
+                {/* Header */}
+                <header className="p-8 w-full flex justify-between items-start z-20">
+                    <div>
+                        <h1 className="text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 drop-shadow-sm mb-2">
+                            {tournament?.name || "Tournament Complete"}
+                        </h1>
+                        <p className="text-slate-400 text-xl font-medium tracking-wide uppercase">
+                            {tournament?.stores?.name || "Official Result"}
+                        </p>
+                    </div>
+                    <Controls />
+                </header>
+
+                {/* Podium Area - Scaled Up */}
+                <div className="flex-1 flex items-center justify-center w-full max-w-7xl mx-auto px-8 pb-12 z-10">
+                    <div className="flex items-end justify-center gap-12 w-full translate-y-[-5%]">
+
+                        {/* 2nd Place */}
+                        <div className="order-1 flex flex-col items-center w-1/3 animate-in slide-in-from-bottom-12 duration-1000 delay-100">
+                            <div className="flex flex-col items-center w-full">
+                                <Crown className="w-16 h-16 text-slate-400 mb-4 opacity-50" />
+                                <div className="w-48 h-48 rounded-full border-8 border-slate-400/30 bg-slate-400/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(148,163,184,0.1)]">
+                                    <span className="text-7xl font-black text-slate-400">2</span>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-bold text-4xl text-slate-200 mb-2 truncate max-w-[300px]">{runnerUp?.display_name || "TBD"}</div>
+                                    <div className="text-lg font-bold text-slate-500 uppercase tracking-[0.2em]">Runner Up</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 1st Place */}
+                        <div className="order-2 flex flex-col items-center w-1/3 -mt-24 z-20 animate-in slide-in-from-bottom-24 duration-1000">
+                            <div className="flex flex-col items-center w-full transform scale-110">
+                                <Crown className="w-24 h-24 text-yellow-400 mb-4 animate-pulse drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+                                <div className="w-64 h-64 rounded-full border-8 border-yellow-500/50 bg-gradient-to-b from-yellow-500/20 to-yellow-900/20 flex items-center justify-center mb-6 shadow-[0_0_60px_rgba(234,179,8,0.3)] ring-4 ring-yellow-500/10">
+                                    <span className="text-9xl font-black text-yellow-400">1</span>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-black text-6xl text-yellow-500 drop-shadow-lg mb-3 truncate max-w-[400px]">{winner?.display_name || "TBD"}</div>
+                                    <div className="text-xl font-bold text-yellow-600/70 uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                                        <Trophy className="w-6 h-6" /> Champion
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3rd Place */}
+                        <div className="order-3 flex flex-col items-center w-1/3 animate-in slide-in-from-bottom-12 duration-1000 delay-200">
+                            <div className="flex flex-col items-center w-full">
+                                <Crown className="w-16 h-16 text-amber-700 mb-4 opacity-50" />
+                                <div className="w-48 h-48 rounded-full border-8 border-amber-700/30 bg-amber-700/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(180,83,9,0.1)]">
+                                    <span className="text-7xl font-black text-amber-700">3</span>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-bold text-4xl text-slate-200 mb-2 truncate max-w-[300px]">{thirdPlace?.display_name || "TBD"}</div>
+                                    <div className="text-lg font-bold text-amber-800/70 uppercase tracking-[0.2em]">3rd Place</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Area with Swiss King and QR */}
+                <div className="w-full p-8 flex justify-between items-end z-20">
+                    {/* Swiss King */}
+                    <div className="flex items-center gap-6">
+                        {swissKing && (
+                            <div className="bg-blue-900/10 border border-blue-500/20 rounded-2xl p-6 flex items-center gap-6 backdrop-blur-md">
+                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0 border border-blue-500/30 text-blue-400">
+                                    <Medal className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">Swiss King</div>
+                                    <div className="font-bold text-3xl text-slate-200">{swissKing.display_name}</div>
+                                    <div className="text-sm text-slate-400">{swissKing.match_wins} Wins • {swissKing.buchholz} Buchholz</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Powered By & QR */}
+                    <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-2 text-slate-600 opacity-60">
+                            <Sparkles className="w-5 h-5" />
+                            <span className="text-sm font-black uppercase tracking-widest font-mono">BeyBracket</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-xl shadow-2xl">
+                            <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={100} />
+                            <div className="text-center text-[10px] font-bold mt-1 text-black">Scan Results</div>
+                        </div>
+                    </div>
+                </div>
+            </BrandedContainer>
+        );
+    }
+
+    // 2. Ongoing Bracket / Swiss View
+    return (
+        <BrandedContainer
+            primaryColor={tournament?.stores?.primary_color}
+            secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
+            className="min-h-screen bg-slate-950 text-white p-8 flex flex-col items-center relative overflow-hidden"
+        >
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black -z-10" />
+
+            {/* Header */}
+            <header className="w-full flex justify-between items-center mb-12 z-10 relative">
+                <div>
+                    <div className="text-5xl font-black uppercase tracking-tighter italic text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-2">
+                        {tournament?.name}
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="px-6 py-2 bg-slate-900 border border-slate-800 rounded-full font-mono text-xl text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                            {viewMode === 'swiss' ? 'Swiss Stage' : 'Finals Stage'}
+                        </div>
+                    </div>
+                </div>
+                <Controls />
+            </header>
+
+            {/* Main Content - Scaled Up */}
+            <main className="flex-1 w-full flex items-center justify-center overflow-auto pb-24">
+                {viewMode === 'swiss' ? (
+                    <div className="w-full max-w-7xl">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Show current round matches only? */}
+                            {swissMatches.filter(m => m.status !== 'complete').slice(0, 12).map(m => ( // Show up to 12 active matches
+                                <div key={m.id} className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl flex justify-between items-center relative overflow-hidden shadow-lg hover:border-cyan-500/30 transition-colors">
+                                    {m.metadata?.streaming_judge_id && <div className="absolute top-0 right-0 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-bl-lg animate-pulse">LIVE</div>}
+                                    <div className="font-bold text-2xl truncate w-5/12 text-left">{m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'TBD'}</div>
+                                    <div className="font-mono text-slate-500 text-lg font-bold">VS</div>
+                                    <div className="font-bold text-2xl text-right truncate w-5/12">{m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'TBD'}</div>
+                                </div>
+                            ))}
+                            {swissMatches.filter(m => m.status !== 'complete').length === 0 && (
+                                <div className="col-span-full text-center text-slate-500 text-4xl py-24 font-thin uppercase tracking-widest">
+                                    Round Complete
+                                    <div className="text-lg mt-4 text-slate-600">Waiting for next round...</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="transform scale-125 origin-top mt-12">
+                        <SingleEliminationBracket
+                            matches={transformedMatches}
+                            matchComponent={ProjectorMatch}
+                            theme={BeybladeTheme}
+                            options={{
+                                style: {
+                                    width: 240,
+                                    boxHeight: 120,
+                                    spaceBetweenColumns: 100,
+                                    spaceBetweenRows: 60,
+                                    connectorColor: '#334155',
+                                    connectorColorHighlight: '#22D3EE',
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+            </main>
+
+            {/* Footer / QR */}
+            <div className="absolute bottom-8 right-8 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
+                <div className="text-right">
+                    <div className="text-lg font-bold text-slate-200">Scan for Live Updates</div>
+                    <div className="text-sm text-slate-500">beybracket.com</div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                    <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={80} />
+                </div>
+            </div>
+
+        </BrandedContainer>
+    );
+}
