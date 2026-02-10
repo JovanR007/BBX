@@ -380,7 +380,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             {/* Main Content - Split Screen */}
             <main className="flex-1 w-full flex overflow-hidden z-10">
                 {/* Left: Matches (75% on large screens) */}
-                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar", viewMode === 'swiss' ? 'border-r border-white/5' : 'w-full')}>
+                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar relative", viewMode === 'swiss' ? 'border-r border-white/5' : '')}>
                     {viewMode === 'swiss' ? (
                         <div className="h-full flex flex-col">
                             {/* Dynamic Grid based on match count */}
