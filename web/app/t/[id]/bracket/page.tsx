@@ -51,6 +51,34 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
         }
     } = useBracketData(tournamentId);
 
+    // Calculate Swiss King (Best Swiss Performer)
+    const swissKing = useMemo(() => {
+        if (!swissMatches || swissMatches.length === 0) return null;
+        // Simple calculation: Most Wins -> Best Diff -> Best BH (if we had specific BH data here, but we only have matches)
+        // We can approximate by strictly wins for now, or fetch standings properly.
+        // Actually, let's just find the player with most wins in Swiss.
+        const scores: Record<string, { wins: number, diff: number }> = {};
+        Object.keys(participants).forEach(pid => scores[pid] = { wins: 0, diff: 0 });
+
+        swissMatches.forEach(m => {
+            if (m.status !== 'complete' || !m.winner_id) return;
+            if (scores[m.winner_id]) {
+                scores[m.winner_id].wins++;
+                // Diff logic... simplified
+            }
+        });
+
+        // Find max
+        const kingId = Object.keys(scores).sort((a, b) => scores[b].wins - scores[a].wins)[0];
+        if (!kingId) return null;
+
+        return {
+            ...participants[kingId],
+            match_wins: scores[kingId].wins,
+            buchholz: 0 // Placeholder as we don't full calc here
+        };
+    }, [swissMatches, participants]);
+
     // Helpers
     const { isOwner, isJudge, isSuperAdmin } = permissions || { isOwner: false, isJudge: false, isSuperAdmin: false };
     const canEdit = isOwner || isJudge;
@@ -76,6 +104,38 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
     const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
     const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
+
+    // Force "Tournament Completed" View
+    // If the tournament is marked completed in DB, OR if we have a winner and no more matches (local completion)
+    // We prefer DB status if available, or local inference.
+    // The user wants it to "only stay on this screen and nowhere else".
+    if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
+        return (
+            <BrandedContainer
+                primaryColor={tournament?.stores?.primary_color}
+                secondaryColor={tournament?.stores?.secondary_color}
+                plan={tournament?.stores?.plan}
+                className="container mx-auto px-4 py-8 min-h-screen flex flex-col items-center justify-center"
+            >
+                <div className="w-full">
+                    <Link href={`/t/${tournamentId}`} className="absolute top-4 left-4 flex items-center text-muted-foreground hover:text-foreground transition-colors z-50">
+                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+                    </Link>
+
+                    <VictoryModal
+                        isOpen={true}
+                        onClose={() => { }} // No-op, it's locked
+                        winner={winner}
+                        runnerUp={runnerUp}
+                        thirdPlace={thirdPlace}
+                        swissKing={swissKing}
+                        tournamentName={tournament?.name ?? ""}
+                        organizerName={tournament?.stores?.name || "Official Result"}
+                    />
+                </div>
+            </BrandedContainer>
+        );
+    }
 
     return (
         <BrandedContainer

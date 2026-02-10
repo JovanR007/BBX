@@ -124,7 +124,9 @@ export function useBracketData(tournamentId: string | undefined) {
     const isTournamentComplete = isBracketRoundComplete && maxBracketRound >= totalBracketRounds;
 
     let winner = null, runnerUp = null, thirdPlace = null;
-    if (isTournamentComplete && totalBracketRounds > 0) {
+
+    // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
+    if (totalBracketRounds > 0) {
         const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === totalBracketRounds && m.match_number === 1);
         if (gfMatch && gfMatch.status === 'complete' && gfMatch.winner_id) {
             winner = participants[gfMatch.winner_id];
@@ -136,6 +138,15 @@ export function useBracketData(tournamentId: string | undefined) {
             thirdPlace = participants[p3Match.winner_id];
         }
     }
+
+    // Also find Swiss King if exists
+    // We can infer Swiss King from stats (Rank 1)
+    // We don't have standings in matches... but we can fetch them or assume seed 1 is king if swiss passed
+    // Actually `useBracketData` doesn't fetch standings. `BracketPage` loads `SwissView` which takes matches. 
+    // Wait, `SwissView` calculates standings internally? No, `SwissView` takes matches and participants.
+    // The `useBracketData` hook returns matches.
+    // We can calculate Swiss King here if needed, or better yet, `BracketPage` can pass it.
+    // For now let's just ensure winner/runnerUp/thirdPlace are populated.
 
     return {
         loading,

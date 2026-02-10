@@ -127,12 +127,12 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="flex items-center gap-2 md:gap-4 pr-1 md:pr-2">
-                    {/* Support Button (Desktop: Full, Mobile: Icon) */}
+                    {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
                     <div>
-                        <div className="hidden md:block">
+                        <div className="hidden lg:block">
                             <SupportButton variant="full" />
                         </div>
-                        <div className="md:hidden">
+                        <div className="lg:hidden">
                             <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
                         </div>
                     </div>
