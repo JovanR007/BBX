@@ -66,6 +66,14 @@ export function CameraStreamer({ matchId, broadcasterId, onClose }: { matchId: s
         };
     }, [matchId, facingMode]);
 
+    const toggleCamera = () => {
+        // Stop current tracks first
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        setFacingMode(prev => prev === "user" ? "environment" : "user");
+    };
+
     const handleStop = () => {
         console.log("Stopping stream manually...");
         if (stream) {
