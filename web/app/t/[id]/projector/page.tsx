@@ -328,15 +328,15 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
                                 // Auto-sizing logic
                                 let gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // default
-                                if (matchCount <= 2) gridCols = "grid-cols-1 max-w-4xl mx-auto";
+                                if (matchCount <= 2) gridCols = "grid-cols-1 max-w-5xl mx-auto"; // Wider for few matches
                                 else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2";
                                 else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
-                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4";
+                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"; // More dense for many matches
 
                                 return (
                                     <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr`}>
                                         {activeMatches.map(m => (
-                                            <div key={m.id} className={matchCount <= 2 ? "min-h-[300px]" : "min-h-[220px]"}>
+                                            <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
                                                 <ProjectorMatchCard
                                                     match={m}
                                                     participants={participants}
