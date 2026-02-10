@@ -334,6 +334,14 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                 </div>
             </div>
 
+            {/* DEBUG: Always Visible */}
+            <div className="z-[9999] bg-black/80 text-red-500 p-2 text-xs font-mono border border-red-500 mb-2">
+                DEBUG INFO:<br />
+                User: {user?.id}<br />
+                Streamer: {match?.metadata?.streaming_judge_id}<br />
+                Match Metadata: {JSON.stringify(match?.metadata)}
+            </div>
+
             {/* Logic for Streamer */}
             {user && match?.metadata?.streaming_judge_id === user.id && (
                 <>
