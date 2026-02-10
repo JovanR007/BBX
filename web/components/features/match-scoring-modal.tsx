@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { X, RefreshCcw, AlertTriangle, Trophy, Undo2, Swords, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction } from "@/app/actions"; // Updated import
+import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction } from "@/app/actions/match"; // Updated import
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import { useUser } from "@stackframe/stack";
@@ -382,7 +382,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     <CameraStreamer matchId={match.id} broadcasterId={match.metadata?.broadcaster_id} onClose={() => {
                         console.log("Closing Camera Streamer manually");
                         // Optimistically update metadata locally or call toggle off
-                        import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false)).then(() => refresh());
+                        toggleCameraStreamAction(match.id, false).then(() => refresh());
                     }} />
                 </>
             )}
@@ -491,8 +491,7 @@ function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: st
             const newStatus = !isStreaming;
             const broadcasterId = newStatus ? `broadcaster-${matchId}-${Date.now()}` : undefined;
 
-            const mod = await import("@/app/actions");
-            const res = await mod.toggleCameraStreamAction(matchId, newStatus, broadcasterId);
+            const res = await toggleCameraStreamAction(matchId, newStatus, broadcasterId);
 
             if (!res.success) {
                 alert(res.error || "Failed to toggle camera stream");
