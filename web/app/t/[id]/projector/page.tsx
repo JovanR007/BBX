@@ -95,33 +95,91 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         return { ...participants[kingId], match_wins: scores[kingId].wins, buchholz: 0 };
     }, [swissMatches, participants]);
 
-    // Transformed matches for bracket view
+    // Calculate total expected rounds based on cutSize (ported from BracketPage)
+    const totalRounds = useMemo(() => Math.log2(tournament?.cut_size || 4), [tournament?.cut_size]);
+
+    // Transformed matches for bracket view (COMPLEX LOGIC PORTED FROM BRACKETPAGE)
     const transformedMatches = useMemo(() => {
-        if (viewMode !== 'top_cut' || !topCutMatches || topCutMatches.length === 0) return [];
-        return topCutMatches.map(m => ({
-            id: m.id,
-            nextMatchId: (m as any).next_match_id || null,
-            tournamentRoundText: `${m.bracket_round}`,
-            startTime: '',
-            state: m.status === 'complete' ? 'DONE' : 'SCHEDULED',
-            participants: [
-                {
-                    id: m.participant_a_id || 'tbd-a',
-                    resultText: m.score_a?.toString(),
-                    isWinner: m.winner_id === m.participant_a_id,
-                    status: m.status === 'complete' ? (m.winner_id === m.participant_a_id ? 'WON' : 'LOST') : null,
-                    name: m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'TBD',
-                },
-                {
-                    id: m.participant_b_id || 'tbd-b',
-                    resultText: m.score_b?.toString(),
-                    isWinner: m.winner_id === m.participant_b_id,
-                    status: m.status === 'complete' ? (m.winner_id === m.participant_b_id ? 'WON' : 'LOST') : null,
-                    name: m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'TBD',
-                }
-            ]
-        }));
-    }, [topCutMatches, participants, viewMode]);
+        if (viewMode !== 'top_cut' || !matches) return []; // Use all matches to find bracket ones
+
+        // Filter for top Cut only mainly, but we need to generate slots
+        // Actually, let's use the same logic as BracketPage:
+        const cutSize = tournament?.cut_size || 4;
+
+        // 1. Map real matches for easy lookup
+        const realMatchMap = new Map<string, Match>();
+        // Only look at top_cut matches
+        const brackets = matches.filter(m => m.stage === 'top_cut');
+        brackets.forEach(m => {
+            realMatchMap.set(`${m.bracket_round}-${m.match_number}`, m);
+        });
+
+        // 2. Generate all expected slots based on cutSize
+        const allSlots = [];
+        const slotMap = new Map<string, string>(); // map "round-match" -> id
+
+        for (let r = 1; r <= totalRounds; r++) {
+            const matchCount = cutSize / Math.pow(2, r);
+            for (let m = 1; m <= matchCount; m++) {
+                const key = `${r}-${m}`;
+                const realMatch = realMatchMap.get(key);
+                // Use real ID if exists, else ghost ID
+                const id = realMatch ? realMatch.id : `ghost-${key}`;
+                allSlots.push({ key, round: r, matchNum: m, realMatch, id });
+                slotMap.set(key, id);
+            }
+        }
+
+        // 3. Round Naming Helper
+        const getRoundName = (round: number) => {
+            if (round === totalRounds) return 'Finals';
+            if (round === totalRounds - 1) return 'Semifinals';
+            if (round === totalRounds - 2) return 'Quarterfinals';
+            return `Round ${round}`;
+        };
+
+        // 4. Build Library Objects
+        return allSlots.map(slot => {
+            const { round, matchNum, realMatch, id } = slot;
+
+            // Calculate Next Match ID
+            let nextMatchId = null;
+            if (round < totalRounds) {
+                const nextRound = round + 1;
+                const nextMatchNum = Math.ceil(matchNum / 2);
+                nextMatchId = slotMap.get(`${nextRound}-${nextMatchNum}`) ?? null;
+            }
+
+            const pA = realMatch?.participant_a_id ? participants[realMatch.participant_a_id] : null;
+            const pB = realMatch?.participant_b_id ? participants[realMatch.participant_b_id] : null;
+            const isCompleted = realMatch?.status === 'complete';
+
+            return {
+                id: id,
+                name: `M${matchNum}`,
+                nextMatchId: nextMatchId,
+                tournamentRoundText: getRoundName(round),
+                startTime: '',
+                state: isCompleted ? 'DONE' : 'SCHEDULED',
+                participants: [
+                    {
+                        id: realMatch?.participant_a_id || `tbd-a-${id}`,
+                        resultText: realMatch?.score_a?.toString() ?? '-',
+                        isWinner: isCompleted && realMatch?.winner_id === realMatch?.participant_a_id,
+                        status: isCompleted ? (realMatch?.winner_id === realMatch?.participant_a_id ? 'WON' : 'LOST') : null,
+                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                    },
+                    {
+                        id: realMatch?.participant_b_id || `tbd-b-${id}`,
+                        resultText: realMatch?.score_b?.toString() ?? '-',
+                        isWinner: isCompleted && realMatch?.winner_id === realMatch?.participant_b_id,
+                        status: isCompleted ? (realMatch?.winner_id === realMatch?.participant_b_id ? 'WON' : 'LOST') : null,
+                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                    }
+                ]
+            };
+        });
+    }, [matches, participants, viewMode, tournament?.cut_size, totalRounds]);
 
     // Calculate basic Win/Loss stats for card display
     const participantStats = useMemo(() => {
@@ -147,15 +205,19 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     const ProjectorMatch = ({ match }: { match: any }) => {
         const topParty = match.participants[0];
         const bottomParty = match.participants[1];
+
+        // Don't render empty ghost matches if we want a cleaner look, OR render them as skeletons?
+        // Let's render them to show the path.
+
         return (
             <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
                 <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
                     <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
-                    <span className="text-base font-mono font-bold">{topParty.resultText || '-'}</span>
+                    <span className="text-base font-mono font-bold">{topParty.resultText}</span>
                 </div>
                 <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
                     <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
-                    <span className="text-base font-mono font-bold">{bottomParty.resultText || '-'}</span>
+                    <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
                 </div>
             </div>
         );
@@ -376,12 +438,10 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                     )}
                 </div>
 
-                {/* Right: Sidebar (25%) - Only visible in Swiss Mode */}
-                {viewMode === 'swiss' && (
-                    <div className="hidden xl:block w-[400px] shrink-0">
-                        <LiveStandings participants={participants} matches={swissMatches} />
-                    </div>
-                )}
+                {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
+                <div className="hidden xl:block w-[400px] shrink-0 border-l border-white/5">
+                    <LiveStandings participants={participants} matches={swissMatches} />
+                </div>
             </main>
 
             {/* Footer / QR */}
