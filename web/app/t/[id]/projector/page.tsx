@@ -491,7 +491,8 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 {/* 3rd Place Match Overlay (Bottom Center of Bracket Area) - Only for Top Cut */}
                 {viewMode === 'top_cut' && (() => {
                     // Find 3rd Place Match (Round = Total Rounds, Match #2)
-                    const p3Match = topCutMatches.find(m => m.bracket_round === totalRounds && m.match_number === 2);
+                    // Ensure we compare numbers to avoid string/number mismatch
+                    const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalRounds && Number(m.match_number) === 2);
                     if (!p3Match) return null;
 
                     return (
