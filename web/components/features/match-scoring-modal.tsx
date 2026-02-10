@@ -60,10 +60,10 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     const winner = scoreA >= WINNING_SCORE ? pA : (scoreB >= WINNING_SCORE ? pB : null);
 
     // Ref-based state to prevent race conditions on rapid clicks
-    const scoreARef = useRef(match.score_a || 0);
-    const scoreBRef = useRef(match.score_b || 0);
-    const scoreASetRef = useRef((isBestOf3 && match.metadata) ? (match.metadata.current_set_score_a || 0) : 0);
-    const scoreBSetRef = useRef((isBestOf3 && match.metadata) ? (match.metadata.current_set_score_b || 0) : 0);
+    const scoreARef = useRef(match?.score_a || 0);
+    const scoreBRef = useRef(match?.score_b || 0);
+    const scoreASetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_a || 0) : 0);
+    const scoreBSetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_b || 0) : 0);
 
     // --- INITIALIZATION ---
     useEffect(() => {
