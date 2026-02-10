@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Video, VideoOff } from "lucide-react";
 import Peer from "peerjs";
 
-export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose: () => void }) {
+export function CameraStreamer({ matchId, broadcasterId, onClose }: { matchId: string, broadcasterId?: string, onClose: () => void }) {
     const [stream, setStream] = useState<MediaStream | null>(null);
     const peerRef = useRef<Peer | null>(null);
     const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -25,7 +25,7 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
                 }
 
                 // 2. Initialize Peer
-                const peerId = `beybracket-match-${matchId}-broadcaster`;
+                const peerId = broadcasterId || `beybracket-match-${matchId}-broadcaster`;
 
                 // If peer already exists (e.g. from switching camera), use it or destroy?
                 // PeerJS ID reuse is tricky. Better to keep peer and replace stream?
@@ -82,7 +82,7 @@ export function CameraStreamer({ matchId, onClose }: { matchId: string, onClose:
                     autoPlay
                     muted
                     playsInline
-                    className="w-full h-full object-cover -scale-x-100" // Mirror local view
+                    className={`w-full h-full object-cover ${facingMode === 'user' ? '-scale-x-100' : ''}`} // Mirror local view only for user cam
                 />
 
                 <div className="absolute top-2 right-2 w-3 h-3 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_yellow]" />

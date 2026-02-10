@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import Peer from "peerjs";
 
-export function LiveCameraFeed({ matchId }: { matchId: string }) {
+export function LiveCameraFeed({ matchId, broadcasterId }: { matchId: string, broadcasterId?: string }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting");
@@ -23,8 +23,8 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
         if (!matchId) return;
 
         let retryTimeout: NodeJS.Timeout;
-        const broadcasterId = `beybracket-match-${matchId}-broadcaster`;
-        console.log("Attempting to connect to:", broadcasterId);
+        const targetId = broadcasterId || `beybracket-match-${matchId}-broadcaster`;
+        console.log("Attempting to connect to:", targetId);
 
         // Initialize Peer
         const peer = new Peer({ debug: 1 });
@@ -44,7 +44,7 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
             const stream = canvas.captureStream();
 
             console.log("Calling broadcaster...");
-            const call = peer.call(broadcasterId, stream);
+            const call = peer.call(targetId, stream);
             handleCall(call);
         }
 
@@ -90,7 +90,7 @@ export function LiveCameraFeed({ matchId }: { matchId: string }) {
                 peerRef.current = null;
             }
         };
-    }, [matchId, retryCount]); // Depend on retryCount to trigger re-run
+    }, [matchId, broadcasterId, retryCount]); // Depend on retryCount to trigger re-run
 
     return (
         <div className="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">

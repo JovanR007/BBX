@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { X, RefreshCcw, AlertTriangle, Trophy, Undo2, Swords, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +59,12 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     const isGameOver = scoreA >= WINNING_SCORE || scoreB >= WINNING_SCORE;
     const winner = scoreA >= WINNING_SCORE ? pA : (scoreB >= WINNING_SCORE ? pB : null);
 
+    // Ref-based state to prevent race conditions on rapid clicks
+    const scoreARef = useRef(match.score_a || 0);
+    const scoreBRef = useRef(match.score_b || 0);
+    const scoreASetRef = useRef((isBestOf3 && match.metadata) ? (match.metadata.current_set_score_a || 0) : 0);
+    const scoreBSetRef = useRef((isBestOf3 && match.metadata) ? (match.metadata.current_set_score_b || 0) : 0);
+
     // --- INITIALIZATION ---
     useEffect(() => {
         if (isOpen && match && match.id) {
@@ -67,12 +73,16 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             const restoredScoreB = match.score_b || 0;
             setScoreA(restoredScoreA);
             setScoreB(restoredScoreB);
+            scoreARef.current = restoredScoreA;
+            scoreBRef.current = restoredScoreB;
 
             // Restore Metadata Logic for Best of 3
             const restoredSetA = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_a || 0) : 0;
             const restoredSetB = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_b || 0) : 0;
             setCurrentSetScoreA(restoredSetA);
             setCurrentSetScoreB(restoredSetB);
+            scoreASetRef.current = restoredSetA;
+            scoreBSetRef.current = restoredSetB;
 
             // Restore Beys
             setBeyA(match.bey_a || "");
@@ -128,6 +138,12 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         setScoreB(prev.scoreB);
         setCurrentSetScoreA(prev.currentSetScoreA);
         setCurrentSetScoreB(prev.currentSetScoreB);
+
+        // Sync Refs
+        scoreARef.current = prev.scoreA;
+        scoreBRef.current = prev.scoreB;
+        scoreASetRef.current = prev.currentSetScoreA;
+        scoreBSetRef.current = prev.currentSetScoreB;
         setWarningsA(prev.warningsA);
         setWarningsB(prev.warningsB);
         setLastMove(prev.lastMove);
@@ -140,12 +156,14 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     // --- SCORING LOGIC ---
     const handleScore = (player: string, pts: number, type: string) => {
         if (isGameOver) return;
+
+        // Save current state before modification
         const newHistory = saveState();
 
-        let sA = scoreA;
-        let sB = scoreB;
-        let cA = currentSetScoreA;
-        let cB = currentSetScoreB;
+        let sA = scoreARef.current;
+        let sB = scoreBRef.current;
+        let cA = scoreASetRef.current;
+        let cB = scoreBSetRef.current;
 
         // Update Logic depending on Mode
         if (player === 'A') {
@@ -187,6 +205,13 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         }
 
         // Apply
+        // Apply to Refs
+        scoreARef.current = sA;
+        scoreBRef.current = sB;
+        scoreASetRef.current = cA;
+        scoreBSetRef.current = cB;
+
+        // Apply to State (Trigger Render)
         setScoreA(sA);
         setScoreB(sB);
         setCurrentSetScoreA(cA);
@@ -354,7 +379,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             {user && match?.metadata?.streaming_judge_id === user.id && (
                 <>
 
-                    <CameraStreamer matchId={match.id} onClose={() => {
+                    <CameraStreamer matchId={match.id} broadcasterId={match.metadata?.broadcaster_id} onClose={() => {
                         console.log("Closing Camera Streamer manually");
                         // Optimistically update metadata locally or call toggle off
                         import("@/app/actions").then(mod => mod.toggleCameraStreamAction(match.id, false)).then(() => refresh());
@@ -462,12 +487,17 @@ function CameraToggleButton({ matchId, currentStreamer, refresh }: { matchId: st
         setLoading(true);
         try {
             // If active -> Turn Off. If inactive -> Turn On.
-            const res = await toggleCameraStreamAction(matchId, !isActive);
+            const isStreaming = !!currentStreamer; // Re-derive specifically
+            const newStatus = !isStreaming;
+            const broadcasterId = newStatus ? `broadcaster-${matchId}-${Date.now()}` : undefined;
+
+            const mod = await import("@/app/actions");
+            const res = await mod.toggleCameraStreamAction(matchId, newStatus, broadcasterId);
 
             if (!res.success) {
                 alert(res.error || "Failed to toggle camera stream");
             } else {
-                toast({ title: !isActive ? "Gone Live!" : "Stream Ended", description: !isActive ? "You are now streaming this match." : "Camera stream unavailable." });
+                toast({ title: newStatus ? "Gone Live!" : "Stream Ended", description: newStatus ? "You are now streaming this match." : "Camera stream unavailable." });
                 refresh();
             }
         } catch (error) {

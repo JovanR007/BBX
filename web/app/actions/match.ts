@@ -381,7 +381,7 @@ export async function syncMatchStateAction(matchId: string, scoreA: number, scor
     return { success: true };
 }
 
-export async function toggleCameraStreamAction(matchId: string, enable: boolean) {
+export async function toggleCameraStreamAction(matchId: string, enable: boolean, broadcasterId?: string) {
     const user = await stackServerApp.getUser();
     if (!user) return { success: false, error: "Unauthorized" };
 
@@ -419,10 +419,14 @@ export async function toggleCameraStreamAction(matchId: string, enable: boolean)
             return { success: false, error: "Another judge is already streaming this match." };
         }
         metadata.streaming_judge_id = user.id;
+        if (broadcasterId) {
+            metadata.broadcaster_id = broadcasterId;
+        }
     } else {
         // UNLOCK: Only if I am the streamer (or owner override)
         if (currentStreamer === user.id || ownerUser) {
             metadata.streaming_judge_id = null;
+            metadata.broadcaster_id = null;
         }
     }
 

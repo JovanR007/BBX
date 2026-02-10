@@ -314,7 +314,7 @@ export default function ProjectorPage() {
                     {(() => {
                         const streamingMatch = data?.matches?.find((m: any) => m.metadata?.streaming_judge_id);
                         if (streamingMatch) {
-                            return <LiveCameraFeed matchId={streamingMatch.id} />;
+                            return <LiveCameraFeed matchId={streamingMatch.id} broadcasterId={streamingMatch.metadata?.broadcaster_id} />;
                         }
                         return (
                             <>
