@@ -201,60 +201,27 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     }, [matches, participants]);
 
     // 0. Check for LIVE STREAM (Moved up to avoid conditional hook call)
+    // Blacklist for failed streams
+    const [failedStreams, setFailedStreams] = useState<string[]>([]);
+
     const streamingMatch = useMemo(() => {
         if (!matches) return null;
-        return matches.find(m => m.metadata?.broadcaster_id);
-    }, [matches]);
+        return matches.find(m => m.metadata?.broadcaster_id && !failedStreams.includes(m.metadata.broadcaster_id));
+    }, [matches, failedStreams]);
 
-    if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>
-    }
-
-    // Custom Match Component for Projector
-    const ProjectorMatch = ({ match }: { match: any }) => {
-        const topParty = match.participants[0];
-        const bottomParty = match.participants[1];
-
-        // Don't render empty ghost matches if we want a cleaner look, OR render them as skeletons?
-        // Let's render them to show the path.
-
-        return (
-            <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
-                <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                    <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
-                    <span className="text-base font-mono font-bold">{topParty.resultText}</span>
-                </div>
-                <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                    <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
-                    <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
-                </div>
-            </div>
-        );
-    }
-
-    const Controls = () => (
-        <div className="flex gap-2">
-            <button
-                onClick={toggleFullscreen}
-                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-sm"
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            >
-                {isFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
-            </button>
-            <Link
-                href={`/t/${tournamentId}`}
-                className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-full text-red-500 transition-all backdrop-blur-sm border border-red-500/20"
-                title="Exit Projector Mode"
-            >
-                <LogOut className="w-6 h-6" />
-            </Link>
-        </div>
-    );
+    const handleStreamError = (broadcasterId: string) => {
+        console.warn("Stream failed, adding to blacklist:", broadcasterId);
+        setFailedStreams(prev => [...prev, broadcasterId]);
+    };
 
     if (streamingMatch && streamingMatch.metadata?.broadcaster_id) {
         return (
             <div className="fixed inset-0 z-50 bg-black">
-                <LiveCameraFeed matchId={streamingMatch.id} broadcasterId={streamingMatch.metadata.broadcaster_id} />
+                <LiveCameraFeed
+                    matchId={streamingMatch.id}
+                    broadcasterId={streamingMatch.metadata.broadcaster_id}
+                    onError={() => handleStreamError(streamingMatch.metadata.broadcaster_id)}
+                />
                 {/* Overlay Controls if needed, e.g. exit */}
                 <div className="absolute top-4 right-4 z-[60]">
                     <Controls />
