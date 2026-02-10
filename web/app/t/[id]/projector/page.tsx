@@ -4,11 +4,14 @@ import { use, useEffect, useMemo, useState } from "react";
 import { useBracketData } from "@/hooks/use-bracket-data";
 import { BracketConnector } from "@/components/features/bracket-connector";
 import { SingleEliminationBracket, Match as CustomMatch } from "react-tournament-brackets";
+import { ProjectorMatchCard } from "@/components/features/projector-match-card";
+import { LiveStandings } from "@/components/features/live-standings";
 import { Match, Participant } from "@/types";
 import { QRCodeDisplay } from "@/components/features/qr-code";
 import { Loader2, Crown, Trophy, Maximize2, Minimize2, LogOut, Medal, Sparkles } from "lucide-react";
 import { BrandedContainer } from "@/components/features/branded-container";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 // Re-use theme from BracketPage
 const BeybladeTheme = {
@@ -119,6 +122,22 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             ]
         }));
     }, [topCutMatches, participants, viewMode]);
+
+    // Calculate basic Win/Loss stats for card display
+    const participantStats = useMemo(() => {
+        if (!matches || !participants) return {};
+        const stats: Record<string, { wins: number; losses: number }> = {};
+        Object.keys(participants).forEach(id => { stats[id] = { wins: 0, losses: 0 } });
+
+        matches.forEach(m => {
+            if (m.status === 'complete' && m.winner_id) {
+                if (stats[m.winner_id]) stats[m.winner_id].wins++;
+                const loserId = m.winner_id === m.participant_a_id ? m.participant_b_id : m.participant_a_id;
+                if (loserId && stats[loserId]) stats[loserId].losses++;
+            }
+        });
+        return stats;
+    }, [matches, participants]);
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>
@@ -296,45 +315,71 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 <Controls />
             </header>
 
-            {/* Main Content - Scaled Up */}
-            <main className="flex-1 w-full flex items-center justify-center overflow-auto pb-24">
-                {viewMode === 'swiss' ? (
-                    <div className="w-full max-w-7xl">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {/* Show current round matches only? */}
-                            {swissMatches.filter(m => m.status !== 'complete').slice(0, 12).map(m => ( // Show up to 12 active matches
-                                <div key={m.id} className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl flex justify-between items-center relative overflow-hidden shadow-lg hover:border-cyan-500/30 transition-colors">
-                                    {m.metadata?.streaming_judge_id && <div className="absolute top-0 right-0 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-bl-lg animate-pulse">LIVE</div>}
-                                    <div className="font-bold text-2xl truncate w-5/12 text-left">{m.participant_a_id ? participants[m.participant_a_id]?.display_name : 'TBD'}</div>
-                                    <div className="font-mono text-slate-500 text-lg font-bold">VS</div>
-                                    <div className="font-bold text-2xl text-right truncate w-5/12">{m.participant_b_id ? participants[m.participant_b_id]?.display_name : 'TBD'}</div>
-                                </div>
-                            ))}
+            {/* Main Content - Split Screen */}
+            <main className="flex-1 w-full flex overflow-hidden z-10">
+                {/* Left: Matches (75% on large screens) */}
+                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar", viewMode === 'swiss' ? 'border-r border-white/5' : 'w-full')}>
+                    {viewMode === 'swiss' ? (
+                        <div className="h-full flex flex-col">
+                            {/* Dynamic Grid based on match count */}
+                            {(() => {
+                                const activeMatches = swissMatches.filter(m => m.status !== 'complete').slice(0, 12);
+                                const matchCount = activeMatches.length;
+
+                                // Auto-sizing logic
+                                let gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // default
+                                if (matchCount <= 2) gridCols = "grid-cols-1 max-w-4xl mx-auto";
+                                else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2";
+                                else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
+                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4";
+
+                                return (
+                                    <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr`}>
+                                        {activeMatches.map(m => (
+                                            <div key={m.id} className={matchCount <= 2 ? "min-h-[300px]" : "min-h-[220px]"}>
+                                                <ProjectorMatchCard
+                                                    match={m}
+                                                    participants={participants}
+                                                    participantStats={participantStats}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            })()}
+
                             {swissMatches.filter(m => m.status !== 'complete').length === 0 && (
-                                <div className="col-span-full text-center text-slate-500 text-4xl py-24 font-thin uppercase tracking-widest">
-                                    Round Complete
-                                    <div className="text-lg mt-4 text-slate-600">Waiting for next round...</div>
+                                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
+                                    <div className="text-6xl mb-4 opacity-20">Round Complete</div>
+                                    <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
                                 </div>
                             )}
                         </div>
-                    </div>
-                ) : (
-                    <div className="transform scale-125 origin-top mt-12">
-                        <SingleEliminationBracket
-                            matches={transformedMatches}
-                            matchComponent={ProjectorMatch}
-                            theme={BeybladeTheme}
-                            options={{
-                                style: {
-                                    width: 240,
-                                    boxHeight: 120,
-                                    spaceBetweenColumns: 100,
-                                    spaceBetweenRows: 60,
-                                    connectorColor: '#334155',
-                                    connectorColorHighlight: '#22D3EE',
-                                }
-                            }}
-                        />
+                    ) : (
+                        <div className="h-full flex items-center justify-center transform scale-110">
+                            <SingleEliminationBracket
+                                matches={transformedMatches}
+                                matchComponent={ProjectorMatch}
+                                theme={BeybladeTheme}
+                                options={{
+                                    style: {
+                                        width: 280,
+                                        boxHeight: 140,
+                                        spaceBetweenColumns: 80,
+                                        spaceBetweenRows: 40,
+                                        connectorColor: '#334155',
+                                        connectorColorHighlight: '#22D3EE',
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                {/* Right: Sidebar (25%) - Only visible in Swiss Mode */}
+                {viewMode === 'swiss' && (
+                    <div className="hidden xl:block w-[400px] shrink-0">
+                        <LiveStandings participants={participants} matches={swissMatches} />
                     </div>
                 )}
             </main>
