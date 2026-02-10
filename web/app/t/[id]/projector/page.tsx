@@ -39,6 +39,45 @@ const BeybladeTheme = {
     canvasBackground: 'transparent'
 };
 
+// Custom Match Component for Projector (MUST be outside main component to avoid reconciliation issues)
+const ProjectorMatch = ({ match }: { match: any }) => {
+    const topParty = match.participants?.[0];
+    const bottomParty = match.participants?.[1];
+    if (!topParty || !bottomParty) return null;
+
+    return (
+        <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
+            <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
+                <span className="text-base font-mono font-bold">{topParty.resultText}</span>
+            </div>
+            <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
+                <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
+            </div>
+        </div>
+    );
+};
+
+const Controls = ({ isFullscreen, toggleFullscreen, tournamentId }: { isFullscreen: boolean; toggleFullscreen: () => void; tournamentId: string }) => (
+    <div className="flex gap-2">
+        <button
+            onClick={toggleFullscreen}
+            className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+            {isFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
+        </button>
+        <Link
+            href={`/t/${tournamentId}`}
+            className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-full text-red-500 transition-all backdrop-blur-sm border border-red-500/20"
+            title="Exit Projector Mode"
+        >
+            <LogOut className="w-6 h-6" />
+        </Link>
+    </div>
+);
+
 export default function ProjectorPage({ params }: { params: Promise<{ id: string }> }) {
     const { id: tournamentId } = use(params);
     const {
@@ -214,43 +253,16 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         setFailedStreams(prev => [...prev, broadcasterId]);
     };
 
-    // Custom Match Component for Projector
-    const ProjectorMatch = ({ match }: { match: any }) => {
-        const topParty = match.participants[0];
-        const bottomParty = match.participants[1];
+    // ProjectorMatch and Controls are now defined outside this function (module scope)
 
+    // Loading guard — MUST be placed after all hooks to respect Rules of Hooks
+    if (loading) {
         return (
-            <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
-                <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                    <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
-                    <span className="text-base font-mono font-bold">{topParty.resultText}</span>
-                </div>
-                <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                    <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
-                    <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
-                </div>
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
             </div>
         );
     }
-
-    const Controls = ({ isFullscreen, toggleFullscreen, tournamentId }: { isFullscreen: boolean, toggleFullscreen: () => void, tournamentId: string }) => (
-        <div className="flex gap-2">
-            <button
-                onClick={toggleFullscreen}
-                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-sm"
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            >
-                {isFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
-            </button>
-            <Link
-                href={`/t/${tournamentId}`}
-                className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-full text-red-500 transition-all backdrop-blur-sm border border-red-500/20"
-                title="Exit Projector Mode"
-            >
-                <LogOut className="w-6 h-6" />
-            </Link>
-        </div>
-    );
 
     if (streamingMatch && streamingMatch.metadata?.broadcaster_id) {
         return (
@@ -496,21 +508,27 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                             // Start after a slight delay to allow layout to settle
                             setTimeout(startScrolling, 1000);
                         }}>
-                            <SingleEliminationBracket
-                                matches={transformedMatches}
-                                matchComponent={ProjectorMatch}
-                                theme={BeybladeTheme}
-                                options={{
-                                    style: {
-                                        width: 280,
-                                        boxHeight: 140,
-                                        spaceBetweenColumns: 80,
-                                        spaceBetweenRows: 40,
-                                        connectorColor: '#334155',
-                                        connectorColorHighlight: '#22D3EE',
-                                    }
-                                }}
-                            />
+                            {transformedMatches.length > 0 ? (
+                                <SingleEliminationBracket
+                                    matches={transformedMatches}
+                                    matchComponent={ProjectorMatch}
+                                    theme={BeybladeTheme}
+                                    options={{
+                                        style: {
+                                            width: 280,
+                                            boxHeight: 140,
+                                            spaceBetweenColumns: 80,
+                                            spaceBetweenRows: 40,
+                                            connectorColor: '#334155',
+                                            connectorColorHighlight: '#22D3EE',
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-slate-500 text-xl italic">
+                                    Waiting for bracket data...
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
