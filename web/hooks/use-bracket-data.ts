@@ -160,7 +160,9 @@ export function useBracketData(tournamentId: string | undefined) {
     // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
     // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
     const actualMaxBracketRound = Math.max(0, ...topCutMatches.map(m => Number(m.bracket_round)));
-    const targetRound = actualMaxBracketRound > 0 ? actualMaxBracketRound : totalBracketRounds;
+    // FIX: Strictly use totalBracketRounds to identify the Final Round. 
+    // Do NOT fallback to actualMaxBracketRound, because that causes Semi-Final winners to be treated as Grand Champions.
+    const targetRound = totalBracketRounds;
 
     if (targetRound > 0) {
         const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 1);
@@ -169,6 +171,9 @@ export function useBracketData(tournamentId: string | undefined) {
             const loserId = gfMatch.winner_id === gfMatch.participant_a_id ? gfMatch.participant_b_id : gfMatch.participant_a_id;
             if (loserId) runnerUp = participants[loserId];
         }
+        // 3rd place logic usually implies a specific match number or round, often 'Match 2' of the Final Round or a separate 'Round 3' etc.
+        // Assuming standard single elim where 3rd place match is often conceptually in the same 'Finals' phase or handled via `match_number`.
+        // If your bracket generator puts 3rd place match as Match 2 of final round:
         const p3Match = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 2);
         if (p3Match && p3Match.status === 'complete' && p3Match.winner_id) {
             thirdPlace = participants[p3Match.winner_id];
