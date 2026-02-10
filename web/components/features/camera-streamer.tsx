@@ -66,12 +66,17 @@ export function CameraStreamer({ matchId, broadcasterId, onClose }: { matchId: s
         };
     }, [matchId, facingMode]);
 
-    const toggleCamera = () => {
-        // Stop current tracks first
+    const handleStop = () => {
+        console.log("Stopping stream manually...");
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
+            setStream(null);
         }
-        setFacingMode(prev => prev === "user" ? "environment" : "user");
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        onClose();
     };
 
     return (
@@ -93,7 +98,7 @@ export function CameraStreamer({ matchId, broadcasterId, onClose }: { matchId: s
                 <button onClick={toggleCamera} className="flex-1 py-1 text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-700 uppercase transition-colors border-r border-slate-700">
                     Flip
                 </button>
-                <button onClick={onClose} className="flex-1 py-1 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 uppercase transition-colors">
+                <button onClick={handleStop} className="flex-1 py-1 text-[10px] font-bold text-white bg-red-600 hover:bg-red-700 uppercase transition-colors">
                     Stop
                 </button>
             </div>
