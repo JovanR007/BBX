@@ -338,7 +338,9 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             {user && match?.metadata?.streaming_judge_id === user.id && (
                 <>
                     {/* Debug Indicator */}
-                    <div className="hidden">Streamer Check: Match {match.id} | User {user.id} | Streamer {match.metadata.streaming_judge_id}</div>
+                    <div className="text-xs text-red-500 font-mono bg-black/50 p-2 rounded mb-2">
+                        DEBUG: Match: {match.id.substring(0, 4)} | User: {user?.id?.substring(0, 4)} | Streamer: {match.metadata?.streaming_judge_id?.substring(0, 4) || "None"} | URL: {match.metadata?.daily_room_url || "None"}
+                    </div>
                     <CameraStreamer matchId={match.id} onClose={() => {
                         console.log("Closing Camera Streamer manually");
                         // Optimistically update metadata locally or call toggle off
