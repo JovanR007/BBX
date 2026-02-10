@@ -61,4 +61,5 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             setIsFullscreen(!!document.fullscreenElement);
         };
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-        return () => document.
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
