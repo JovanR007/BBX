@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { Menu } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -95,7 +96,7 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Main Navigation */}
+                {/* Main Navigation - Desktop */}
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
                     <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">
                         Events
@@ -106,6 +107,21 @@ export function SiteHeader() {
                     {user && (
                         <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
                             Host Event
+                        </Link>
+                    )}
+                </nav>
+
+                {/* Mobile Navigation - Always visible on small screens */}
+                <nav className="flex md:hidden items-center gap-3 text-xs font-medium">
+                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                        Events
+                    </Link>
+                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                        Directory
+                    </Link>
+                    {user && (
+                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                            Host
                         </Link>
                     )}
                 </nav>
