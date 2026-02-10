@@ -433,5 +433,7 @@ export async function toggleCameraStreamAction(matchId: string, enable: boolean)
 
     if (upErr) return { success: false, error: upErr.message };
 
+    revalidatePath(`/t/${match.tournament_id}/bracket`);
+    revalidatePath(`/t/${match.tournament_id}/admin`);
     return { success: true };
 }
