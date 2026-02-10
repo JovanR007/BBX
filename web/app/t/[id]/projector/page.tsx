@@ -488,6 +488,24 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                     )}
                 </div>
 
+                {/* 3rd Place Match Overlay (Bottom Center of Bracket Area) - Only for Top Cut */}
+                {viewMode === 'top_cut' && (() => {
+                    // Find 3rd Place Match (Round = Total Rounds, Match #2)
+                    const p3Match = topCutMatches.find(m => m.bracket_round === totalRounds && m.match_number === 2);
+                    if (!p3Match) return null;
+
+                    return (
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
+                            <div className="mb-2 text-sm font-bold uppercase tracking-widest text-amber-600/80">3rd Place Match</div>
+                            <ProjectorMatchCard
+                                match={p3Match}
+                                participants={participants}
+                                participantStats={participantStats}
+                            />
+                        </div>
+                    );
+                })()}
+
                 {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
                 <div className="hidden xl:block w-[400px] shrink-0 border-l border-white/5">
                     <LiveStandings participants={participants} matches={swissMatches} />
