@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import Peer from "peerjs";
 
-export function LiveCameraFeed({ matchId, broadcasterId }: { matchId: string, broadcasterId?: string }) {
+export function LiveCameraFeed({ matchId, broadcasterId, onError }: { matchId: string, broadcasterId?: string, onError?: () => void }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const peerRef = useRef<Peer | null>(null);
     const [status, setStatus] = useState<"connecting" | "connected" | "failed">("connecting");
@@ -18,6 +18,19 @@ export function LiveCameraFeed({ matchId, broadcasterId }: { matchId: string, br
         setStatus("connecting");
         setRetryCount(prev => prev + 1);
     };
+
+    // Auto-fail timeout
+    useEffect(() => {
+        let timeout: NodeJS.Timeout;
+        if (status === 'connecting') {
+            timeout = setTimeout(() => {
+                console.log("Connection timed out.");
+                setStatus("failed");
+                if (onError) onError();
+            }, 15000); // 15s timeout
+        }
+        return () => clearTimeout(timeout);
+    }, [status, onError, retryCount]);
 
     useEffect(() => {
         if (!matchId) return;
@@ -51,11 +64,12 @@ export function LiveCameraFeed({ matchId, broadcasterId }: { matchId: string, br
         peer.on('error', (err) => {
             console.error("PeerJS Error:", err);
             if (err.type === 'peer-unavailable') {
-                setStatus("connecting");
+                // Keep retrying, but let the outer timeout handle failure
                 console.log("Broadcaster not found, retrying in 2s...");
                 retryTimeout = setTimeout(connectToBroadcaster, 2000);
             } else {
                 setStatus("failed");
+                if (onError) onError();
             }
         });
 
