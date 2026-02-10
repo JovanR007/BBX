@@ -108,7 +108,39 @@ export function useBracketData(tournamentId: string | undefined) {
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+
+        if (!tournamentId) return;
+
+        // Subscribe to Realtime Changes
+        const channel = supabase
+            .channel(`tournament-${tournamentId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'matches',
+                    filter: `tournament_id=eq.${tournamentId}`
+                },
+                (payload) => {
+                    if (payload.eventType === 'UPDATE') {
+                        // Optimistic update for score/status changes
+                        const newMatch = payload.new as Match;
+                        setMatches(prev => prev.map(m => m.id === newMatch.id ? newMatch : m));
+                    } else if (payload.eventType === 'INSERT') {
+                        // New match created (new round generated) - fetch everything to be safe
+                        // Or just append if we trust the payload? 
+                        // Better to re-fetch to ensure consistency (e.g. participant IDs might be TBD initially then updated)
+                        fetchData();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchData, tournamentId]);
 
     // Derived Values
     const swissMatches = matches.filter(m => m.stage === "swiss");
