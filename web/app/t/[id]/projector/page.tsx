@@ -251,13 +251,6 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         </div>
     );
 
-    // 0. Check for LIVE STREAM
-    // If any match has a broadcaster_id, we switch to "Live View"
-    const streamingMatch = useMemo(() => {
-        if (!matches) return null;
-        return matches.find(m => m.metadata?.broadcaster_id);
-    }, [matches]);
-
     if (streamingMatch && streamingMatch.metadata?.broadcaster_id) {
         return (
             <div className="fixed inset-0 z-50 bg-black">
