@@ -412,7 +412,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                         <div className="h-full flex flex-col">
                             {/* Dynamic Grid based on match count */}
                             {(() => {
-                                const activeMatches = swissMatches.filter(m => m.status !== 'complete').slice(0, 12);
+                                const activeMatches = (swissMatches || []).filter(m => m.status !== 'complete').slice(0, 12);
                                 const matchCount = activeMatches.length;
 
                                 // Auto-sizing logic
@@ -428,7 +428,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                             <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
                                                 <ProjectorMatchCard
                                                     match={m}
-                                                    participants={participants}
+                                                    participants={participants || {}}
                                                     participantStats={participantStats}
                                                 />
                                             </div>
@@ -437,7 +437,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 )
                             })()}
 
-                            {swissMatches.filter(m => m.status !== 'complete').length === 0 && (
+                            {(swissMatches || []).filter(m => m.status !== 'complete').length === 0 && (
                                 <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
                                     <div className="text-6xl mb-4 opacity-20">Round Complete</div>
                                     <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
@@ -530,14 +530,14 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 resultText: p3Match.score_a?.toString() ?? '-',
                                 isWinner: p3Match.winner_id === p3Match.participant_a_id,
                                 status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_a_id ? 'WON' : 'LOST') : null,
-                                name: p3Match.participant_a_id ? participants[p3Match.participant_a_id]?.display_name : 'TBD',
+                                name: p3Match.participant_a_id ? (participants ? participants[p3Match.participant_a_id]?.display_name : 'TBD') : 'TBD',
                             },
                             {
                                 id: p3Match.participant_b_id || 'tbd-b-3rd',
                                 resultText: p3Match.score_b?.toString() ?? '-',
                                 isWinner: p3Match.winner_id === p3Match.participant_b_id,
                                 status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_b_id ? 'WON' : 'LOST') : null,
-                                name: p3Match.participant_b_id ? participants[p3Match.participant_b_id]?.display_name : 'TBD',
+                                name: p3Match.participant_b_id ? (participants ? participants[p3Match.participant_b_id]?.display_name : 'TBD') : 'TBD',
                             }
                         ]
                     };
@@ -552,7 +552,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
                 {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
                 <div className="hidden xl:block w-[400px] shrink-0 border-l border-white/5">
-                    <LiveStandings participants={participants} matches={swissMatches} />
+                    <LiveStandings participants={participants || {}} matches={swissMatches || []} />
                 </div>
             </main>
 
