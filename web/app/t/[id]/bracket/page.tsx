@@ -465,105 +465,113 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         computedStyles,
         teamNameFallback,
         resultFallback,
-    }: any) => (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                height: '100%',
-                background: '#0F172A',
-                borderRadius: '8px',
-                border: '1px solid #334155',
-                overflow: 'hidden',
-                cursor: 'pointer',
-            }}
-            onClick={() => {
-                const originalMatch = matchById[match.id];
-                if (originalMatch) onMatchClick(originalMatch);
-            }}
-        >
-            {/* Top Player */}
+    }: any) => {
+        // Check if this match is being actively scored by a judge
+        const originalMatch = matchById[match.id];
+        const isScoringActive = originalMatch && originalMatch.status !== 'complete' && originalMatch.metadata?.scoring_active;
+
+        return (
             <div
-                onMouseEnter={() => onMouseEnter(topParty.id)}
-                onMouseLeave={onMouseLeave}
                 style={{
                     display: 'flex',
-                    flex: '1',
-                    height: '50%',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
-                    borderBottom: '1px solid #334155',
-                    transition: 'background 0.2s',
+                    flexDirection: 'column',
+                    width: '100%',
+                    height: '100%',
+                    background: '#0F172A',
+                    borderRadius: '8px',
+                    border: isScoringActive ? '2px solid #22D3EE' : '1px solid #334155',
+                    boxShadow: isScoringActive ? '0 0 12px rgba(34, 211, 238, 0.35)' : 'none',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    animation: isScoringActive ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
+                }}
+                onClick={() => {
+                    const originalMatch = matchById[match.id];
+                    if (originalMatch) onMatchClick(originalMatch);
                 }}
             >
-                <span style={{
-                    color: topWon ? '#000000' : '#E2E8F0',
-                    fontSize: '11px',
-                    fontWeight: topWon ? 'bold' : 'normal',
-                    paddingRight: '8px',
-                    wordBreak: 'break-word',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    lineHeight: '1.1',
-                }}>
-                    {topParty.name || teamNameFallback}
-                </span>
-                <span style={{
-                    color: topWon ? '#000000' : '#94A3B8',
-                    fontSize: '12px',
-                    fontWeight: '900',
-                    fontFamily: 'monospace',
-                    minWidth: '20px',
-                    textAlign: 'right',
-                    opacity: topWon ? 1 : 0.6,
-                }}>
-                    {topParty.resultText || '-'}
-                </span>
+                {/* Top Player */}
+                <div
+                    onMouseEnter={() => onMouseEnter(topParty.id)}
+                    onMouseLeave={onMouseLeave}
+                    style={{
+                        display: 'flex',
+                        flex: '1',
+                        height: '50%',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
+                        borderBottom: '1px solid #334155',
+                        transition: 'background 0.2s',
+                    }}
+                >
+                    <span style={{
+                        color: topWon ? '#000000' : '#E2E8F0',
+                        fontSize: '11px',
+                        fontWeight: topWon ? 'bold' : 'normal',
+                        paddingRight: '8px',
+                        wordBreak: 'break-word',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        lineHeight: '1.1',
+                    }}>
+                        {topParty.name || teamNameFallback}
+                    </span>
+                    <span style={{
+                        color: topWon ? '#000000' : '#94A3B8',
+                        fontSize: '12px',
+                        fontWeight: '900',
+                        fontFamily: 'monospace',
+                        minWidth: '20px',
+                        textAlign: 'right',
+                        opacity: topWon ? 1 : 0.6,
+                    }}>
+                        {topParty.resultText || '-'}
+                    </span>
+                </div>
+                {/* Bottom Player */}
+                <div
+                    onMouseEnter={() => onMouseEnter(bottomParty.id)}
+                    onMouseLeave={onMouseLeave}
+                    style={{
+                        display: 'flex',
+                        flex: '1',
+                        height: '50%',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
+                        transition: 'background 0.2s',
+                    }}
+                >
+                    <span style={{
+                        color: bottomWon ? '#000000' : '#E2E8F0',
+                        fontSize: '11px',
+                        fontWeight: bottomWon ? 'bold' : 'normal',
+                        paddingRight: '8px',
+                        wordBreak: 'break-word',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        lineHeight: '1.1',
+                    }}>
+                        {bottomParty.name || teamNameFallback}
+                    </span>
+                    <span style={{
+                        color: bottomWon ? '#000000' : '#94A3B8',
+                        fontSize: '12px',
+                        fontWeight: '900',
+                        fontFamily: 'monospace',
+                        minWidth: '20px',
+                        textAlign: 'right',
+                        opacity: bottomWon ? 1 : 0.6,
+                    }}>
+                        {bottomParty.resultText || '-'}
+                    </span>
+                </div>
             </div>
-            {/* Bottom Player */}
-            <div
-                onMouseEnter={() => onMouseEnter(bottomParty.id)}
-                onMouseLeave={onMouseLeave}
-                style={{
-                    display: 'flex',
-                    flex: '1',
-                    height: '50%',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
-                    transition: 'background 0.2s',
-                }}
-            >
-                <span style={{
-                    color: bottomWon ? '#000000' : '#E2E8F0',
-                    fontSize: '11px',
-                    fontWeight: bottomWon ? 'bold' : 'normal',
-                    paddingRight: '8px',
-                    wordBreak: 'break-word',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    lineHeight: '1.1',
-                }}>
-                    {bottomParty.name || teamNameFallback}
-                </span>
-                <span style={{
-                    color: bottomWon ? '#000000' : '#94A3B8',
-                    fontSize: '12px',
-                    fontWeight: '900',
-                    fontFamily: 'monospace',
-                    minWidth: '20px',
-                    textAlign: 'right',
-                    opacity: bottomWon ? 1 : 0.6,
-                }}>
-                    {bottomParty.resultText || '-'}
-                </span>
-            </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="flex flex-col gap-16 pb-24">
@@ -641,6 +649,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
     const winnerId = match.winner_id;
     const aWon = isCompleted && winnerId === match.participant_a_id;
     const bWon = isCompleted && winnerId === match.participant_b_id;
+    const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
     return (
         <div
@@ -648,7 +657,8 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
             className={cn(
                 "flex flex-col w-full rounded-md border overflow-hidden cursor-pointer transition-all duration-200 shadow-lg",
                 isSwissKing ? "border-yellow-500/50 shadow-yellow-500/10" : "border-slate-800",
-                isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700"
+                isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700",
+                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse"
             )}
             style={isSwissKing ? { background: 'linear-gradient(to bottom right, #0F172A, #1e1b10)' } : { background: '#0F172A' }}
         >

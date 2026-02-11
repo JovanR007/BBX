@@ -102,8 +102,30 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                 // This prevents "Undoing" to 0-0 when the user just opened the modal to edit a score.
                 setHistory([]);
             }
+
+            // Signal that this match is being actively scored (real-time highlight)
+            syncMatchStateAction(match.id, restoredScoreA, restoredScoreB, {
+                ...(match.metadata || {}),
+                scoring_active: true,
+            }).catch(console.error);
         }
     }, [isOpen, match?.id]);
+
+    // Cleanup: clear scoring_active when modal unmounts or closes
+    useEffect(() => {
+        const matchId = match?.id;
+        const matchMeta = match?.metadata;
+        const matchScoreA = match?.score_a ?? 0;
+        const matchScoreB = match?.score_b ?? 0;
+        return () => {
+            if (matchId) {
+                syncMatchStateAction(matchId, matchScoreA, matchScoreB, {
+                    ...(matchMeta || {}),
+                    scoring_active: false,
+                }).catch(console.error);
+            }
+        };
+    }, [match?.id]);
 
     // --- HELPERS ---
     const saveState = () => {
@@ -320,6 +342,11 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                             if (match?.metadata?.streaming_judge_id === user?.id) {
                                 toggleCameraStreamAction(match.id, false).catch(console.error);
                             }
+                            // Clear scoring_active highlight
+                            syncMatchStateAction(match.id, match.score_a ?? scoreA, match.score_b ?? scoreB, {
+                                ...(match.metadata || {}),
+                                scoring_active: false,
+                            }).catch(console.error);
                             refresh();
                             onClose();
                         }} className="p-2 hover:bg-muted rounded-full">

@@ -18,13 +18,24 @@ export function ProjectorMatchCard({ match, participants, participantStats }: Pr
 
     const isLive = match.metadata?.streaming_judge_id;
     const isCompleted = match.status === 'complete';
+    const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
     return (
-        <div className="flex flex-col h-full bg-slate-900/50 border border-slate-800 rounded-3xl overflow-hidden relative shadow-2xl backdrop-blur-sm group hover:border-cyan-500/30 transition-all duration-500">
+        <div className={cn(
+            "flex flex-col h-full bg-slate-900/50 border rounded-3xl overflow-hidden relative shadow-2xl backdrop-blur-sm group transition-all duration-500",
+            isScoringActive
+                ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)] animate-pulse"
+                : "border-slate-800 hover:border-cyan-500/30"
+        )}>
             {/* Status Indicator */}
             {isLive && (
                 <div className="absolute top-4 right-4 px-3 py-1 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-full animate-pulse z-10 shadow-[0_0_15px_rgba(220,38,38,0.5)]">
                     Live
+                </div>
+            )}
+            {!isLive && isScoringActive && (
+                <div className="absolute top-4 right-4 px-3 py-1 bg-cyan-500 text-black text-xs font-black uppercase tracking-widest rounded-full animate-pulse z-10 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                    Scoring
                 </div>
             )}
             {isCompleted && (
