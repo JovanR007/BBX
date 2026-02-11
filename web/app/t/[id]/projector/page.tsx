@@ -122,15 +122,25 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     const currentRoundMatches = useMemo(() => {
         if (!swissMatches) return [];
         // Filter to current round matches to show
-        return swissMatches.filter(m => m.swiss_round_number === currentRoundNum);
+        // AND EXCLUDE COMPLETED (User request: remove scores once done)
+        return swissMatches.filter(m =>
+            m.swiss_round_number === currentRoundNum &&
+            m.status !== 'complete'
+        );
     }, [swissMatches, currentRoundNum]);
 
     const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
 
     // Auto-Cycle Pages Every 15 Seconds
     useEffect(() => {
-        if (totalPages <= 1) {
+        // Reset page if out of bounds (e.g. matches completed)
+        if (currentPage >= totalPages && totalPages > 0) {
             setCurrentPage(0);
+        }
+
+        if (totalPages <= 1) {
+            // Ensure we are on page 0 if only 1 page
+            if (currentPage !== 0) setCurrentPage(0);
             return;
         }
 
@@ -139,7 +149,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         }, 15000);
 
         return () => clearInterval(timer);
-    }, [totalPages]);
+    }, [totalPages, currentPage]);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -466,27 +476,26 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 const MATCHES_PER_PAGE = 12;
                                 const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
 
-                                // State for Page (need to add state in component scope, but hook rules prevent conditional hooks here)
-                                // HACK: We use a simple modulo based on time since mount or a ref, but `useState` is better.
-                                // Since we can't add hooks inside this callback, we need to lift this logic up.
-                                // SEE BELOW FOR LIFTED LOGIC
+                                // Reset logic if matches shrink (e.g. from 13 to 12)
+                                const safePage = (currentPage >= totalPages && totalPages > 0) ? 0 : currentPage;
+
                                 // Get current page matches
-                                const pageMatches = currentRoundMatches.slice(currentPage * MATCHES_PER_PAGE, (currentPage + 1) * MATCHES_PER_PAGE);
+                                const pageMatches = currentRoundMatches.slice(safePage * MATCHES_PER_PAGE, (safePage + 1) * MATCHES_PER_PAGE);
                                 const matchCount = pageMatches.length;
 
-                                if (matchCount === 0) return (
+                                if (currentRoundMatches.length === 0) return (
                                     <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
                                         <div className="text-6xl mb-4 opacity-20">Round Complete</div>
                                         <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
                                     </div>
                                 );
 
-                                // Auto-sizing logic
-                                // Standardize: Default to 2/3 columns to avoid giant cards
-                                let gridCols = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-                                if (matchCount <= 2) gridCols = "grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto"; // Small count -> 2 cols max (1 card = 50% width)
-                                else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto"; // Medium -> 2 cols
-                                else if (matchCount <= 9) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"; // Large -> 3 cols
+                                // If currentRoundMatches > 0 but matchCount is 0, it means safePage logic failed?
+                                // Should be impossible with safePage logic.
+
+                                // Auto-sizing logic - Standardized Grid (Consistent normal/small sizes)
+                                // Standard: 4 columns on large screens
+                                const gridCols = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
                                 return (
                                     <div className="flex flex-col h-full">
