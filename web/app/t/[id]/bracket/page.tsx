@@ -292,6 +292,23 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
     const roundsList = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
     const maxRound = roundsList.length > 0 ? roundsList[roundsList.length - 1] : 0;
 
+    // Calculate win counts for each player (across all completed rounds before the last)
+    const winCounts: Record<string, number> = {};
+    matches.forEach(m => {
+        if (m.status === 'complete' && m.winner_id && Number(m.swiss_round_number) < Number(maxRound)) {
+            winCounts[m.winner_id] = (winCounts[m.winner_id] || 0) + 1;
+        }
+    });
+    const maxWins = Object.values(winCounts).length > 0 ? Math.max(...Object.values(winCounts)) : 0;
+
+    // A match is a "Swiss King Battle" if both players have the top win count going into the last round
+    const isSwissKingMatch = (m: Match): boolean => {
+        if (Number(maxRound) < 2) return false; // Need at least 2 rounds
+        const winsA = m.participant_a_id ? (winCounts[m.participant_a_id] || 0) : 0;
+        const winsB = m.participant_b_id ? (winCounts[m.participant_b_id] || 0) : 0;
+        return winsA === maxWins && winsB === maxWins && maxWins > 0;
+    };
+
     return (
         <div className="flex flex-row gap-8 pb-12 min-w-max">
             {roundsList.map(rNumStr => {
@@ -301,8 +318,8 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
                     <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
                         <div className="flex flex-col gap-3">
-                            {(rounds[rNum] || []).map((m, idx) => (
-                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && idx === 0 && Number(rNum) >= 5} />
+                            {(rounds[rNum] || []).map((m) => (
+                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && isSwissKingMatch(m)} />
                             ))}
                         </div>
                     </div>
