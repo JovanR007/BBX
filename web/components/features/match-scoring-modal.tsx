@@ -132,6 +132,20 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     }, [match?.id]); // Only run on mount/unmount or ID change
 
     // --- HELPERS ---
+    // HEARTBEAT: Re-assert scoring_active: true every 15 seconds
+    useEffect(() => {
+        if (!isOpen || !match?.id) return;
+
+        const hb = setInterval(() => {
+            syncMatchStateAction(match.id, scoreARef.current, scoreBRef.current, {
+                ...(match.metadata || {}),
+                scoring_active: true,
+            }).catch(console.error);
+        }, 15000);
+
+        return () => clearInterval(hb);
+    }, [isOpen, match?.id]);
+
     const saveState = () => {
         const newEntry = {
             scoreA, scoreB,

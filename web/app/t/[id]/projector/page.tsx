@@ -113,7 +113,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     }, []);
 
     // 0. Calculate Pagination Details
-    const MATCHES_PER_PAGE = 12;
+    const MATCHES_PER_PAGE = 24;
     const currentRoundNum = useMemo(() => {
         if (!swissMatches || swissMatches.length === 0) return 0;
         return Math.max(...swissMatches.map(m => m.swiss_round_number));
@@ -473,7 +473,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 );
 
                                 // 2. Paginate
-                                const MATCHES_PER_PAGE = 12;
+                                const MATCHES_PER_PAGE = 24;
                                 const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
 
                                 // Reset logic if matches shrink (e.g. from 13 to 12)
@@ -493,9 +493,8 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 // If currentRoundMatches > 0 but matchCount is 0, it means safePage logic failed?
                                 // Should be impossible with safePage logic.
 
-                                // Auto-sizing logic - Standardized Grid (Consistent normal/small sizes)
-                                // Standard: 4 columns on large screens
-                                const gridCols = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+                                // Auto-sizing logic - Standardized Grid (Dense Version for 24+ matches)
+                                const gridCols = "grid-cols-2 lg:grid-cols-4 xl:grid-cols-6";
 
                                 return (
                                     <div className="flex flex-col h-full">
