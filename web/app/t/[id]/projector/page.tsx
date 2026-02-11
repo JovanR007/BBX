@@ -98,6 +98,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
     const [origin, setOrigin] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(0);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -110,6 +111,35 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
+
+    // 0. Calculate Pagination Details
+    const MATCHES_PER_PAGE = 12;
+    const currentRoundNum = useMemo(() => {
+        if (!swissMatches || swissMatches.length === 0) return 0;
+        return Math.max(...swissMatches.map(m => m.swiss_round_number));
+    }, [swissMatches]);
+
+    const currentRoundMatches = useMemo(() => {
+        if (!swissMatches) return [];
+        // Filter to current round matches to show
+        return swissMatches.filter(m => m.swiss_round_number === currentRoundNum);
+    }, [swissMatches, currentRoundNum]);
+
+    const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
+
+    // Auto-Cycle Pages Every 15 Seconds
+    useEffect(() => {
+        if (totalPages <= 1) {
+            setCurrentPage(0);
+            return;
+        }
+
+        const timer = setInterval(() => {
+            setCurrentPage(prev => (prev + 1) % totalPages);
+        }, 15000);
+
+        return () => clearInterval(timer);
+    }, [totalPages]);
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -424,38 +454,69 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                         <div className="h-full flex flex-col">
                             {/* Dynamic Grid based on match count */}
                             {(() => {
-                                const activeMatches = (swissMatches || []).filter(m => m.status !== 'complete').slice(0, 12);
-                                const matchCount = activeMatches.length;
+                                // 1. Filter: Current Round Only (Active or Complete, but usually Active first?)
+                                // Let's just show ALL current round matches, sorted by match number
+                                const currentRoundMatches = (swissMatches || []).filter(m => m.swiss_round_number === Math.max(...swissMatches.map(m => m.swiss_round_number)));
+
+                                // 2. Paginate
+                                const MATCHES_PER_PAGE = 12;
+                                const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
+
+                                // State for Page (need to add state in component scope, but hook rules prevent conditional hooks here)
+                                // HACK: We use a simple modulo based on time since mount or a ref, but `useState` is better.
+                                // Since we can't add hooks inside this callback, we need to lift this logic up.
+                                // SEE BELOW FOR LIFTED LOGIC
+                                // Get current page matches
+                                const pageMatches = currentRoundMatches.slice(currentPage * MATCHES_PER_PAGE, (currentPage + 1) * MATCHES_PER_PAGE);
+                                const matchCount = pageMatches.length;
+
+                                if (matchCount === 0) return (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
+                                        <div className="text-6xl mb-4 opacity-20">Round Complete</div>
+                                        <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
+                                    </div>
+                                );
 
                                 // Auto-sizing logic
                                 let gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // default
                                 if (matchCount <= 2) gridCols = "grid-cols-1 max-w-5xl mx-auto"; // Wider for few matches
                                 else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2";
-                                else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
-                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"; // More dense for many matches
+                                else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // Keep 2 cols max for readability unless huge
+                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"; // Dense
 
                                 return (
-                                    <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr`}>
-                                        {activeMatches.map(m => (
-                                            <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
-                                                <ProjectorMatchCard
-                                                    match={m}
-                                                    participants={participants || {}}
-                                                    participantStats={participantStats}
-                                                />
+                                    <div className="flex flex-col h-full">
+                                        <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr flex-1 content-start`}>
+                                            {pageMatches.map(m => (
+                                                <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
+                                                    <ProjectorMatchCard
+                                                        match={m}
+                                                        participants={participants || {}}
+                                                        participantStats={participantStats}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* Pagination Indicator */}
+                                        {totalPages > 1 && (
+                                            <div className="mt-6 flex justify-center items-center gap-2">
+                                                {Array.from({ length: totalPages }).map((_, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className={cn(
+                                                            "h-1.5 rounded-full transition-all duration-500",
+                                                            idx === currentPage ? "w-8 bg-cyan-400" : "w-2 bg-slate-700"
+                                                        )}
+                                                    />
+                                                ))}
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
                                 )
                             })()}
-
-                            {(swissMatches || []).filter(m => m.status !== 'complete').length === 0 && (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
-                                    <div className="text-6xl mb-4 opacity-20">Round Complete</div>
-                                    <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
-                                </div>
-                            )}
                         </div>
+
                     ) : (
                         <div className="h-full flex items-center justify-start overflow-x-hidden" ref={(el) => {
                             // Auto-scroll logic
