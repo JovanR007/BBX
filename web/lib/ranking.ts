@@ -105,6 +105,7 @@ export async function updatePlayerPoints(userId: string) {
                 .eq("tournament_id", tourneyId)
                 .eq("stage", "top_cut")
                 .order("bracket_round", { ascending: false })
+                .order("match_number", { ascending: true })
                 .limit(1)
                 .single();
 
