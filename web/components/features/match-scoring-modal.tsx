@@ -115,17 +115,21 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     useEffect(() => {
         const matchId = match?.id;
         const matchMeta = match?.metadata;
-        const matchScoreA = match?.score_a ?? 0;
-        const matchScoreB = match?.score_b ?? 0;
+
         return () => {
             if (matchId) {
-                syncMatchStateAction(matchId, matchScoreA, matchScoreB, {
+                // BUG FIX: Use current Refs for score, NOT stale match prop
+                // This prevents resetting score to 0 on close/unmount
+                const finalScoreA = scoreARef.current;
+                const finalScoreB = scoreBRef.current;
+
+                syncMatchStateAction(matchId, finalScoreA, finalScoreB, {
                     ...(matchMeta || {}),
                     scoring_active: false,
                 }).catch(console.error);
             }
         };
-    }, [match?.id]);
+    }, [match?.id]); // Only run on mount/unmount or ID change
 
     // --- HELPERS ---
     const saveState = () => {
@@ -344,7 +348,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                                 toggleCameraStreamAction(match.id, false).catch(console.error);
                             }
                             // Clear scoring_active highlight
-                            syncMatchStateAction(match.id, match.score_a ?? scoreA, match.score_b ?? scoreB, {
+                            syncMatchStateAction(match.id, scoreA, scoreB, {
                                 ...(match.metadata || {}),
                                 scoring_active: false,
                             }).catch(console.error);
