@@ -20,12 +20,16 @@ export function ProjectorMatchCard({ match, participants, participantStats }: Pr
     const isCompleted = match.status === 'complete';
     const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
+    const isPending = !isCompleted && !isScoringActive && match.participant_a_id && match.participant_b_id;
+
     return (
         <div className={cn(
             "flex flex-col h-full bg-slate-900/50 border rounded-3xl overflow-hidden relative shadow-2xl backdrop-blur-sm group transition-all duration-500",
             isScoringActive
                 ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)] animate-pulse"
-                : "border-slate-800 hover:border-cyan-500/30"
+                : isPending
+                    ? "border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                    : "border-slate-800 hover:border-cyan-500/30"
         )}>
             {/* Status Indicator */}
             {isLive && (
