@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { TournamentDashboardClient } from './_components/tournament-dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,11 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
 
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    let query = supabase.from('tournaments').select('*');
+    let query = supabaseAdmin.from('tournaments').select('*');
 
     if (isUUID) {
         query = query.eq('id', id);
@@ -53,11 +54,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Page({ params }: Props) {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId);
 
     // Re-fetch for Schema
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    let query = supabase.from('tournaments').select('*');
+    let query = supabaseAdmin.from('tournaments').select('*');
 
     if (isUUID) {
         query = query.eq('id', id);

@@ -523,6 +523,7 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
         `, { count: 'exact' })
         // Include both 'created' (Published) and 'draft' (user requested)
         .in("status", ["created", "draft"])
+        .gt("start_time", new Date().toISOString())
         .order("start_time", { ascending: true })
         .range(from, to);
 
