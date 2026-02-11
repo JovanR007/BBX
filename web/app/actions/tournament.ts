@@ -397,6 +397,27 @@ export async function deleteTournamentAction(tournamentId: string) {
 }
 
 export async function getLiveTournamentsAction(city?: string) {
+    const user = await stackServerApp.getUser();
+    const HIDDEN_STORE_IDS = [
+        '53981f89-a0cf-4750-9432-59271d68586b',
+        'ba3adf1d-e5e6-46a4-ba17-d3215e300fb2'
+    ];
+    let excludeStoreIds = HIDDEN_STORE_IDS;
+
+    if (user) {
+        // If user owns any hidden stores, remove them from exclusion list
+        const { data: myOwnedStores } = await supabaseAdmin
+            .from("stores")
+            .select("id")
+            .eq("owner_id", user.id)
+            .in("id", HIDDEN_STORE_IDS);
+
+        if (myOwnedStores) {
+            const ownedIds = myOwnedStores.map(s => s.id);
+            excludeStoreIds = HIDDEN_STORE_IDS.filter(id => !ownedIds.includes(id));
+        }
+    }
+
     // 1. Base Query: Active Tournaments (pending, started) - Filter Out Drafts for Cleaner Feed
     let query = supabase
         .from("tournaments")
@@ -415,6 +436,11 @@ export async function getLiveTournamentsAction(city?: string) {
         .neq("status", "draft") // Premium Feed: No Drafts
         .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("created_at", { ascending: false });
+
+    // Hide Hidden Stores (Live Feed checks inner join, so store_id is never null)
+    if (excludeStoreIds.length > 0) {
+        query = query.not('store_id', 'in', `(${excludeStoreIds.join(',')})`);
+    }
 
     // 2. Apply City Filter on the joined Store table
     if (city && city !== "all") {
@@ -469,6 +495,27 @@ export async function autoConcludeFinishedTournaments() {
 }
 
 export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
+    const user = await stackServerApp.getUser();
+    const HIDDEN_STORE_IDS = [
+        '53981f89-a0cf-4750-9432-59271d68586b',
+        'ba3adf1d-e5e6-46a4-ba17-d3215e300fb2'
+    ];
+    let excludeStoreIds = HIDDEN_STORE_IDS;
+
+    if (user) {
+        // If user owns any hidden stores, remove them from exclusion list
+        const { data: myOwnedStores } = await supabaseAdmin
+            .from("stores")
+            .select("id")
+            .eq("owner_id", user.id)
+            .in("id", HIDDEN_STORE_IDS);
+
+        if (myOwnedStores) {
+            const ownedIds = myOwnedStores.map(s => s.id);
+            excludeStoreIds = HIDDEN_STORE_IDS.filter(id => !ownedIds.includes(id));
+        }
+    }
+
     // 0. Auto-cleanup old live tournaments
     try {
         await autoConcludeFinishedTournaments();
@@ -499,6 +546,11 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
         .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("start_time", { ascending: true });
 
+    // Hide Hidden Stores (Preserve store_id is null for casual tournaments)
+    if (excludeStoreIds.length > 0) {
+        liveQuery = liveQuery.or(`store_id.is.null,store_id.not.in.(${excludeStoreIds.join(',')})`);
+    }
+
     if (city && city !== "all") {
         liveQuery = liveQuery.ilike("location", `%${city}%`);
     }
@@ -526,6 +578,11 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
         .gt("start_time", new Date().toISOString())
         .order("start_time", { ascending: true })
         .range(from, to);
+
+    // Hide Hidden Stores (Preserve store_id is null for casual tournaments)
+    if (excludeStoreIds.length > 0) {
+        upcomingQuery = upcomingQuery.or(`store_id.is.null,store_id.not.in.(${excludeStoreIds.join(',')})`);
+    }
 
     if (city && city !== "all") {
         upcomingQuery = upcomingQuery.ilike("location", `%${city}%`);
