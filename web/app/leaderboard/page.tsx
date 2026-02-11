@@ -67,8 +67,26 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                 </div>
             </div>
 
+            {/* Scoring Legend */}
+            <div className="container mx-auto px-4 py-8 pb-0">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-slate-900/50 border border-white/5 p-4 rounded-xl flex items-center justify-between backdrop-blur-sm">
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Match Win</span>
+                        <span className="text-cyan-400 font-black text-lg">+3 PTS</span>
+                    </div>
+                    <div className="bg-slate-900/50 border border-white/5 p-4 rounded-xl flex items-center justify-between backdrop-blur-sm">
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Top Cut</span>
+                        <span className="text-purple-400 font-black text-lg">+10 PTS</span>
+                    </div>
+                    <div className="bg-slate-900/50 border border-white/5 p-4 rounded-xl flex items-center justify-between backdrop-blur-sm">
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Champion</span>
+                        <span className="text-yellow-400 font-black text-lg">+20 PTS</span>
+                    </div>
+                </div>
+            </div>
+
             {/* Leaderboard Table */}
-            <div className="container mx-auto px-4 py-12">
+            <div className="container mx-auto px-4 py-12 pt-4">
                 <AdUnit slot="leaderboard-top" format="horizontal" className="mb-8 min-h-[100px] max-h-[280px] overflow-hidden" />
                 <div className="bg-slate-900/30 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
                     <table className="w-full text-left border-collapse">
