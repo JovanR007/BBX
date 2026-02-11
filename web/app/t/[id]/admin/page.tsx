@@ -151,7 +151,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                                                 defaultValue={tournament?.cut_size || 8}
                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             >
-                                                {[4, 8, 16, 32, 64]
+                                                {[4, 8, 12, 16, 24, 32, 48, 64]
                                                     .filter(size => size <= participants.length)
                                                     .map(size => (
                                                         <option key={size} value={size}>Top {size}</option>
