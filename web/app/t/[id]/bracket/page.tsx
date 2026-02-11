@@ -346,10 +346,10 @@ function SwissView({
                 );
             })}
 
-            {/* Live Standings Sidebar to fill the empty space on the right */}
-            <div className="flex flex-col gap-4 min-w-[320px]">
+            {/* Live Standings Sidebar - Adjusted height to fit Top 8 */}
+            <div className="flex flex-col gap-4 min-w-[320px] h-fit">
                 <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Standings</div>
-                <div className="flex-1 rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-2xl backdrop-blur-md">
+                <div className="rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-2xl backdrop-blur-md">
                     <LiveStandings participants={participants} matches={matches} />
                 </div>
             </div>

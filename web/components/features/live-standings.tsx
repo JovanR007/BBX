@@ -49,7 +49,7 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
     const top8 = sorted.slice(0, 8); // Top 8 only for projector
 
     return (
-        <div className="w-full flex-1 flex flex-col min-h-0">
+        <div className="w-full flex flex-col min-h-0">
             <div className="p-6 border-b border-white/5 bg-slate-900/20">
                 <div className="flex items-center gap-3 mb-1">
                     <Trophy className="w-6 h-6 text-yellow-500" />
