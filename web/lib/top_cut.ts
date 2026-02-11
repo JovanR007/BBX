@@ -11,8 +11,8 @@ async function loadActiveStandings(tournamentId: string) {
         )
         .eq("tournament_id", tournamentId)
         .order("match_wins", { ascending: false })
-        .order("buchholz", { ascending: false })
-        .order("point_diff", { ascending: false });
+        .order("point_diff", { ascending: false })
+        .order("buchholz", { ascending: false });
 
     if (error) throw error;
 
