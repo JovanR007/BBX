@@ -107,17 +107,17 @@ function PlayerRow({
                 {isWinner && <Trophy className="absolute w-4 h-4 text-black/10 -bottom-0.5 -right-0.5" />}
             </div>
 
-            {/* Name & Stats - Smaller fonts */}
+            {/* Name & Stats - Smaller responsive fonts & wrapping instead of truncation */}
             <div className="flex flex-col flex-1 min-w-0">
                 <div className={cn(
-                    "text-base md:text-lg font-black uppercase tracking-tight truncate leading-tight",
+                    "text-[10px] sm:text-[11px] md:text-[13px] font-black uppercase tracking-tight leading-tight break-words",
                     isWinner ? "text-cyan-400" : "text-white"
                 )}>
                     {participant ? participant.display_name : "TBD"}
                 </div>
                 {stats && (
                     <div className={cn(
-                        "text-[9px] font-bold font-mono tracking-wider opacity-40 leading-none",
+                        "text-[8px] font-bold font-mono tracking-wider opacity-40 leading-none mt-0.5",
                         align === "right" && "ml-auto"
                     )}>
                         ({stats.wins}-{stats.losses})
