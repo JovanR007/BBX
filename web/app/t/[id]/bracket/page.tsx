@@ -19,6 +19,7 @@ import { BracketConnector } from "@/components/features/bracket-connector";
 import { VictoryModal } from "@/components/features/victory-modal";
 import { ConcludeModal } from "@/components/features/conclude-modal";
 import { BrandedContainer } from "@/components/features/branded-container";
+import { LiveStandings } from "@/components/features/live-standings";
 
 // --- Page Component ---
 export default function BracketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -344,6 +345,14 @@ function SwissView({
                     </div>
                 );
             })}
+
+            {/* Live Standings Sidebar to fill the empty space on the right */}
+            <div className="flex flex-col gap-4 min-w-[320px]">
+                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Standings</div>
+                <div className="flex-1 rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-2xl backdrop-blur-md">
+                    <LiveStandings participants={participants} matches={matches} />
+                </div>
+            </div>
         </div>
     );
 }
