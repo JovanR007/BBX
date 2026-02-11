@@ -201,7 +201,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <div className="mb-8 overflow-x-auto">
                             <BracketConnector matches={swissMatches} match_target_points={tournament?.match_target_points ?? 4} />
                         </div>
-                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
+                        <SwissView
+                            matches={swissMatches}
+                            participants={participants}
+                            onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)}
+                            totalSwissRounds={tournament?.swiss_rounds ?? 5}
+                        />
                     </>
                 ) : (
                     <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
@@ -283,7 +288,17 @@ function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentB
     );
 }
 
-function SwissView({ matches, participants, onMatchClick }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void }) {
+function SwissView({
+    matches,
+    participants,
+    onMatchClick,
+    totalSwissRounds = 5
+}: {
+    matches: Match[],
+    participants: Record<string, Participant>,
+    onMatchClick: (m: Match) => void,
+    totalSwissRounds?: number
+}) {
     const rounds: Record<number, Match[]> = {};
     matches.forEach(m => {
         if (!rounds[m.swiss_round_number]) rounds[m.swiss_round_number] = [];
@@ -301,9 +316,13 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
     });
     const maxWins = Object.values(winCounts).length > 0 ? Math.max(...Object.values(winCounts)) : 0;
 
-    // A match is a "Swiss King Battle" if both players have the top win count going into the last round
-    const isSwissKingMatch = (m: Match): boolean => {
-        if (Number(maxRound) < 2) return false; // Need at least 2 rounds
+    // A match is a "Swiss King Battle" if:
+    // 1. It is the FINAL round of the Swiss stage (usually Round 5)
+    // 2. Both players have the top win count going into this round
+    const isSwissKingMatch = (m: Match, rNum: number): boolean => {
+        if (rNum !== totalSwissRounds) return false;
+        if (rNum < 2) return false;
+
         const winsA = m.participant_a_id ? (winCounts[m.participant_a_id] || 0) : 0;
         const winsB = m.participant_b_id ? (winCounts[m.participant_b_id] || 0) : 0;
         return winsA === maxWins && winsB === maxWins && maxWins > 0;
@@ -319,7 +338,7 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
                         <div className="flex flex-col gap-3">
                             {(rounds[rNum] || []).map((m) => (
-                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && isSwissKingMatch(m)} />
+                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isSwissKingMatch(m, rNum)} />
                             ))}
                         </div>
                     </div>
