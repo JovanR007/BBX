@@ -39,21 +39,60 @@ const BeybladeTheme = {
     canvasBackground: 'transparent'
 };
 
-// Custom Match Component for Projector (MUST be outside main component to avoid reconciliation issues)
-const ProjectorMatch = ({ match }: { match: any }) => {
+// Custom Match Component for the Tree Bracket
+const ProjectorBracketMatch = ({ match }: { match: any }) => {
     const topParty = match.participants?.[0];
     const bottomParty = match.participants?.[1];
     if (!topParty || !bottomParty) return null;
 
+    const isTBD = (topParty.name === 'TBD' || topParty.name === 'BYE') &&
+        (bottomParty.name === 'TBD' || bottomParty.name === 'BYE');
+
     return (
-        <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
-            <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
-                <span className="text-base font-mono font-bold">{topParty.resultText}</span>
+        <div className={cn(
+            "flex flex-col border rounded-xl overflow-hidden shadow-2xl transition-all duration-300",
+            isTBD ? "border-slate-800 opacity-40 bg-slate-900/40" : "border-slate-700 bg-slate-900/90"
+        )}>
+            {/* Top Player */}
+            <div className={cn(
+                "flex justify-between items-center px-4 py-3 border-b border-slate-800 transition-colors h-[70px]",
+                topParty.isWinner ? "bg-cyan-500/10" : ""
+            )}>
+                <div className="flex flex-col flex-1 min-w-0">
+                    <span className={cn(
+                        "text-lg font-black uppercase tracking-tight truncate",
+                        topParty.isWinner ? "text-cyan-400" : "text-slate-100"
+                    )}>
+                        {topParty.name}
+                    </span>
+                </div>
+                <div className={cn(
+                    "w-12 h-12 flex items-center justify-center rounded-lg font-black font-mono text-2xl ml-3 shrink-0",
+                    topParty.isWinner ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400"
+                )}>
+                    {topParty.resultText || "0"}
+                </div>
             </div>
-            <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
-                <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
-                <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
+
+            {/* Bottom Player */}
+            <div className={cn(
+                "flex justify-between items-center px-4 py-4 transition-colors h-[70px]",
+                bottomParty.isWinner ? "bg-cyan-500/10" : ""
+            )}>
+                <div className="flex flex-col flex-1 min-w-0">
+                    <span className={cn(
+                        "text-lg font-black uppercase tracking-tight truncate",
+                        bottomParty.isWinner ? "text-cyan-400" : "text-slate-100"
+                    )}>
+                        {bottomParty.name}
+                    </span>
+                </div>
+                <div className={cn(
+                    "w-12 h-12 flex items-center justify-center rounded-lg font-black font-mono text-2xl ml-3 shrink-0",
+                    bottomParty.isWinner ? "bg-cyan-500 text-slate-950" : "bg-slate-800 text-slate-400"
+                )}>
+                    {bottomParty.resultText || "0"}
+                </div>
             </div>
         </div>
     );
@@ -99,6 +138,16 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     const [origin, setOrigin] = useState("");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [currentPage, setCurrentPage] = useState(0);
+    const [topCutViewMode, setTopCutViewMode] = useState<'grid' | 'bracket'>('grid');
+
+    // Auto-Cycle Top Cut View every 20 seconds
+    useEffect(() => {
+        if (viewMode !== 'top_cut') return;
+        const timer = setInterval(() => {
+            setTopCutViewMode(prev => prev === 'grid' ? 'bracket' : 'grid');
+        }, 20000);
+        return () => clearInterval(timer);
+    }, [viewMode]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -112,24 +161,46 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, []);
 
-    // 0. Calculate Pagination Details
+    // Calculate total expected rounds based on cutSize (Moved up for usage in activeRoundName)
+    const totalRounds = useMemo(() => {
+        const size = tournament?.cut_size || 4;
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(size)));
+        return Math.log2(bracketSize);
+    }, [tournament?.cut_size]);
+
+    // 0. Calculate Universal Pagination Details
     const MATCHES_PER_PAGE = 24;
-    const currentRoundNum = useMemo(() => {
-        if (!swissMatches || swissMatches.length === 0) return 0;
-        return Math.max(...swissMatches.map(m => m.swiss_round_number));
-    }, [swissMatches]);
 
-    const currentRoundMatches = useMemo(() => {
-        if (!swissMatches) return [];
-        // Filter to current round matches to show
-        // AND EXCLUDE COMPLETED (User request: remove scores once done)
-        return swissMatches.filter(m =>
-            m.swiss_round_number === currentRoundNum &&
-            m.status !== 'complete'
-        );
-    }, [swissMatches, currentRoundNum]);
+    // Find Target Matches (Either for Swiss or Top Cut Grid)
+    const activeGridMatches = useMemo(() => {
+        if (viewMode === 'swiss') {
+            const maxRound = Math.max(0, ...swissMatches.map(m => m.swiss_round_number));
+            return swissMatches.filter(m => m.swiss_round_number === maxRound && m.status !== 'complete');
+        } else {
+            // Find earliest incomplete round
+            const incompleteRounds = [...new Set(topCutMatches.filter(m => m.status !== 'complete').map(m => m.bracket_round))];
+            if (incompleteRounds.length === 0) return [];
+            const targetRound = Math.min(...incompleteRounds);
+            return topCutMatches.filter(m => m.bracket_round === targetRound && !m.is_bye);
+        }
+    }, [viewMode, swissMatches, topCutMatches]);
 
-    const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
+    const totalPages = Math.ceil(activeGridMatches.length / MATCHES_PER_PAGE);
+
+    // Round Name for Header
+    const activeRoundName = useMemo(() => {
+        if (viewMode === 'swiss') {
+            const maxRound = Math.max(0, ...activeGridMatches.map(m => m.swiss_round_number));
+            return `Swiss Round ${maxRound}`;
+        } else {
+            const currentRound = activeGridMatches[0]?.bracket_round;
+            if (!currentRound) return "";
+            if (currentRound === totalRounds) return "Grand Finals";
+            if (currentRound === totalRounds - 1) return "Semifinals";
+            if (currentRound === totalRounds - 2) return "Quarterfinals";
+            return `Elimination Round ${currentRound}`;
+        }
+    }, [viewMode, activeGridMatches, totalRounds]);
 
     // Auto-Cycle Pages Every 15 Seconds
     useEffect(() => {
@@ -177,19 +248,11 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         return { ...participants[kingId], match_wins: scores[kingId].wins, buchholz: 0 };
     }, [swissMatches, participants]);
 
-    // Calculate total expected rounds based on cutSize (ported from BracketPage)
-    const totalRounds = useMemo(() => {
-        const size = tournament?.cut_size || 4;
-        const bracketSize = Math.pow(2, Math.ceil(Math.log2(size)));
-        return Math.log2(bracketSize);
-    }, [tournament?.cut_size]);
-
     // Transformed matches for bracket view (COMPLEX LOGIC PORTED FROM BRACKETPAGE)
     const transformedMatches = useMemo(() => {
         if (viewMode !== 'top_cut' || !matches) return []; // Use all matches to find bracket ones
 
         // Filter for top Cut only mainly, but we need to generate slots
-        // Actually, let's use the same logic as BracketPage:
         const cutSize = tournament?.cut_size || 4;
 
         // 1. Map real matches for easy lookup
@@ -219,10 +282,10 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
         // 3. Round Naming Helper
         const getRoundName = (round: number) => {
-            if (round === totalRounds) return 'Finals';
-            if (round === totalRounds - 1) return 'Semifinals';
-            if (round === totalRounds - 2) return 'Quarterfinals';
-            return `${round}`;
+            if (round === totalRounds) return 'FINAL';
+            if (round === totalRounds - 1) return 'SEMIFINAL';
+            if (round === totalRounds - 2) return 'QUARTERFINAL';
+            return `ROUND ${round}`;
         };
 
         // 4. Build Library Objects
@@ -298,7 +361,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         setFailedStreams(prev => [...prev, broadcasterId]);
     };
 
-    // ProjectorMatch and Controls are now defined outside this function (module scope)
+    // ProjectorBracketMatch and Controls are now defined outside this function (module scope)
 
     // Loading guard — MUST be placed after all hooks to respect Rules of Hooks
     if (loading) {
@@ -422,7 +485,6 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                     {/* Powered By & QR */}
                     <div className="flex items-center gap-8">
                         <div className="flex items-center gap-2 text-slate-600 opacity-60">
-                            <Sparkles className="w-5 h-5" />
                             <span className="text-sm font-black uppercase tracking-widest font-mono">BeyBracket</span>
                         </div>
                         <div className="bg-white p-2 rounded-xl shadow-2xl">
@@ -461,164 +523,135 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
             </header>
 
-            {/* Main Content - Split Screen */}
+            {/* Main Content - Universal Cycling Dashboard */}
             <main className="flex-1 w-full flex overflow-hidden z-10">
-                {/* Left: Matches (75% on large screens) */}
-                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar relative", viewMode === 'swiss' ? 'border-r border-white/5' : '')}>
-                    {viewMode === 'swiss' ? (
-                        <div className="h-full flex flex-col">
-                            {/* Dynamic Grid based on match count */}
-                            {(() => {
-                                // 1. Filter: Current Round Only
-                                // EXCLUDE completed matches (user request: "remove scores once done")
-                                const maxSwissRound = Math.max(...swissMatches.map(m => m.swiss_round_number));
-                                const currentRoundMatches = (swissMatches || []).filter(m =>
-                                    m.swiss_round_number === maxSwissRound &&
-                                    m.status !== 'complete' // Filter completed matches
-                                );
+                {/* Left: Content Area */}
+                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar relative flex flex-col", viewMode === 'swiss' ? 'border-r border-white/5' : '')}>
 
-                                // 2. Paginate
-                                const MATCHES_PER_PAGE = 24;
-                                const totalPages = Math.ceil(currentRoundMatches.length / MATCHES_PER_PAGE);
+                    {/* View Switcher Container (For Top Cut) */}
+                    {(viewMode === 'swiss' || topCutViewMode === 'grid' || activeGridMatches.length === 0) ? (
+                        <div className="flex-1 flex flex-col">
+                            {/* Round Header for Grid */}
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-3 h-3 rounded-full bg-cyan-500 animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
+                                    <h2 className="text-3xl font-black uppercase tracking-widest text-white italic">
+                                        {viewMode === 'swiss' ? 'Active Pairings' : 'Elimination Matches'}
+                                    </h2>
+                                </div>
+                                <div className="px-6 py-2 bg-slate-900 border border-slate-800 rounded-full font-mono text-xl text-cyan-400">
+                                    {activeRoundName}
+                                </div>
+                            </div>
 
-                                // Reset logic if matches shrink (e.g. from 13 to 12)
-                                const safePage = (currentPage >= totalPages && totalPages > 0) ? 0 : currentPage;
-
-                                // Get current page matches
-                                const pageMatches = currentRoundMatches.slice(safePage * MATCHES_PER_PAGE, (safePage + 1) * MATCHES_PER_PAGE);
-                                const matchCount = pageMatches.length;
-
-                                if (currentRoundMatches.length === 0) return (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
-                                        <div className="text-6xl mb-4 opacity-20">Round Complete</div>
-                                        <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
+                            {activeGridMatches.length === 0 ? (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest bg-slate-900/20 rounded-3xl border border-white/5 border-dashed">
+                                    <div className="text-8xl mb-6 opacity-10">
+                                        {viewMode === 'swiss' ? <Medal className="w-32 h-32 mx-auto" /> : <Trophy className="w-32 h-32 mx-auto" />}
                                     </div>
-                                );
+                                    <div className="text-4xl font-black text-slate-500">Round Complete</div>
+                                    <div className="text-xl text-slate-600 mt-2">Check the bracket or wait for standings...</div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col h-full">
+                                    {/* Grid Layout */}
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 w-full auto-rows-fr flex-1 content-start">
+                                        {activeGridMatches.slice(currentPage * MATCHES_PER_PAGE, (currentPage + 1) * MATCHES_PER_PAGE).map(m => (
+                                            <div key={m.id} className="min-h-[140px]">
+                                                <ProjectorMatchCard
+                                                    match={m}
+                                                    participants={participants || {}}
+                                                    participantStats={participantStats}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                // If currentRoundMatches > 0 but matchCount is 0, it means safePage logic failed?
-                                // Should be impossible with safePage logic.
-
-                                // Auto-sizing logic - Standardized Grid (Dense Version for 24+ matches)
-                                const gridCols = "grid-cols-2 lg:grid-cols-4 xl:grid-cols-6";
-
-                                return (
-                                    <div className="flex flex-col h-full">
-                                        <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr flex-1 content-start`}>
-                                            {pageMatches.map(m => (
-                                                <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
-                                                    <ProjectorMatchCard
-                                                        match={m}
-                                                        participants={participants || {}}
-                                                        participantStats={participantStats}
-                                                    />
-                                                </div>
+                                    {/* Pagination Indicator */}
+                                    {totalPages > 1 && (
+                                        <div className="mt-8 flex justify-center items-center gap-3">
+                                            {Array.from({ length: totalPages }).map((_, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={cn(
+                                                        "h-2 rounded-full transition-all duration-700",
+                                                        idx === currentPage ? "w-12 bg-cyan-400" : "w-3 bg-slate-700"
+                                                    )}
+                                                />
                                             ))}
                                         </div>
-
-                                        {/* Pagination Indicator */}
-                                        {totalPages > 1 && (
-                                            <div className="mt-6 flex justify-center items-center gap-2">
-                                                {Array.from({ length: totalPages }).map((_, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className={cn(
-                                                            "h-1.5 rounded-full transition-all duration-500",
-                                                            idx === currentPage ? "w-8 bg-cyan-400" : "w-2 bg-slate-700"
-                                                        )}
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )
-                            })()}
+                                    )}
+                                </div>
+                            )}
                         </div>
-
                     ) : (
-                        <div className="h-full flex items-center justify-start overflow-x-hidden" ref={(el) => {
-                            // Auto-scroll logic
-                            if (!el) return;
+                        /* Bracket Mode (Top Cut only) */
+                        <div className="flex-1 flex flex-col animate-in fade-in zoom-in duration-1000">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
+                                    <h2 className="text-3xl font-black uppercase tracking-widest text-white italic">Tournament Bracket</h2>
+                                </div>
+                                <div className="px-6 py-2 bg-slate-900 border border-slate-800 rounded-full font-mono text-xl text-yellow-500">
+                                    {activeRoundName || "Road to Final"}
+                                </div>
+                            </div>
 
-                            // Simple auto-scroll implementation
-                            const scrollContainer = el;
-
-                            // Clear any existing interval to prevent dupes if re-rendering
-                            if ((scrollContainer as any)._autoScrollInterval) {
-                                clearInterval((scrollContainer as any)._autoScrollInterval);
-                            }
-
-                            const startScrolling = () => {
-                                // Only scroll if content overflows
-                                if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) return;
-
-                                const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
-                                let direction = 1; // 1 = right, -1 = left
-                                let currentScroll = scrollContainer.scrollLeft;
-                                let isPaused = false;
-
-                                (scrollContainer as any)._autoScrollInterval = setInterval(() => {
-                                    if (isPaused) return;
-
-                                    // Move
-                                    currentScroll += direction * 2; // Speed: 1px per tick
-
-                                    // Check bounds
-                                    if (currentScroll >= maxScroll) {
-                                        currentScroll = maxScroll;
-                                        isPaused = true;
-                                        setTimeout(() => {
-                                            direction = -1;
-                                            isPaused = false;
-                                        }, 3000); // Pause at end for 3s
-                                    } else if (currentScroll <= 0) {
-                                        currentScroll = 0;
-                                        isPaused = true;
-                                        setTimeout(() => {
-                                            direction = 1;
-                                            isPaused = false;
-                                        }, 3000); // Pause at start for 3s
-                                    }
-
-                                    scrollContainer.scrollLeft = currentScroll;
-                                }, 16); // ~60fps
-                            };
-
-                            // Start after a slight delay to allow layout to settle
-                            setTimeout(startScrolling, 1000);
-                        }}>
-                            {transformedMatches.length > 0 ? (
+                            <div className="flex-1 min-h-0 flex items-center justify-start overflow-x-hidden relative" ref={(el) => {
+                                // Auto-scroll logic
+                                if (!el) return;
+                                const scrollContainer = el;
+                                if ((scrollContainer as any)._autoScrollInterval) {
+                                    clearInterval((scrollContainer as any)._autoScrollInterval);
+                                }
+                                const startScrolling = () => {
+                                    if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) return;
+                                    const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+                                    let direction = 1;
+                                    let currentScroll = scrollContainer.scrollLeft;
+                                    let isPaused = false;
+                                    (scrollContainer as any)._autoScrollInterval = setInterval(() => {
+                                        if (isPaused) return;
+                                        currentScroll += direction * 1.5;
+                                        if (currentScroll >= maxScroll) {
+                                            currentScroll = maxScroll;
+                                            isPaused = true;
+                                            setTimeout(() => { direction = -1; isPaused = false; }, 4000);
+                                        } else if (currentScroll <= 0) {
+                                            currentScroll = 0;
+                                            isPaused = true;
+                                            setTimeout(() => { direction = 1; isPaused = false; }, 4000);
+                                        }
+                                        scrollContainer.scrollLeft = currentScroll;
+                                    }, 20);
+                                };
+                                setTimeout(startScrolling, 1000);
+                            }}>
                                 <SingleEliminationBracket
                                     matches={transformedMatches}
-                                    matchComponent={ProjectorMatch}
+                                    matchComponent={ProjectorBracketMatch}
                                     theme={BeybladeTheme}
                                     options={{
                                         style: {
-                                            width: 280,
-                                            boxHeight: 140,
-                                            spaceBetweenColumns: 80,
+                                            width: 320,
+                                            boxHeight: 180,
+                                            spaceBetweenColumns: 100,
                                             spaceBetweenRows: 40,
                                             connectorColor: '#334155',
                                             connectorColorHighlight: '#22D3EE',
                                         }
                                     }}
                                 />
-                            ) : (
-                                <div className="flex-1 flex items-center justify-center text-slate-500 text-xl italic">
-                                    Waiting for bracket data...
-                                </div>
-                            )}
+                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* 3rd Place Match Overlay (Bottom Center of Bracket Area) - Only for Top Cut */}
                 {viewMode === 'top_cut' && (() => {
-                    // Find 3rd Place Match (Round = Total Rounds, Match #2)
-                    // Ensure we compare numbers to avoid string/number mismatch
                     const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalRounds && Number(m.match_number) === 2);
                     if (!p3Match) return null;
 
-                    // Transform to match key shape expected by ProjectorMatch
                     const p3Transformed = {
                         participants: [
                             {
@@ -641,12 +674,12 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                     return (
                         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
                             <div className="mb-2 text-sm font-bold uppercase tracking-widest text-amber-600/80">3rd Place Match</div>
-                            <ProjectorMatch match={p3Transformed} />
+                            <ProjectorBracketMatch match={p3Transformed} />
                         </div>
                     );
                 })()}
 
-                {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
+                {/* Right: Sidebar */}
                 <div className="hidden xl:flex w-[400px] shrink-0 border-l border-white/5 flex-col bg-slate-900/40 backdrop-blur-xl">
                     <div className="flex-1 overflow-y-auto no-scrollbar">
                         <LiveStandings participants={participants || {}} matches={swissMatches || []} />
