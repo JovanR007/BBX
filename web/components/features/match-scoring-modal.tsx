@@ -147,6 +147,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             ...existingMeta,
             ...(isBestOf3 ? { current_set_score_a: curA, current_set_score_b: curB } : {}),
             scoring_history: updatedHistory ?? history,
+            scoring_active: true, // Keep highlight active while modal is open
         };
 
         syncMatchStateAction(match.id, sA, sB, newMeta).catch(console.error);
