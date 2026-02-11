@@ -120,7 +120,7 @@ export async function checkTournamentBadges(tournamentId: string) {
             .eq("tournament_id", tournamentId)
             .eq("stage", "top_cut")
             .order("bracket_round", { ascending: false })
-            .order("match_number", { ascending: false })
+            .order("match_number", { ascending: true })
             .limit(1)
             .single();
 
