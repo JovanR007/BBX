@@ -454,9 +454,13 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                         <div className="h-full flex flex-col">
                             {/* Dynamic Grid based on match count */}
                             {(() => {
-                                // 1. Filter: Current Round Only (Active or Complete, but usually Active first?)
-                                // Let's just show ALL current round matches, sorted by match number
-                                const currentRoundMatches = (swissMatches || []).filter(m => m.swiss_round_number === Math.max(...swissMatches.map(m => m.swiss_round_number)));
+                                // 1. Filter: Current Round Only
+                                // EXCLUDE completed matches (user request: "remove scores once done")
+                                const maxSwissRound = Math.max(...swissMatches.map(m => m.swiss_round_number));
+                                const currentRoundMatches = (swissMatches || []).filter(m =>
+                                    m.swiss_round_number === maxSwissRound &&
+                                    m.status !== 'complete' // Filter completed matches
+                                );
 
                                 // 2. Paginate
                                 const MATCHES_PER_PAGE = 12;
@@ -478,11 +482,11 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 );
 
                                 // Auto-sizing logic
-                                let gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // default
-                                if (matchCount <= 2) gridCols = "grid-cols-1 max-w-5xl mx-auto"; // Wider for few matches
-                                else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2";
-                                else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // Keep 2 cols max for readability unless huge
-                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"; // Dense
+                                // Standardize: Default to 2/3 columns to avoid giant cards
+                                let gridCols = "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+                                if (matchCount <= 2) gridCols = "grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto"; // Small count -> 2 cols max (1 card = 50% width)
+                                else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto"; // Medium -> 2 cols
+                                else if (matchCount <= 9) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"; // Large -> 3 cols
 
                                 return (
                                     <div className="flex flex-col h-full">

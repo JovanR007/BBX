@@ -106,7 +106,7 @@ function PlayerRow({
             {/* Name & Stats */}
             <div className="flex flex-col flex-1 min-w-0">
                 <div className={cn(
-                    "text-3xl font-black uppercase tracking-tight truncate leading-none mb-1",
+                    "text-xl font-black uppercase tracking-tight truncate leading-none mb-1",
                     isWinner ? "text-cyan-400" : "text-white"
                 )}>
                     {participant ? participant.display_name : "TBD"}
