@@ -371,7 +371,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
     // cutSize = 4 -> 2 rounds (Semis, Finals)
     // cutSize = 8 -> 3 rounds (Quarters, Semis, Finals)
     // cutSize = 16 -> 4 rounds (Ro16, Quarters, Semis, Finals)
-    const totalRounds = useMemo(() => Math.log2(cutSize || 4), [cutSize]);
+    const totalRounds = useMemo(() => {
+        const size = cutSize || 4;
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(size)));
+        return Math.log2(bracketSize);
+    }, [cutSize]);
 
     // Transform our match data to the library's format
     const transformedMatches = useMemo(() => {
@@ -388,8 +392,9 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         const allSlots = [];
         const slotMap = new Map<string, string>(); // map "round-match" -> id
 
+        const bracketSize = Math.pow(2, totalRounds);
         for (let r = 1; r <= totalRounds; r++) {
-            const matchCount = cutSize / Math.pow(2, r);
+            const matchCount = bracketSize / Math.pow(2, r);
             for (let m = 1; m <= matchCount; m++) {
                 const key = `${r}-${m}`;
                 const realMatch = realMatchMap.get(key);
@@ -404,7 +409,9 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
             if (round === totalRounds) return 'Finals';
             if (round === totalRounds - 1) return 'Semifinals';
             if (round === totalRounds - 2) return 'Quarterfinals';
-            return `Round ${round}`;
+            // NOTE: The library usually prefixes with 'Round' if it's not a special string, 
+            // but our current setup seems to double it if we include 'Round' here.
+            return `${round}`;
         };
 
         // 4. Build Library Objects

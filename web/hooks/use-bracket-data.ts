@@ -94,7 +94,8 @@ export function useBracketData(tournamentId: string | undefined) {
         if (maxS > 0) {
             const lastSwissRoundMatches = swissMatchesTemp.filter((m: any) => m.swiss_round_number === maxS);
             const allComplete = lastSwissRoundMatches.every((m: any) => m.status === "complete");
-            setIsSwissFinished(allComplete && maxS >= 5); // Heuristic or check tournament settings in future
+            const neededRounds = tourney?.swiss_rounds ?? 5;
+            setIsSwissFinished(allComplete && maxS >= neededRounds); // Heuristic or check tournament settings in future
         } else {
             setIsSwissFinished(false);
         }

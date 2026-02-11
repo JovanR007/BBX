@@ -178,7 +178,11 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
     }, [swissMatches, participants]);
 
     // Calculate total expected rounds based on cutSize (ported from BracketPage)
-    const totalRounds = useMemo(() => Math.log2(tournament?.cut_size || 4), [tournament?.cut_size]);
+    const totalRounds = useMemo(() => {
+        const size = tournament?.cut_size || 4;
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(size)));
+        return Math.log2(bracketSize);
+    }, [tournament?.cut_size]);
 
     // Transformed matches for bracket view (COMPLEX LOGIC PORTED FROM BRACKETPAGE)
     const transformedMatches = useMemo(() => {
@@ -200,8 +204,9 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         const allSlots = [];
         const slotMap = new Map<string, string>(); // map "round-match" -> id
 
+        const bracketSize = Math.pow(2, totalRounds);
         for (let r = 1; r <= totalRounds; r++) {
-            const matchCount = cutSize / Math.pow(2, r);
+            const matchCount = bracketSize / Math.pow(2, r);
             for (let m = 1; m <= matchCount; m++) {
                 const key = `${r}-${m}`;
                 const realMatch = realMatchMap.get(key);
@@ -217,7 +222,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
             if (round === totalRounds) return 'Finals';
             if (round === totalRounds - 1) return 'Semifinals';
             if (round === totalRounds - 2) return 'Quarterfinals';
-            return `Round ${round}`;
+            return `${round}`;
         };
 
         // 4. Build Library Objects
