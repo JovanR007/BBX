@@ -152,7 +152,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                             >
                                                 {[4, 8, 12, 16, 24, 32, 48, 64]
-                                                    .filter(size => size <= participants.length)
+                                                    .filter(size => size <= participants.filter((p: any) => p.checked_in).length)
                                                     .map(size => (
                                                         <option key={size} value={size}>Top {size}</option>
                                                     ))}
@@ -163,7 +163,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                                         </button>
                                     </div>
                                     <p className="text-[10px] text-muted-foreground">
-                                        Options limited by player count ({participants.length}).
+                                        Options limited by checked-in player count ({participants.filter((p: any) => p.checked_in).length}).
                                     </p>
                                 </form>
 
