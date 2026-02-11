@@ -14,6 +14,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // --- STORE DISCOVERY ACTIONS ---
 
 export async function getStoresAction(city?: string, page = 1, pageSize = 12) {
+    const user = await stackServerApp.getUser();
+    const HIDDEN_STORE_IDS = [
+        '53981f89-a0cf-4750-9432-59271d68586b', // Hanma Hobby Store
+        'ba3adf1d-e5e6-46a4-ba17-d3215e300fb2'  // Hobby Stronghold ba3a
+    ];
+
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -23,6 +29,15 @@ export async function getStoresAction(city?: string, page = 1, pageSize = 12) {
         .order("plan", { ascending: false }) // Show Pro stores first
         .order("created_at", { ascending: false })
         .range(from, to);
+
+    // Hide specific testing stores unless owned by viewer
+    if (user) {
+        // Show if owner OR (id NOT in hidden list)
+        // Note: Supabase OR syntax with mixed operators: "owner_id.eq.X,id.not.in.(Y,Z)"
+        query = query.or(`owner_id.eq.${user.id},id.not.in.(${HIDDEN_STORE_IDS.join(',')})`);
+    } else {
+        query = query.not('id', 'in', `(${HIDDEN_STORE_IDS.join(',')})`);
+    }
 
     if (city && city !== "all") {
         query = query.ilike("city", `%${city}%`);
