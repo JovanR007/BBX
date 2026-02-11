@@ -49,8 +49,8 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
     const top8 = sorted.slice(0, 8); // Top 8 only for projector
 
     return (
-        <div className="w-full h-full bg-slate-900/40 border-l border-white/5 backdrop-blur-xl flex flex-col">
-            <div className="p-6 border-b border-white/5 bg-slate-900/60">
+        <div className="w-full flex-1 flex flex-col min-h-0">
+            <div className="p-6 border-b border-white/5 bg-slate-900/20">
                 <div className="flex items-center gap-3 mb-1">
                     <Trophy className="w-6 h-6 text-yellow-500" />
                     <h2 className="text-xl font-black uppercase tracking-widest text-white">Live Standings</h2>
@@ -58,21 +58,21 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
                 <p className="text-xs text-slate-500 font-mono uppercase tracking-wider">Top 8 Leaderboard</p>
             </div>
 
-            <div className="flex-1 overflow-hidden p-4">
+            <div className="flex-1 overflow-y-auto no-scrollbar p-4">
                 <div className="flex flex-col gap-2">
                     {top8.map((s, idx) => (
-                        <div key={s.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 relative overflow-hidden">
+                        <div key={s.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5 relative overflow-hidden transition-all hover:bg-white/10 group">
                             {/* Rank */}
-                            <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-lg ${idx === 0 ? 'bg-yellow-500 text-black' :
-                                    idx === 1 ? 'bg-slate-300 text-slate-900' :
-                                        idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-500'
+                            <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-lg shrink-0 ${idx === 0 ? 'bg-yellow-500 text-black' :
+                                idx === 1 ? 'bg-slate-300 text-slate-900' :
+                                    idx === 2 ? 'bg-amber-700 text-white' : 'bg-slate-800 text-slate-500'
                                 }`}>
                                 {idx + 1}
                             </div>
 
                             {/* Name */}
                             <div className="flex-1 min-w-0">
-                                <div className="font-bold text-white truncate text-lg leading-tight">
+                                <div className="font-bold text-white truncate text-lg leading-tight group-hover:text-cyan-400 transition-colors">
                                     {participants[s.id]?.display_name || "Unknown"}
                                 </div>
                                 <div className="text-[10px] text-slate-500 font-mono uppercase tracking-wider">
@@ -81,7 +81,7 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
                             </div>
 
                             {/* W-L */}
-                            <div className="text-right">
+                            <div className="text-right shrink-0">
                                 <div className="text-2xl font-black text-cyan-400 font-mono leading-none">{s.wins}</div>
                                 <div className="text-[10px] text-cyan-500/60 font-bold uppercase">Wins</div>
                             </div>
@@ -93,14 +93,6 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
                             No matches played yet.
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* Decorative Footer */}
-            <div className="p-4 border-t border-white/5 bg-slate-900/80 text-center">
-                <div className="flex items-center justify-center gap-2 text-slate-500 text-xs">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>Updated in Real-time</span>
                 </div>
             </div>
         </div>

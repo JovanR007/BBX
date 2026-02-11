@@ -642,15 +642,34 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 })()}
 
                 {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
-                <div className="hidden xl:block w-[400px] shrink-0 border-l border-white/5">
-                    <LiveStandings participants={participants || {}} matches={swissMatches || []} />
+                <div className="hidden xl:flex w-[400px] shrink-0 border-l border-white/5 flex-col bg-slate-900/40 backdrop-blur-xl">
+                    <div className="flex-1 overflow-y-auto no-scrollbar">
+                        <LiveStandings participants={participants || {}} matches={swissMatches || []} />
+                    </div>
+
+                    {/* QR Code integrated into sidebar */}
+                    <div className="p-8 border-t border-white/5 bg-slate-900/80">
+                        <div className="flex items-center gap-6">
+                            <div className="bg-white p-2 rounded-lg shrink-0 shadow-lg">
+                                <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={80} />
+                            </div>
+                            <div>
+                                <div className="text-lg font-bold text-slate-200 leading-tight">Live Updates</div>
+                                <div className="text-xs text-slate-500 font-mono mt-1 uppercase tracking-widest">beybracket.com</div>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                                    <span className="text-[10px] text-cyan-500/80 font-bold uppercase">Real-time sync</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
 
-            {/* Footer / QR */}
-            <div className="absolute bottom-12 right-12 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
+            {/* Floating QR (Mobile/Tablet only, hidden when sidebar is visible) */}
+            <div className="xl:hidden absolute bottom-12 right-12 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
                 <div className="text-right">
-                    <div className="text-lg font-bold text-slate-200">Scan for Live Updates</div>
+                    <div className="text-lg font-bold text-slate-200">Live Updates</div>
                     <div className="text-sm text-slate-500">beybracket.com</div>
                 </div>
                 <div className="bg-white p-2 rounded-lg">
