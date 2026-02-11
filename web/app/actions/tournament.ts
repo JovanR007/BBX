@@ -120,8 +120,9 @@ export async function startTournamentAction(formData: FormData) {
         revalidatePath(`/t/${tournamentId}/admin`);
         revalidatePath(`/t/${tournamentId}`);
         return { success: true };
-    } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Unknown Error";
+    } catch (e: any) {
+        console.error("Start Tournament Error:", e);
+        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
         return { success: false, error: msg };
     }
 }
