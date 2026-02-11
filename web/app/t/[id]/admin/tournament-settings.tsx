@@ -115,7 +115,7 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
                                     <div className="text-xs text-muted-foreground italic">No judges yet.</div>
                                 ) : judges.map(j => (
                                     <div key={j.user_id} className="flex items-center justify-between bg-card p-2 rounded text-xs border">
-                                        <span className="font-mono">{j.user_id.substring(0, 8)}...</span>
+                                        <span className="font-mono truncate max-w-[150px]">{j.display_name || j.user_id}</span>
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveJudge(j.user_id)}

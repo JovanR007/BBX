@@ -11,11 +11,16 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { id } = await params;
 
-    const { data: tournament } = await supabase
-        .from('tournaments')
-        .select('*')
-        .eq('id', id)
-        .single();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    let query = supabase.from('tournaments').select('*');
+
+    if (isUUID) {
+        query = query.eq('id', id);
+    } else {
+        query = query.eq('slug', id);
+    }
+
+    const { data: tournament } = await query.single();
 
     if (!tournament) {
         return {
@@ -50,14 +55,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
     const { id } = await params;
 
-    // Re-fetch for Schema (or reuse if we want to optimize, but parallel request is fine for now or pass from metadata if possible? Next.js dedupes fetch requests automatically if using fetch(), but here we use supabase client. 
-    // Actually, let's just fetch once in Page component to be clean, logic-wise Metadata is separate.)
+    // Re-fetch for Schema
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    let query = supabase.from('tournaments').select('*');
 
-    const { data: tournament } = await supabase
-        .from('tournaments')
-        .select('*')
-        .eq('id', id)
-        .single();
+    if (isUUID) {
+        query = query.eq('id', id);
+    } else {
+        query = query.eq('slug', id);
+    }
+
+    const { data: tournament } = await query.single();
 
     const jsonLd = tournament ? {
         '@context': 'https://schema.org',

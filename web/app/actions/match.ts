@@ -380,3 +380,64 @@ export async function syncMatchStateAction(matchId: string, scoreA: number, scor
     if (error) return { success: false, error: error.message };
     return { success: true };
 }
+
+export async function toggleCameraStreamAction(matchId: string, enable: boolean, broadcasterId?: string) {
+    const user = await stackServerApp.getUser();
+    if (!user) return { success: false, error: "Unauthorized" };
+
+    // 1. Fetch Match
+    const { data: match, error: fetchErr } = await supabaseAdmin
+        .from("matches")
+        .select("tournament_id, metadata")
+        .eq("id", matchId)
+        .single();
+
+    if (fetchErr || !match) return { success: false, error: "Match not found" };
+
+    // 2. Verify Permissions (Owner or Judge)
+    let isAuthorized = false;
+    const ownerUser = await verifyTournamentOwner(match.tournament_id);
+    if (ownerUser) isAuthorized = true;
+    else {
+        const { data: judge } = await supabaseAdmin
+            .from("tournament_judges")
+            .select("user_id")
+            .eq("tournament_id", match.tournament_id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+        if (judge) isAuthorized = true;
+    }
+
+    if (!isAuthorized) return { success: false, error: "Unauthorized" };
+
+    const metadata = match.metadata || {};
+    const currentStreamer = metadata.streaming_judge_id;
+
+    if (enable) {
+        // LOCK: If someone else is streaming, block.
+        if (currentStreamer && currentStreamer !== user.id) {
+            return { success: false, error: "Another judge is already streaming this match." };
+        }
+        metadata.streaming_judge_id = user.id;
+        if (broadcasterId) {
+            metadata.broadcaster_id = broadcasterId;
+        }
+    } else {
+        // UNLOCK: Only if I am the streamer (or owner override)
+        if (currentStreamer === user.id || ownerUser) {
+            metadata.streaming_judge_id = null;
+            metadata.broadcaster_id = null;
+        }
+    }
+
+    const { error: upErr } = await supabaseAdmin
+        .from("matches")
+        .update({ metadata })
+        .eq("id", matchId);
+
+    if (upErr) return { success: false, error: upErr.message };
+
+    revalidatePath(`/t/${match.tournament_id}/bracket`);
+    revalidatePath(`/t/${match.tournament_id}/admin`);
+    return { success: true };
+}

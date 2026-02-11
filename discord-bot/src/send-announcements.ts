@@ -16,7 +16,8 @@ client.once(Events.ClientReady, async (readyClient) => {
         process.exit(1);
     }
 
-    // --- Post 1: Introduction ---
+    // --- Post 1: Introduction (ALREADY SENT) ---
+    /*
     const introEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle('🚀 Welcome to Beybracket!')
@@ -34,8 +35,10 @@ client.once(Events.ClientReady, async (readyClient) => {
 
     await channel.send({ embeds: [introEmbed] });
     console.log("Introductory post sent.");
+    */
 
-    // --- Post 2: Patch Notes ---
+    // --- Post 2: Patch Notes (ALREADY SENT) ---
+    /*
     const patchNotesEmbed = new EmbedBuilder()
         .setColor(0xFF8800)
         .setTitle('🛠️ Patch Notes: January 25th Update')
@@ -63,6 +66,32 @@ client.once(Events.ClientReady, async (readyClient) => {
 
     await channel.send({ embeds: [patchNotesEmbed] });
     console.log("Patch notes post sent.");
+    */
+
+    // --- Post 3: Patch Notes (Feb 7) ---
+    const patchNotesFeb7Embed = new EmbedBuilder()
+        .setColor(0x00CC44) // Greenish for new features
+        .setTitle('⚡ Patch Notes: February 7th Update')
+        .setDescription('The latest update brings Store Leagues, automated payments, and critical bracket improvements!')
+        .addFields(
+            {
+                name: '🏆 Store Leagues & Official Support',
+                value: 'We have officially rolled out **Store Leagues**! Organizers can now manage long-term leagues directly within the platform. \n- **Legal & Billing**: Added Payment Selector Modals and updated Legal Documents.'
+            },
+            {
+                name: '💳 Automated PayPal Payments',
+                value: 'Subscription management is now smoother with **Automated PayPal Payments**. \n- Expanded **Billing FAQ** to answer your subscription questions.'
+            },
+            {
+                name: '⚔️ Tournament & Bracket Fixes',
+                value: '- **Casual Organizer Fixes**: Smoother experience for casual tournament hosts.\n- **Bracket Logic**: Enhancements to bracket progression and tie-breaker accuracy.\n- **Scaling**: Optimized database queries for better performance under load.'
+            }
+        )
+        .setFooter({ text: 'Version 1.2.0' })
+        .setTimestamp();
+
+    await channel.send({ embeds: [patchNotesFeb7Embed] });
+    console.log("Feb 7 Patch notes post sent.");
 
     console.log("All announcements completed successfully.");
     process.exit(0);

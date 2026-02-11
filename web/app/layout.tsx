@@ -55,6 +55,7 @@ import LiveMatchTicker from "@/components/features/live-match-ticker";
 export const dynamic = "force-dynamic";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { AppLayoutShell } from "@/components/layout/app-layout-shell";
 
 
 
@@ -82,14 +83,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Suspense fallback={null}>
                 <AuthGuard />
               </Suspense>
-              <div className="relative flex min-h-screen flex-col">
-                <LiveMatchTicker />
-                <Suspense fallback={<div className="h-14 border-b bg-background/95" />}>
-                  <SiteHeader />
-                </Suspense>
-                <main className="flex-1">{children}</main>
-                <SiteFooter />
-              </div>
+              <Suspense fallback={null}>
+                <AuthGuard />
+              </Suspense>
+              <AppLayoutShell>
+                {children}
+              </AppLayoutShell>
             </ToastProvider>
           </StackTheme>
         </StackProvider>

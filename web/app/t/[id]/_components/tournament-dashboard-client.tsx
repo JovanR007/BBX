@@ -49,7 +49,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
             className="container mx-auto px-4 py-8 md:py-16"
         >
             <div className="mb-8">
-                <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/tournaments" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> All Tournaments
                 </Link>
             </div>
@@ -64,7 +64,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                     </p>
                 </div>
 
-                <AdUnit slot="tournament-dashboard" className="w-full max-w-4xl" />
+                <AdUnit slot="tournament-dashboard" format="horizontal" className="w-full max-w-4xl min-h-[100px] max-h-[280px] overflow-hidden" />
 
                 <div className="flex flex-wrap justify-center gap-6 w-full max-w-4xl mt-8">
                     {/* Card 1: Standings */}

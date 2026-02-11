@@ -1,685 +1,590 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useParams } from "next/navigation";
-import { Loader2, Trophy, Swords, GitBranch, RefreshCw } from "lucide-react";
+import { use, useEffect, useMemo, useState } from "react";
+import { useBracketData } from "@/hooks/use-bracket-data";
+import { BracketConnector } from "@/components/features/bracket-connector";
+import { SingleEliminationBracket, Match as CustomMatch } from "react-tournament-brackets";
+import { ProjectorMatchCard } from "@/components/features/projector-match-card";
+import { LiveStandings } from "@/components/features/live-standings";
+import { Match, Participant } from "@/types";
+import { QRCodeDisplay } from "@/components/features/qr-code";
+import { Loader2, Crown, Trophy, Maximize2, Minimize2, LogOut, Medal, Sparkles } from "lucide-react";
+import { BrandedContainer } from "@/components/features/branded-container";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import QRCode from "react-qr-code";
+import dynamic from "next/dynamic";
 
-// Views
-// 1. Standings (Top 16)
-// 2. Current Matches (Active Round)
-// 3. Bracket (If Top Cut)
+const LiveCameraFeed = dynamic(() => import("@/components/features/live-camera-feed").then(mod => mod.LiveCameraFeed), { ssr: false });
 
-import { useTournament } from "@/hooks/use-tournament";
+// Re-use theme from BracketPage
+const BeybladeTheme = {
+    textColor: { main: '#E2E8F0', highlighted: '#F8FAFC', dark: '#94A3B8', disabled: '#475569' },
+    matchBackground: { wonColor: '#1e293b', lostColor: '#0f172a' },
+    score: {
+        background: { wonColor: '#1e293b', lostColor: '#0f172a' },
+        text: { highlightedWonColor: '#22c55e', highlightedLostColor: '#ef4444' }
+    },
+    border: {
+        color: '#334155',
+        highlightedColor: '#22D3EE',
+    },
+    roundHeader: { backgroundColor: 'transparent', fontColor: '#94A3B8' },
+    connectorColor: '#334155',
+    connectorColorHighlight: '#22D3EE',
+    svgBackground: 'transparent',
+    fontFamily: '"Inter", sans-serif',
+    transitionTimingFunction: 'ease-in-out',
+    disabledColor: '#475569',
+    roundHeaders: { background: 'transparent' },
+    canvasBackground: 'transparent'
+};
 
-export default function ProjectorPage() {
-    const { id: paramId } = useParams();
-    const { tournament, tournamentId, loading: tLoading, error: tError } = useTournament(paramId as string);
-
-    // const [tournamentId, setTournamentId] = useState(null); // Handled by hook
-    const [view, setView] = useState("standings"); // standings, matches, bracket
-    const [data, setData] = useState<any>(null);
-    // We use "loadingData" for local fetch, and tLoading for hook.
-    // To minimize refactor, let's just alias loadingData to loading where logical?
-    // Projector logic is complex, I will stick to minimal change.
-
-    // Actually, I need to fetch data AFTER tournamentId is set.
-    // The previous code had `fetchData()` define `setLoading(false)`.
-    // I renamed state to `loadingData`. I should verify `fetchData` uses `setLoadingData`.
-    // But `fetchData` function isn't shown in the diff, it's lower down.
-    // I should create a separate tool call to update fetchData usage if needed, or just keep state name `loading` to be safe.
-
-    const [loading, setLoading] = useState(true);
-    // I'll revert to using `loading` to avoid breaking downstream code.
-    // But hook has `loading`.
-
-    // Let's use `isLoading` for local data.
-    const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-    // Real-time Updates
-    useEffect(() => {
-        if (!tournamentId) return;
-        fetchData(); // Use local fetch, but we need to ensure "data" is not conflicting
-
-        // ... subscription logic ...
-        const channel = supabase.channel(`projector-debug-${tournamentId}`)
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'matches' },
-                (payload) => {
-                    if (payload.new && (payload.new as any).tournament_id === tournamentId) {
-                        setRefreshTrigger(prev => prev + 1);
-                    } else if (payload.old && (payload.old as any).tournament_id === tournamentId) {
-                        setRefreshTrigger(prev => prev + 1);
-                    }
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [tournamentId]);
-
-    // React to trigger
-    useEffect(() => {
-        if (refreshTrigger > 0 && tournamentId) fetchData();
-    }, [refreshTrigger, tournamentId]); // Added tournamentId dep
-
-
-
-
-    // React to trigger
-    useEffect(() => {
-        if (refreshTrigger > 0) fetchData();
-    }, [refreshTrigger]);
-
-    // Calculate Duration for CURRENT view
-    const getDuration = (currentView: string, currentData: any) => {
-        if (currentView === 'standings' && currentData) {
-            const limit = currentData.tournament?.cut_size || 64;
-            const count = Math.min(currentData.standings?.length || 0, limit);
-            const totalPages = Math.ceil(count / 20) || 1;
-            // Exact duration: Pages * Interval + small buffer
-            return Math.max(totalPages * 5000, 10000) + 500;
-        }
-        if (currentView === 'matches') {
-            return 15000; // 15 Seconds strict limit for Pairings
-        }
-        return 30000; // Default 30s for other views
-    };
-
-    const durationMs = getDuration(view, data);
-    const progressDuration = `${durationMs}ms`;
-
-    // Dynamic Rotation Effect
-    useEffect(() => {
-        if (!data) return;
-
-        let views = ["standings"];
-        const swissMatches = data.matches?.filter((m: any) => m.stage === 'swiss') || [];
-        const topCutMatches = data.matches?.filter((m: any) => m.stage === 'top_cut') || [];
-
-        // Active Swiss check
-        const hasActiveSwiss = swissMatches.some((m: any) => m.status !== 'complete');
-        const hasTopCut = topCutMatches.length > 0;
-
-        if (hasActiveSwiss || (!hasTopCut && swissMatches.length > 0)) {
-            views.push("matches");
-        } else if (hasTopCut) {
-            views.push("bracket");
-        } else {
-            views.push("matches");
-        }
-
-        // Ensure current view is valid
-        if (!views.includes(view)) {
-            setView(views[0]);
-            return;
-        }
-
-        const timeout = setTimeout(() => {
-            setView((current: string) => {
-                const idx = views.indexOf(current);
-                const nextIdx = (idx + 1) % views.length;
-                return views[nextIdx];
-            });
-        }, durationMs);
-
-        return () => clearTimeout(timeout);
-    }, [view, data, durationMs]); // Re-run when view changes (new timeout) or data updates
-
-    async function fetchData() {
-        if (!tournamentId) return;
-
-        // Parallel Fetch
-        const [tourneyRes, partsRes, matchesRes, standingsRes] = await Promise.all([
-            supabase.from("tournaments").select("*").eq("id", tournamentId).single(),
-            supabase.from("participants").select("*").eq("tournament_id", tournamentId),
-            supabase.from("matches").select("*").eq("tournament_id", tournamentId),
-            supabase.from("swiss_standings").select("*").eq("tournament_id", tournamentId).order("match_wins", { ascending: false }).order("point_diff", { ascending: false }).order("buchholz", { ascending: false })
-        ]);
-
-        const tournament = tourneyRes.data;
-        const participants: any = {};
-        partsRes.data?.forEach((p: any) => participants[p.id] = p);
-
-        // Add Rank & Calculate Losses manually
-        const processedStandings = standingsRes.data?.map((p: any, i: number) => {
-            const playerMatches = matchesRes.data?.filter((m: any) =>
-                m.status === 'complete' &&
-                (m.participant_a_id === p.participant_id || m.participant_b_id === p.participant_id)
-            ) || [];
-
-            const losses = playerMatches.filter(m =>
-                (m.participant_a_id === p.participant_id && m.winner_id !== p.participant_id && m.winner_id) ||
-                (m.participant_b_id === p.participant_id && m.winner_id !== p.participant_id && m.winner_id)
-            ).length;
-
-            return { ...p, rank: i + 1, match_losses: losses };
-        }) || [];
-
-        setData({
-            tournament,
-            participants,
-            matches: matchesRes.data || [],
-            standings: processedStandings
-        });
-        setLoading(false);
-    }
-
-    if (loading) return (
-        <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-16 h-16 animate-spin text-yellow-500" />
-            <h1 className="text-2xl font-mono uppercase tracking-widest text-white/50">Loading Arena...</h1>
-        </div>
-    );
-
-
-    // Helper to get descriptive stage name
-    const getCurrentStageLabel = () => {
-        if (view === 'standings') return 'Standings';
-        if (view === 'bracket') {
-            const cutSize = data?.tournament?.cut_size || 4;
-            const topCutMatches = data?.matches?.filter((m: any) => m.stage === 'top_cut' && m.status === 'pending') || [];
-            if (topCutMatches.length === 0) return 'Elimination';
-
-            // Find the "current" round being played (lowest match number usually implies order)
-            // Or grouping by round. Let's look at the first pending match.
-            const nextMatch = topCutMatches.sort((a: any, b: any) => a.match_number - b.match_number)[0];
-            const roundNum = nextMatch.bracket_round;
-            const matchNum = nextMatch.match_number; // Needed for 3rd place check if implemented same way
-
-            // Logic duplicated from BracketView (could be extracted but inline is fine for now)
-            const totalRounds = Math.ceil(Math.log2(cutSize));
-            const roundsFromFinal = totalRounds - roundNum;
-
-            if (roundsFromFinal <= 0) {
-                if (matchNum === 2) return "3rd Place"; // Context dependent, but let's stick to standard
-                return "Grand Finals";
-            }
-            if (roundsFromFinal === 1) return "Semi Finals";
-            if (roundsFromFinal === 2) return "Quarter Finals";
-            return `Round of ${Math.pow(2, roundsFromFinal + 1)}`;
-        }
-        // Match View (Swiss)
-        return data?.matches ? `Round ${Math.max(...data.matches.map((m: any) => m.swiss_round_number || 0), 0)}` : '-';
-    };
+// Custom Match Component for Projector (MUST be outside main component to avoid reconciliation issues)
+const ProjectorMatch = ({ match }: { match: any }) => {
+    const topParty = match.participants?.[0];
+    const bottomParty = match.participants?.[1];
+    if (!topParty || !bottomParty) return null;
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 overflow-hidden flex flex-col font-sans">
-            {/* Header / Marquee */}
-            <div className="h-24 bg-slate-900 border-b-4 border-yellow-500 flex items-center justify-between px-12 shadow-2xl z-10">
-                <div className="flex items-center gap-6">
-                    <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_red]" />
-                    <h1 className="text-4xl font-black tracking-tighter uppercase italic bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                        {data.tournament.name}
-                    </h1>
-                </div>
-                <div className="flex items-center gap-8 text-2xl font-bold font-mono text-yellow-500/80">
-                    <span className="flex items-center gap-3">
-                        <RefreshCw className="w-6 h-6 animate-spin-slow opacity-50" />
-                        LIVE
-                    </span>
-                </div>
+        <div className="flex flex-col border border-slate-700 bg-slate-900/80 rounded w-[240px] overflow-hidden shadow-xl">
+            <div className={`flex justify-between px-4 py-3 border-b border-slate-800 ${topParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                <span className={`text-base truncate ${topParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{topParty.name}</span>
+                <span className="text-base font-mono font-bold">{topParty.resultText}</span>
             </div>
-
-            {/* Right Sidebar (Stats & QR) - HIDDEN ON MOBILE */}
-            <div className="hidden lg:flex absolute top-48 right-8 bottom-8 w-60 flex-col justify-end gap-6 z-50 pointer-events-none">
-
-                {/* Stats Cards (Fills the top space) */}
-                <div className="flex-1 flex flex-col gap-4 pt-4 justify-center">
-                    {/* Current Round Card - HIDDEN if showing Standings during Elimination */}
-                    {!(view === 'standings' && data?.matches?.some((m: any) => m.stage === 'top_cut')) && (
-                        <div className="bg-slate-900/90 border-l-4 border-blue-500 p-4 rounded-xl shadow-lg animate-in slide-in-from-right-10 duration-700 delay-100 backdrop-blur-sm">
-                            <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Current Stage</div>
-                            <div className="text-3xl font-black text-white italic leading-none py-1">
-                                {getCurrentStageLabel()}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Dynamic Card 2: Players vs Survivors */}
-                    <div className={cn(
-                        "bg-slate-900/90 border-l-4 p-4 rounded-xl shadow-lg animate-in slide-in-from-right-10 duration-700 delay-200 backdrop-blur-sm",
-                        view === 'bracket' ? "border-red-500" : "border-purple-500"
-                    )}>
-                        <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">
-                            {view === 'bracket' ? "Remaining" : "Players"}
-                        </div>
-                        <div className="text-3xl font-black text-white italic">
-                            {view === 'bracket' ? (() => {
-                                // Calculate remaining players based on round
-                                const cutSize = data?.tournament?.cut_size || 4;
-                                const topCutMatches = data?.matches?.filter((m: any) => m.stage === 'top_cut' && m.status === 'pending') || [];
-                                const nextMatch = topCutMatches.sort((a: any, b: any) => a.match_number - b.match_number)[0];
-                                if (!nextMatch) return 2; // Finals or just 2
-                                const totalRounds = Math.ceil(Math.log2(cutSize));
-                                const roundsFromFinal = totalRounds - nextMatch.bracket_round;
-                                return Math.pow(2, roundsFromFinal + 1);
-                            })() : Object.keys(data?.participants || {}).length}
-                            <span className="text-sm font-normal text-slate-500 ml-2 not-italic">
-                                {view === 'bracket' ? "Contenders" : "Registered"}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Dynamic Card 3: Format vs Stakes */}
-                    <div className="bg-slate-900/90 border-l-4 border-yellow-500 p-4 rounded-xl shadow-lg animate-in slide-in-from-right-10 duration-700 delay-300 backdrop-blur-sm">
-                        <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">
-                            {view === 'bracket' ? "Stakes" : "Format"}
-                        </div>
-                        <div className="text-3xl font-black text-white italic">
-                            {view === 'bracket' ? "Elimination" :
-                                <>Top {data?.tournament?.cut_size || '-'}</>
-                            }
-                            <span className="text-sm font-normal text-slate-500 ml-2 not-italic">
-                                {view === 'bracket' ? "Mode" : "Cut"}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* QR Code (Bottom) */}
-                <div className="bg-white p-2 rounded-lg shadow-2xl animate-in slide-in-from-right-10 duration-1000 mb-4 shrink-0 pointer-events-auto">
-                    <div className="flex flex-col items-center gap-2">
-                        <QRCode
-                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/t/${tournamentId}/standings`}
-                            size={240}
-                            style={{ width: "100%", height: "auto" }}
-                        />
-                        <span className="text-black font-bold text-xs uppercase tracking-widest">Scan for Standings</span>
-                    </div>
-                </div>
+            <div className={`flex justify-between px-4 py-3 ${bottomParty.isWinner ? 'bg-green-900/20' : ''}`}>
+                <span className={`text-base truncate ${bottomParty.isWinner ? 'text-green-400 font-bold' : 'text-slate-400'}`}>{bottomParty.name}</span>
+                <span className="text-base font-mono font-bold">{bottomParty.resultText}</span>
             </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 relative">
-                {/* Background Logo/Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                    <Trophy className="w-[800px] h-[800px]" />
-                </div>
-
-                <div className="absolute inset-0 p-4 lg:pl-8 lg:pt-8 lg:pb-12 lg:pr-72 transition-all duration-700 ease-in-out">
-                    {view === "bracket" && <BracketView matches={data.matches} participants={data.participants} cutSize={data.tournament.cut_size} />}
-                    {view === "matches" && <MatchesView matches={data.matches} participants={data.participants} />}
-                    {view === "standings" && <StandingsView standings={data.standings} cutSize={data.tournament.cut_size} />}
-                </div>
-            </div>
-
-            {/* Footer / Progress Bar */}
-            <div className="h-2 bg-slate-900 relative">
-                <div
-                    key={view}
-                    className="h-full bg-yellow-500 animate-progress origin-left"
-                    style={{ animationDuration: progressDuration }}
-                />
-            </div>
-            <style jsx global>{`
-                @keyframes progress {
-                    0% { width: 0%; }
-                    100% { width: 100%; }
-                }
-                .animate-progress {
-                    animation-name: progress;
-                    animation-timing-function: linear;
-                }
-            `}</style>
         </div>
     );
-}
+};
 
-function StandingsView({ standings, cutSize }: { standings: any[], cutSize: number }) {
-    // Show Top X based on Cut Size (default 32 if not set, or limit to 20 if small screen? User asked for match.)
-    // Let's cap at max 64 for now, but default to cutSize.
-    const limit = cutSize || 64; // Default to 64 to allow pagination to show more players
-    const topStandings = standings.slice(0, limit);
+const Controls = ({ isFullscreen, toggleFullscreen, tournamentId }: { isFullscreen: boolean; toggleFullscreen: () => void; tournamentId: string }) => (
+    <div className="flex gap-2">
+        <button
+            onClick={toggleFullscreen}
+            className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all backdrop-blur-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+        >
+            {isFullscreen ? <Minimize2 className="w-6 h-6" /> : <Maximize2 className="w-6 h-6" />}
+        </button>
+        <Link
+            href={`/t/${tournamentId}`}
+            className="p-3 bg-red-500/10 hover:bg-red-500/20 rounded-full text-red-500 transition-all backdrop-blur-sm border border-red-500/20"
+            title="Exit Projector Mode"
+        >
+            <LogOut className="w-6 h-6" />
+        </Link>
+    </div>
+);
 
-    // Pagination Logic
-    const PAGE_SIZE = 20; // 10 per column
-    const totalPages = Math.ceil(topStandings.length / PAGE_SIZE);
-    const [page, setPage] = useState(0);
+export default function ProjectorPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: tournamentId } = use(params);
+    const {
+        loading,
+        tournament,
+        matches,
+        participants,
+        viewMode,
+        derived: {
+            swissMatches = [],
+            topCutMatches = [],
+            winner,
+            runnerUp,
+            thirdPlace,
+            isTournamentComplete
+        } = {}
+    } = useBracketData(tournamentId);
 
-    // Auto-cycle pages
+    const [origin, setOrigin] = useState("");
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
     useEffect(() => {
-        if (totalPages <= 1) return;
-        // Reset page when view mounts/props change
-        setPage(0);
+        if (typeof window !== 'undefined') {
+            setOrigin(window.location.origin);
+        }
 
-        const interval = setInterval(() => {
-            setPage(p => {
-                const next = p + 1;
-                if (next >= totalPages) return p; // Stop at last page
-                return next;
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch((err) => {
+                console.error(`Error attempting to enable fullscreen: ${err.message} (${err.name})`);
             });
-        }, 5000); // 5 seconds per page
-        return () => clearInterval(interval);
-    }, [totalPages]);
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
 
-    // Current slice
-    const currentData = topStandings.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+    // ... (swissKing logic unchanged)
+    const swissKing = useMemo(() => {
+        if (!swissMatches || swissMatches.length === 0 || !participants) return null;
+        const scores: Record<string, { wins: number }> = {};
+        Object.keys(participants).forEach(pid => scores[pid] = { wins: 0 });
+        swissMatches.forEach(m => {
+            if (m.status !== 'complete' || !m.winner_id) return;
+            if (scores[m.winner_id]) scores[m.winner_id].wins++;
+        });
+        const kingId = Object.keys(scores).sort((a, b) => scores[b].wins - scores[a].wins)[0];
+        if (!kingId) return null;
+        return { ...participants[kingId], match_wins: scores[kingId].wins, buchholz: 0 };
+    }, [swissMatches, participants]);
 
-    // Split into 2 columns
-    const midPoint = Math.ceil(currentData.length / 2);
-    const col1 = currentData.slice(0, midPoint);
-    const col2 = currentData.slice(midPoint);
+    // Calculate total expected rounds based on cutSize (ported from BracketPage)
+    const totalRounds = useMemo(() => Math.log2(tournament?.cut_size || 4), [tournament?.cut_size]);
 
-    // Helper to calculate actual offset including page
-    const renderRow = (p: any, i: number, colOffset: number) => {
-        const globalIndex = (page * PAGE_SIZE) + i + colOffset;
+    // Transformed matches for bracket view (COMPLEX LOGIC PORTED FROM BRACKETPAGE)
+    const transformedMatches = useMemo(() => {
+        if (viewMode !== 'top_cut' || !matches) return []; // Use all matches to find bracket ones
+
+        // Filter for top Cut only mainly, but we need to generate slots
+        // Actually, let's use the same logic as BracketPage:
+        const cutSize = tournament?.cut_size || 4;
+
+        // 1. Map real matches for easy lookup
+        const realMatchMap = new Map<string, Match>();
+        // Only look at top_cut matches
+        const brackets = matches.filter(m => m.stage === 'top_cut');
+        brackets.forEach(m => {
+            realMatchMap.set(`${m.bracket_round}-${m.match_number}`, m);
+        });
+
+        // 2. Generate all expected slots based on cutSize
+        const allSlots = [];
+        const slotMap = new Map<string, string>(); // map "round-match" -> id
+
+        for (let r = 1; r <= totalRounds; r++) {
+            const matchCount = cutSize / Math.pow(2, r);
+            for (let m = 1; m <= matchCount; m++) {
+                const key = `${r}-${m}`;
+                const realMatch = realMatchMap.get(key);
+                // Use real ID if exists, else ghost ID
+                const id = realMatch ? realMatch.id : `ghost-${key}`;
+                allSlots.push({ key, round: r, matchNum: m, realMatch, id });
+                slotMap.set(key, id);
+            }
+        }
+
+        // 3. Round Naming Helper
+        const getRoundName = (round: number) => {
+            if (round === totalRounds) return 'Finals';
+            if (round === totalRounds - 1) return 'Semifinals';
+            if (round === totalRounds - 2) return 'Quarterfinals';
+            return `Round ${round}`;
+        };
+
+        // 4. Build Library Objects
+        return allSlots.map(slot => {
+            const { round, matchNum, realMatch, id } = slot;
+
+            // Calculate Next Match ID
+            let nextMatchId = null;
+            if (round < totalRounds) {
+                const nextRound = round + 1;
+                const nextMatchNum = Math.ceil(matchNum / 2);
+                nextMatchId = slotMap.get(`${nextRound}-${nextMatchNum}`) ?? null;
+            }
+
+            const pA = realMatch?.participant_a_id ? participants[realMatch.participant_a_id] : null;
+            const pB = realMatch?.participant_b_id ? participants[realMatch.participant_b_id] : null;
+            const isCompleted = realMatch?.status === 'complete';
+
+            return {
+                id: id,
+                name: `M${matchNum}`,
+                nextMatchId: nextMatchId,
+                tournamentRoundText: getRoundName(round),
+                startTime: '',
+                state: isCompleted ? 'DONE' : 'SCHEDULED',
+                participants: [
+                    {
+                        id: realMatch?.participant_a_id || `tbd-a-${id}`,
+                        resultText: realMatch?.score_a?.toString() ?? '-',
+                        isWinner: isCompleted && realMatch?.winner_id === realMatch?.participant_a_id,
+                        status: isCompleted ? (realMatch?.winner_id === realMatch?.participant_a_id ? 'WON' : 'LOST') : null,
+                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                    },
+                    {
+                        id: realMatch?.participant_b_id || `tbd-b-${id}`,
+                        resultText: realMatch?.score_b?.toString() ?? '-',
+                        isWinner: isCompleted && realMatch?.winner_id === realMatch?.participant_b_id,
+                        status: isCompleted ? (realMatch?.winner_id === realMatch?.participant_b_id ? 'WON' : 'LOST') : null,
+                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                    }
+                ]
+            };
+        });
+    }, [matches, participants, viewMode, tournament?.cut_size, totalRounds]);
+
+    // Calculate basic Win/Loss stats for card display
+    const participantStats = useMemo(() => {
+        if (!matches || !participants) return {};
+        const stats: Record<string, { wins: number; losses: number }> = {};
+        Object.keys(participants).forEach(id => { stats[id] = { wins: 0, losses: 0 } });
+
+        matches.forEach(m => {
+            if (m.status === 'complete' && m.winner_id) {
+                if (stats[m.winner_id]) stats[m.winner_id].wins++;
+                const loserId = m.winner_id === m.participant_a_id ? m.participant_b_id : m.participant_a_id;
+                if (loserId && stats[loserId]) stats[loserId].losses++;
+            }
+        });
+        return stats;
+    }, [matches, participants]);
+
+    // 0. Check for LIVE STREAM (Moved up to avoid conditional hook call)
+    // Blacklist for failed streams
+    const [failedStreams, setFailedStreams] = useState<string[]>([]);
+
+    const streamingMatch = useMemo(() => {
+        if (!matches) return null;
+        return matches.find(m => m.metadata?.broadcaster_id && !failedStreams.includes(m.metadata.broadcaster_id));
+    }, [matches, failedStreams]);
+
+    const handleStreamError = (broadcasterId: string) => {
+        console.warn("Stream failed, adding to blacklist:", broadcasterId);
+        setFailedStreams(prev => [...prev, broadcasterId]);
+    };
+
+    // ProjectorMatch and Controls are now defined outside this function (module scope)
+
+    // Loading guard — MUST be placed after all hooks to respect Rules of Hooks
+    if (loading) {
         return (
-            <div key={p.participant_id} className={cn(
-                "grid grid-cols-12 gap-1 px-4 py-1.5 rounded border items-center text-lg font-bold shadow-sm", // Compact styling
-                i + colOffset === 0 && page === 0 ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-100" :
-                    (globalIndex < 4 && page === 0) ? "bg-slate-800/80 border-slate-700 text-white" : "bg-slate-900/50 border-slate-800 text-slate-300"
-            )}>
-                <div className="col-span-2 font-mono opacity-50 text-right pr-4">#{p.rank}</div>
-                <div className="col-span-4 truncate">{p.display_name}</div>
-                <div className="col-span-2 text-center font-mono text-green-400">{p.match_wins}-{p.match_losses}</div>
-                <div className="col-span-2 text-center font-mono text-yellow-500/80">{p.point_diff > 0 ? `+${p.point_diff}` : p.point_diff}</div>
-                <div className="col-span-2 text-center font-mono opacity-50">{p.buchholz}</div>
+            <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-cyan-400 animate-spin" />
             </div>
         );
-    };
-
-    return (
-        <div className="h-full flex flex-col gap-4 animate-in fade-in slide-in-from-right-8 duration-500">
-            <div className="flex items-center justify-between text-yellow-400 mb-2">
-                <div className="flex items-center gap-4">
-                    <Trophy className="w-10 h-10" />
-                    <h2 className="text-4xl font-black uppercase tracking-widest">Swiss Standings</h2>
-                </div>
-                {totalPages > 1 && (
-                    <div className="text-2xl font-mono text-slate-500 font-bold">
-                        Page {page + 1} / {totalPages}
-                    </div>
-                )}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8 h-full content-start overflow-y-auto lg:overflow-hidden">
-                {/* Column 1 */}
-                <div className="flex flex-col gap-2">
-                    {/* Header */}
-                    <div className="grid grid-cols-12 gap-1 px-4 py-1 bg-slate-900/50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-white/10 mb-1">
-                        <div className="col-span-2 text-right pr-4">#</div>
-                        <div className="col-span-4">Blader</div>
-                        <div className="col-span-2 text-center">W-L</div>
-                        <div className="col-span-2 text-center">PD</div>
-                        <div className="col-span-2 text-center">BH</div>
-                    </div>
-                    {col1.map((p, i) => renderRow(p, i, 0))}
-                </div>
-
-                {/* Column 2 */}
-                <div className="flex flex-col gap-2">
-                    {/* Header Repeated */}
-                    <div className="grid grid-cols-12 gap-1 px-4 py-1 bg-slate-900/50 text-slate-500 font-bold text-xs uppercase tracking-wider border-b border-white/10 mb-1">
-                        <div className="col-span-2 text-right pr-4">#</div>
-                        <div className="col-span-4">Blader</div>
-                        <div className="col-span-2 text-center">W-L</div>
-                        <div className="col-span-2 text-center">PD</div>
-                        <div className="col-span-2 text-center">BH</div>
-                    </div>
-                    {col2.map((p, i) => renderRow(p, i, midPoint))}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-function MatchesView({ matches, participants }: { matches: any[], participants: any }) {
-    // Filter active round matches that are NOT complete
-    // Find latest round number
-    const maxRound = Math.max(...matches.map(m => m.swiss_round_number || 0), 0);
-
-    // QUEUE LOGIC:
-    // Only show Active (Pending) matches from current round.
-    // FILTER FIX: Status is 'complete' (no d) in DB for finished matches.
-    const activeMatches = matches
-        .filter(m => m.swiss_round_number === maxRound && m.status !== 'complete')
-        .sort((a: any, b: any) => a.match_number - b.match_number);
-
-    const displayMatches = activeMatches.slice(0, 6);
-    const queueCount = Math.max(0, activeMatches.length - 6);
-
-    return (
-        <div className="h-full flex flex-col gap-4 lg:gap-6 animate-in fade-in slide-in-from-right-8 duration-500">
-            <div className="flex items-center justify-between text-blue-400 mb-2 shrink-0">
-                <div className="flex items-center gap-3 lg:gap-4">
-                    <Swords className="w-8 h-8 lg:w-12 lg:h-12" />
-                    <h2 className="text-3xl lg:text-5xl font-black uppercase tracking-widest">Round {maxRound} Pairings</h2>
-                </div>
-                {queueCount > 0 && (
-                    <div className="px-4 py-1 lg:px-6 lg:py-2 bg-blue-600 text-white rounded-full text-base lg:text-xl font-bold border-2 border-blue-400 shadow-[0_0_20px_blue] animate-pulse">
-                        +{queueCount} MORE MATCHES IN QUEUE
-                    </div>
-                )}
-            </div>
-
-            {activeMatches.length === 0 ? (
-                // Check if actually complete or just waiting
-                <div className="flex-1 flex flex-col items-center justify-center gap-8 text-slate-600">
-                    <div className="text-8xl animate-bounce">🏁</div>
-                    <div className="text-4xl lg:text-6xl font-bold uppercase">Round {maxRound} Complete</div>
-                    <p className="text-2xl lg:text-3xl opacity-50 font-mono">Waiting for next round...</p>
-                </div>
-            ) : (
-                // Use auto rows on mobile to allow scrolling (h-full is constrained by parent flex-1)
-                // But we want natural height scrolling.
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-rows-3 gap-6 flex-1 h-full pb-2 overflow-y-auto lg:overflow-visible p-1">
-                    {displayMatches.map((m, idx) => {
-                        const pA = participants[m.participant_a_id];
-                        const pB = participants[m.participant_b_id];
-
-                        // Swiss King Logic: Round 5+, Table 1 (Index 0)
-                        const isSwissKing = idx === 0 && maxRound >= 5;
-
-                        return (
-                            <div key={m.id} className={cn(
-                                "flex flex-col relative overflow-hidden rounded-xl border shadow-xl transition-all animate-in zoom-in-50 duration-300 slide-in-from-bottom-4 group shrink-0 min-h-[140px]",
-                                isSwissKing
-                                    ? "bg-gradient-to-br from-yellow-900/40 to-slate-900 border-yellow-500 shadow-[0_0_30px_rgba(234,179,8,0.2)]"
-                                    : "bg-slate-800 border-slate-700"
-                            )}>
-                                {isSwissKing && (
-                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-yellow-500 to-transparent animate-pulse" />
-                                )}
-
-                                {/* Top Bar: Match Number */}
-                                <div className={cn(
-                                    "px-4 py-1 flex justify-between items-center border-b shrink-0",
-                                    isSwissKing ? "bg-yellow-500/10 border-yellow-500/30" : "bg-slate-900/80 border-white/5"
-                                )}>
-                                    {isSwissKing ? (
-                                        <span className="flex items-center gap-2 font-black text-[10px] lg:text-xs text-yellow-500 uppercase tracking-widest animate-pulse">
-                                            <Trophy className="w-3 h-3" /> Battle for Swiss King
-                                        </span>
-                                    ) : (
-                                        <span />
-                                    )}
-                                    <span className={cn(
-                                        "font-mono text-[10px] lg:text-xs font-bold uppercase tracking-widest",
-                                        isSwissKing ? "text-yellow-200" : "text-slate-400"
-                                    )}>
-                                        Match {m.match_number}
-                                    </span>
-                                </div>
-
-                                <div className="flex items-center justify-between flex-1 px-4 lg:px-6 py-2 min-h-0">
-                                    {/* Player A */}
-                                    <div className="w-[42%] text-right flex flex-col justify-center">
-                                        <div className={cn(
-                                            "text-base lg:text-3xl font-black truncate tracking-tight leading-snug drop-shadow-md",
-                                            isSwissKing ? "text-yellow-100" : "text-white"
-                                        )}>
-                                            {pA?.display_name || "BYE"}
-                                        </div>
-                                        {/* Live Score A */}
-                                        <div className="text-xl lg:text-2xl font-mono font-bold text-blue-400 mt-1">
-                                            {m.score_a || 0} <span className="text-xs lg:text-sm opacity-50 text-slate-400">PTS</span>
-                                        </div>
-                                    </div>
-
-                                    {/* CENTER: VS */}
-                                    <div className="flex flex-col items-center justify-center w-[16%]">
-                                        <div className={cn(
-                                            "text-lg lg:text-2xl font-black italic opacity-50",
-                                            isSwissKing ? "text-yellow-600" : "text-slate-600"
-                                        )}>VS</div>
-                                    </div>
-
-                                    {/* Player B */}
-                                    <div className="w-[42%] text-left flex flex-col justify-center">
-                                        <div className={cn(
-                                            "text-xl lg:text-3xl font-black truncate tracking-tight leading-snug drop-shadow-md",
-                                            isSwissKing ? "text-yellow-100" : "text-white"
-                                        )}>
-                                            {pB?.display_name || "BYE"}
-                                        </div>
-                                        {/* Live Score B */}
-                                        <div className="text-xl lg:text-2xl font-mono font-bold text-blue-400 mt-1">
-                                            {m.score_b || 0} <span className="text-xs lg:text-sm opacity-50 text-slate-400">PTS</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Status Status */}
-                                <div className={cn(
-                                    "py-1 text-center border-t shrink-0",
-                                    isSwissKing ? "bg-yellow-500/20 border-yellow-500/30" : "bg-green-500/10 border-green-500/20"
-                                )}>
-                                    <span className={cn(
-                                        "text-[10px] font-bold uppercase tracking-[0.2em] animate-pulse",
-                                        isSwissKing ? "text-yellow-400" : "text-green-400"
-                                    )}>
-                                        • Live •
-                                    </span>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
-        </div>
-    )
-}
-
-function BracketView({ matches, participants, cutSize }: { matches: any[], participants: any, cutSize: number }) {
-    // Helper to determine round name
-    function getRoundLabel(roundNum: number, matchNum: number) {
-        if (!cutSize) return `Round ${roundNum}`;
-        const totalRounds = Math.ceil(Math.log2(cutSize || 4));
-        const roundsFromFinal = totalRounds - roundNum;
-
-        if (roundsFromFinal <= 0) {
-            if (matchNum === 2) return "3rd Place Match";
-            return "Grand Finals";
-        }
-        if (roundsFromFinal === 1) return "Semifinals";
-        if (roundsFromFinal === 2) return "Quarterfinals";
-        return `Round of ${Math.pow(2, roundsFromFinal + 1)}`;
     }
 
-    const activeMatches = matches
-        .filter(m => m.stage === 'top_cut' && m.status === 'pending')
-        .sort((a: any, b: any) => a.match_number - b.match_number);
-
-    // Limit to 6 to match Swiss View
-    const displayMatches = activeMatches.slice(0, 6);
-    const queueCount = Math.max(0, activeMatches.length - 6);
-
-    const hasTopCutHistory = matches.some(m => m.stage === 'top_cut');
-
-    if (activeMatches.length === 0) {
+    if (streamingMatch && streamingMatch.metadata?.broadcaster_id) {
         return (
-            <div className="h-full flex flex-col items-center justify-center gap-6 animate-in fade-in zoom-in duration-500 text-slate-400">
-                <Swords className="w-24 h-24 opacity-20" />
-                {hasTopCutHistory ? (
-                    <>
-                        <h2 className="text-4xl font-black uppercase tracking-widest opacity-40">Round Complete</h2>
-                        <p className="text-xl font-mono opacity-30">Waiting for next elimination round pairings...</p>
-                    </>
-                ) : (
-                    <>
-                        <h2 className="text-4xl font-black uppercase tracking-widest opacity-40">Swiss Stage In Progress</h2>
-                        <p className="text-xl font-mono opacity-30">Elimination Bracket will appear after cuts.</p>
-                    </>
-                )}
+            <div className="fixed inset-0 z-50 bg-black">
+                <LiveCameraFeed
+                    matchId={streamingMatch.id}
+                    broadcasterId={streamingMatch.metadata.broadcaster_id}
+                    onError={() => handleStreamError(streamingMatch.metadata.broadcaster_id)}
+                />
+                {/* Overlay Controls if needed, e.g. exit */}
+                <div className="absolute top-4 right-4 z-[60]">
+                    <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
+                </div>
+                {/* Optional: Overlay Scoreboard? LiveCameraFeed is usually full screen */}
             </div>
-        )
+        );
     }
 
-    return (
-        <div className="h-full flex flex-col gap-4 lg:gap-6 animate-in fade-in slide-in-from-right-8 duration-500">
-            <div className="flex items-center justify-between text-purple-400 mb-2 shrink-0">
-                <div className="flex items-center gap-3 lg:gap-4">
-                    <GitBranch className="w-8 h-8 lg:w-12 lg:h-12" />
-                    <h2 className="text-3xl lg:text-5xl font-black uppercase tracking-widest">Elimination Stage</h2>
-                </div>
-                {queueCount > 0 && (
-                    <div className="px-4 py-1 lg:px-6 lg:py-2 bg-purple-600 text-white rounded-full text-base lg:text-xl font-bold border-2 border-purple-400 shadow-[0_0_20px_purple] animate-pulse">
-                        +{queueCount} MORE MATCHES IN QUEUE
+    // 1. Tournament Complete / Winner View (Custom Inline Layout)
+    if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
+        return (
+            <BrandedContainer
+                primaryColor={tournament?.stores?.primary_color}
+                secondaryColor={tournament?.stores?.secondary_color}
+                plan={tournament?.stores?.plan}
+                className="min-h-screen bg-black overflow-hidden relative font-sans text-white flex flex-col"
+            >
+                {/* Background */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-yellow-500/10 via-slate-900 to-black pointer-events-none" />
+
+                {/* Header */}
+                <header className="p-8 w-full flex justify-between items-start z-20">
+                    <div>
+                        <h1 className="text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600 drop-shadow-sm mb-2">
+                            {tournament?.name || "Tournament Complete"}
+                        </h1>
+                        <p className="text-slate-400 text-xl font-medium tracking-wide uppercase">
+                            {tournament?.stores?.name || "Official Result"}
+                        </p>
                     </div>
-                )}
-            </div>
+                    <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
+                </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-rows-3 gap-6 flex-1 h-full pb-2 overflow-y-auto lg:overflow-visible p-1">
-                {displayMatches.map(m => {
-                    const pA = participants[m.participant_a_id];
-                    const pB = participants[m.participant_b_id];
-                    const roundLabel = getRoundLabel(m.bracket_round, m.match_number);
+                {/* Podium Area - Scaled Up */}
+                <div className="flex-1 flex items-center justify-center w-full max-w-7xl mx-auto px-8 pb-12 z-10">
+                    <div className="flex items-end justify-center gap-12 w-full translate-y-[-5%]">
 
-                    return (
-                        <div key={m.id} className={cn(
-                            "flex flex-col relative overflow-hidden rounded-xl border border-slate-700 shadow-xl transition-all animate-in zoom-in-50 duration-300 slide-in-from-bottom-4 group shrink-0 min-h-[140px]", // Added min-h and shrink-0
-                            "bg-slate-800"
-                        )}>
-                            {/* Top Bar: Round & Match Info */}
-                            <div className="bg-slate-900/80 px-4 py-1 flex justify-between items-center border-b border-white/5 shrink-0">
-                                <span className="font-bold text-[10px] lg:text-xs text-purple-400 uppercase tracking-wider">
-                                    {roundLabel}
-                                </span>
-                                <span className="font-mono text-[10px] lg:text-xs font-bold text-slate-500 uppercase tracking-widest">
-                                    Match {m.match_number}
-                                </span>
-                            </div>
-
-                            <div className="flex items-center justify-between flex-1 px-4 lg:px-6 py-2 min-h-0">
-                                {/* Player A */}
-                                <div className="w-[42%] text-right flex flex-col justify-center">
-                                    <div className="text-base lg:text-3xl font-black truncate text-white tracking-tight leading-snug drop-shadow-md">
-                                        {pA?.display_name || "TBD"}
-                                    </div>
-                                    <div className="text-xs lg:text-sm font-mono text-slate-500 opacity-50">{m.score_a || 0} Pts</div>
+                        {/* 2nd Place */}
+                        <div className="order-1 flex flex-col items-center w-1/3 animate-in slide-in-from-bottom-12 duration-1000 delay-100">
+                            <div className="flex flex-col items-center w-full">
+                                <Crown className="w-16 h-16 text-slate-400 mb-4 opacity-50" />
+                                <div className="w-48 h-48 rounded-full border-8 border-slate-400/30 bg-slate-400/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(148,163,184,0.1)]">
+                                    <span className="text-7xl font-black text-slate-400">2</span>
                                 </div>
-
-                                {/* CENTER: VS */}
-                                <div className="flex flex-col items-center justify-center w-[16%]">
-                                    <div className="text-lg lg:text-2xl font-black text-slate-600 italic opacity-50">VS</div>
+                                <div className="text-center">
+                                    <div className="font-bold text-4xl text-slate-200 mb-2 truncate max-w-[300px]">{runnerUp?.display_name || "TBD"}</div>
+                                    <div className="text-lg font-bold text-slate-500 uppercase tracking-[0.2em]">Runner Up</div>
                                 </div>
-
-                                {/* Player B */}
-                                <div className="w-[42%] text-left flex flex-col justify-center">
-                                    <div className="text-xl lg:text-3xl font-black truncate text-white tracking-tight leading-snug drop-shadow-md">
-                                        {pB?.display_name || "TBD"}
-                                    </div>
-                                    <div className="text-xs lg:text-sm font-mono text-slate-500 opacity-50">{m.score_b || 0} Pts</div>
-                                </div>
-                            </div>
-
-                            {/* Status Footer */}
-                            <div className="bg-purple-500/10 py-1 text-center border-t border-purple-500/20 shrink-0">
-                                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-[0.2em] animate-pulse">
-                                    • Fighting Now •
-                                </span>
                             </div>
                         </div>
-                    )
-                })}
+
+                        {/* 1st Place */}
+                        <div className="order-2 flex flex-col items-center w-1/3 -mt-24 z-20 animate-in slide-in-from-bottom-24 duration-1000">
+                            <div className="flex flex-col items-center w-full transform scale-110">
+                                <Crown className="w-24 h-24 text-yellow-400 mb-4 animate-pulse drop-shadow-[0_0_20px_rgba(250,204,21,0.5)]" />
+                                <div className="w-64 h-64 rounded-full border-8 border-yellow-500/50 bg-gradient-to-b from-yellow-500/20 to-yellow-900/20 flex items-center justify-center mb-6 shadow-[0_0_60px_rgba(234,179,8,0.3)] ring-4 ring-yellow-500/10">
+                                    <span className="text-9xl font-black text-yellow-400">1</span>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-black text-6xl text-yellow-500 drop-shadow-lg mb-3 truncate max-w-[400px]">{winner?.display_name || "TBD"}</div>
+                                    <div className="text-xl font-bold text-yellow-600/70 uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                                        <Trophy className="w-6 h-6" /> Champion
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3rd Place */}
+                        <div className="order-3 flex flex-col items-center w-1/3 animate-in slide-in-from-bottom-12 duration-1000 delay-200">
+                            <div className="flex flex-col items-center w-full">
+                                <Crown className="w-16 h-16 text-amber-700 mb-4 opacity-50" />
+                                <div className="w-48 h-48 rounded-full border-8 border-amber-700/30 bg-amber-700/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(180,83,9,0.1)]">
+                                    <span className="text-7xl font-black text-amber-700">3</span>
+                                </div>
+                                <div className="text-center">
+                                    <div className="font-bold text-4xl text-slate-200 mb-2 truncate max-w-[300px]">{thirdPlace?.display_name || "TBD"}</div>
+                                    <div className="text-lg font-bold text-amber-800/70 uppercase tracking-[0.2em]">3rd Place</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Area with Swiss King and QR */}
+                <div className="w-full p-8 flex justify-between items-end z-20">
+                    {/* Swiss King */}
+                    <div className="flex items-center gap-6">
+                        {swissKing && (
+                            <div className="bg-blue-900/10 border border-blue-500/20 rounded-2xl p-6 flex items-center gap-6 backdrop-blur-md">
+                                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center shrink-0 border border-blue-500/30 text-blue-400">
+                                    <Medal className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <div className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">Swiss King</div>
+                                    <div className="font-bold text-3xl text-slate-200">{swissKing.display_name}</div>
+                                    <div className="text-sm text-slate-400">{swissKing.match_wins} Wins • {swissKing.buchholz} Buchholz</div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Powered By & QR */}
+                    <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-2 text-slate-600 opacity-60">
+                            <Sparkles className="w-5 h-5" />
+                            <span className="text-sm font-black uppercase tracking-widest font-mono">BeyBracket</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-xl shadow-2xl">
+                            <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={100} />
+                            <div className="text-center text-[10px] font-bold mt-1 text-black">Scan Results</div>
+                        </div>
+                    </div>
+                </div>
+            </BrandedContainer>
+        );
+    }
+
+    // 2. Ongoing Bracket / Swiss View
+    return (
+        <BrandedContainer
+            primaryColor={tournament?.stores?.primary_color}
+            secondaryColor={tournament?.stores?.secondary_color}
+            plan={tournament?.stores?.plan}
+            className="min-h-screen bg-slate-950 text-white p-8 flex flex-col items-center relative overflow-hidden"
+        >
+            {/* Background Effects */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black -z-10" />
+
+            {/* Header */}
+            <header className="w-full flex justify-between items-center mb-12 z-10 relative">
+                <div>
+                    <div className="text-5xl font-black uppercase tracking-tighter italic text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-2">
+                        {tournament?.name}
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="px-6 py-2 bg-slate-900 border border-slate-800 rounded-full font-mono text-xl text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                            {viewMode === 'swiss' ? 'Swiss Stage' : 'Finals Stage'}
+                        </div>
+                    </div>
+                </div>
+                <Controls isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} tournamentId={tournamentId} />
+            </header>
+
+            {/* Main Content - Split Screen */}
+            <main className="flex-1 w-full flex overflow-hidden z-10">
+                {/* Left: Matches (75% on large screens) */}
+                <div className={cn("flex-1 p-8 overflow-y-auto no-scrollbar relative", viewMode === 'swiss' ? 'border-r border-white/5' : '')}>
+                    {viewMode === 'swiss' ? (
+                        <div className="h-full flex flex-col">
+                            {/* Dynamic Grid based on match count */}
+                            {(() => {
+                                const activeMatches = (swissMatches || []).filter(m => m.status !== 'complete').slice(0, 12);
+                                const matchCount = activeMatches.length;
+
+                                // Auto-sizing logic
+                                let gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-2"; // default
+                                if (matchCount <= 2) gridCols = "grid-cols-1 max-w-5xl mx-auto"; // Wider for few matches
+                                else if (matchCount <= 4) gridCols = "grid-cols-1 md:grid-cols-2";
+                                else if (matchCount <= 6) gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3";
+                                else gridCols = "grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"; // More dense for many matches
+
+                                return (
+                                    <div className={`grid ${gridCols} gap-6 w-full auto-rows-fr`}>
+                                        {activeMatches.map(m => (
+                                            <div key={m.id} className={matchCount <= 2 ? "min-h-[350px]" : "min-h-[200px]"}>
+                                                <ProjectorMatchCard
+                                                    match={m}
+                                                    participants={participants || {}}
+                                                    participantStats={participantStats}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            })()}
+
+                            {(swissMatches || []).filter(m => m.status !== 'complete').length === 0 && (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center text-slate-500 font-thin uppercase tracking-widest">
+                                    <div className="text-6xl mb-4 opacity-20">Round Complete</div>
+                                    <div className="text-2xl text-slate-600">Waiting for next round pairings...</div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="h-full flex items-center justify-start overflow-x-hidden" ref={(el) => {
+                            // Auto-scroll logic
+                            if (!el) return;
+
+                            // Simple auto-scroll implementation
+                            const scrollContainer = el;
+
+                            // Clear any existing interval to prevent dupes if re-rendering
+                            if ((scrollContainer as any)._autoScrollInterval) {
+                                clearInterval((scrollContainer as any)._autoScrollInterval);
+                            }
+
+                            const startScrolling = () => {
+                                // Only scroll if content overflows
+                                if (scrollContainer.scrollWidth <= scrollContainer.clientWidth) return;
+
+                                const maxScroll = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+                                let direction = 1; // 1 = right, -1 = left
+                                let currentScroll = scrollContainer.scrollLeft;
+                                let isPaused = false;
+
+                                (scrollContainer as any)._autoScrollInterval = setInterval(() => {
+                                    if (isPaused) return;
+
+                                    // Move
+                                    currentScroll += direction * 2; // Speed: 1px per tick
+
+                                    // Check bounds
+                                    if (currentScroll >= maxScroll) {
+                                        currentScroll = maxScroll;
+                                        isPaused = true;
+                                        setTimeout(() => {
+                                            direction = -1;
+                                            isPaused = false;
+                                        }, 3000); // Pause at end for 3s
+                                    } else if (currentScroll <= 0) {
+                                        currentScroll = 0;
+                                        isPaused = true;
+                                        setTimeout(() => {
+                                            direction = 1;
+                                            isPaused = false;
+                                        }, 3000); // Pause at start for 3s
+                                    }
+
+                                    scrollContainer.scrollLeft = currentScroll;
+                                }, 16); // ~60fps
+                            };
+
+                            // Start after a slight delay to allow layout to settle
+                            setTimeout(startScrolling, 1000);
+                        }}>
+                            {transformedMatches.length > 0 ? (
+                                <SingleEliminationBracket
+                                    matches={transformedMatches}
+                                    matchComponent={ProjectorMatch}
+                                    theme={BeybladeTheme}
+                                    options={{
+                                        style: {
+                                            width: 280,
+                                            boxHeight: 140,
+                                            spaceBetweenColumns: 80,
+                                            spaceBetweenRows: 40,
+                                            connectorColor: '#334155',
+                                            connectorColorHighlight: '#22D3EE',
+                                        }
+                                    }}
+                                />
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-slate-500 text-xl italic">
+                                    Waiting for bracket data...
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* 3rd Place Match Overlay (Bottom Center of Bracket Area) - Only for Top Cut */}
+                {viewMode === 'top_cut' && (() => {
+                    // Find 3rd Place Match (Round = Total Rounds, Match #2)
+                    // Ensure we compare numbers to avoid string/number mismatch
+                    const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalRounds && Number(m.match_number) === 2);
+                    if (!p3Match) return null;
+
+                    // Transform to match key shape expected by ProjectorMatch
+                    const p3Transformed = {
+                        participants: [
+                            {
+                                id: p3Match.participant_a_id || 'tbd-a-3rd',
+                                resultText: p3Match.score_a?.toString() ?? '-',
+                                isWinner: p3Match.winner_id === p3Match.participant_a_id,
+                                status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_a_id ? 'WON' : 'LOST') : null,
+                                name: p3Match.participant_a_id ? (participants ? participants[p3Match.participant_a_id]?.display_name : 'TBD') : 'TBD',
+                            },
+                            {
+                                id: p3Match.participant_b_id || 'tbd-b-3rd',
+                                resultText: p3Match.score_b?.toString() ?? '-',
+                                isWinner: p3Match.winner_id === p3Match.participant_b_id,
+                                status: p3Match.status === 'complete' ? (p3Match.winner_id === p3Match.participant_b_id ? 'WON' : 'LOST') : null,
+                                name: p3Match.participant_b_id ? (participants ? participants[p3Match.participant_b_id]?.display_name : 'TBD') : 'TBD',
+                            }
+                        ]
+                    };
+
+                    return (
+                        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center">
+                            <div className="mb-2 text-sm font-bold uppercase tracking-widest text-amber-600/80">3rd Place Match</div>
+                            <ProjectorMatch match={p3Transformed} />
+                        </div>
+                    );
+                })()}
+
+                {/* Right: Sidebar (Always visible now for consistency & premium feel) */}
+                <div className="hidden xl:block w-[400px] shrink-0 border-l border-white/5">
+                    <LiveStandings participants={participants || {}} matches={swissMatches || []} />
+                </div>
+            </main>
+
+            {/* Footer / QR */}
+            <div className="absolute bottom-12 right-12 flex items-center gap-6 z-20 bg-slate-900/90 p-6 rounded-2xl backdrop-blur-xl border border-slate-800 shadow-2xl">
+                <div className="text-right">
+                    <div className="text-lg font-bold text-slate-200">Scan for Live Updates</div>
+                    <div className="text-sm text-slate-500">beybracket.com</div>
+                </div>
+                <div className="bg-white p-2 rounded-lg">
+                    <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={80} />
+                </div>
             </div>
-        </div>
-    )
+
+        </BrandedContainer>
+    );
 }

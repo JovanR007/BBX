@@ -2,6 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { Menu } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -95,7 +96,7 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Main Navigation */}
+                {/* Main Navigation - Desktop */}
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
                     <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">
                         Events
@@ -110,13 +111,28 @@ export function SiteHeader() {
                     )}
                 </nav>
 
+                {/* Mobile Navigation - Always visible on small screens */}
+                <nav className="flex md:hidden items-center gap-3 text-xs font-medium">
+                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                        Events
+                    </Link>
+                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                        Directory
+                    </Link>
+                    {user && (
+                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                            Host
+                        </Link>
+                    )}
+                </nav>
+
                 <div className="flex items-center gap-2 md:gap-4 pr-1 md:pr-2">
-                    {/* Support Button (Desktop: Full, Mobile: Icon) */}
+                    {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
                     <div>
-                        <div className="hidden md:block">
+                        <div className="hidden lg:block">
                             <SupportButton variant="full" />
                         </div>
-                        <div className="md:hidden">
+                        <div className="lg:hidden">
                             <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
                         </div>
                     </div>

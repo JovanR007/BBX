@@ -110,6 +110,7 @@ export async function advanceBracket(tournamentId: string) {
             score_a: 0, score_b: 0,
             status: "pending", winner_id: null, is_bye: false,
             target_points: target,
+            metadata: { type: 'grand_final' }
         });
 
         // 3rd Place Match
@@ -123,6 +124,7 @@ export async function advanceBracket(tournamentId: string) {
             score_a: 0, score_b: 0,
             status: "pending", winner_id: null, is_bye: false,
             target_points: 4,
+            metadata: { type: '3rd_place' }
         });
 
         // Check Duplicates

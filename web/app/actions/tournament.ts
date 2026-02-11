@@ -21,7 +21,7 @@ export async function getTournamentDataAction(tournamentId: string) {
     try {
         const results = await Promise.all([
             supabaseAdmin.from("tournaments").select("id, created_at, store_id, organizer_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
-            supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
+            supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points, metadata").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
             supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped, checked_in").eq("tournament_id", tournamentId),
             supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
         ]);
@@ -30,12 +30,29 @@ export async function getTournamentDataAction(tournamentId: string) {
         if (results[1].error) throw results[1].error;
         if (results[2].error) throw results[2].error;
 
+        const judgesRaw = results[3].data || [];
+
+        // Fetch Judge Names
+        let judgesWithNames = judgesRaw;
+        if (judgesRaw.length > 0) {
+            const judgeIds = judgesRaw.map(j => j.user_id);
+            const { data: profiles } = await supabaseAdmin
+                .from("profiles")
+                .select("id, display_name")
+                .in("id", judgeIds);
+
+            judgesWithNames = judgesRaw.map(j => {
+                const profile = profiles?.find(p => p.id === j.user_id);
+                return { ...j, display_name: profile?.display_name || j.user_id };
+            });
+        }
+
         return {
             success: true,
             tournament: results[0].data,
             matches: results[0].data ? results[1].data || [] : [], // Only return matches if tournament found
             participants: results[2].data || [],
-            judges: (results[3].data) || []
+            judges: judgesWithNames
         };
 
     } catch (e: unknown) {

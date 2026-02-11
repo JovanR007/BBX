@@ -5,9 +5,10 @@ import { useEffect, useRef } from 'react';
 type AdUnitProps = {
     slot: string;
     style?: React.CSSProperties;
-    format?: 'auto' | 'fluid' | 'rectangle';
+    format?: 'auto' | 'fluid' | 'rectangle' | 'horizontal' | 'vertical';
     layoutKey?: string;
     className?: string;
+    responsive?: boolean;
 };
 
 declare global {
@@ -16,7 +17,7 @@ declare global {
     }
 }
 
-export function AdUnit({ slot, style, format = 'auto', layoutKey, className }: AdUnitProps) {
+export function AdUnit({ slot, style, format = 'auto', layoutKey, className, responsive = true }: AdUnitProps) {
     const adRef = useRef<HTMLModElement>(null);
 
     useEffect(() => {
@@ -36,7 +37,7 @@ export function AdUnit({ slot, style, format = 'auto', layoutKey, className }: A
     }
 
     return (
-        <div className={`ad-container my-4 flex justify-center ${className || ''}`} aria-hidden={true}>
+        <div className={`ad-container relative my-4 flex justify-center ${className || ''}`} aria-hidden={true}>
             <ins
                 ref={adRef}
                 className="adsbygoogle"
@@ -44,9 +45,10 @@ export function AdUnit({ slot, style, format = 'auto', layoutKey, className }: A
                 data-ad-client={process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_ID}
                 data-ad-slot={slot}
                 data-ad-format={format}
-                data-full-width-responsive="true"
+                data-full-width-responsive={responsive ? "true" : "false"}
                 data-ad-layout-key={layoutKey}
             />
+
             <div className="absolute text-[10px] text-gray-400 -mt-3 select-none">Advertisement</div>
         </div>
     );

@@ -108,7 +108,39 @@ export function useBracketData(tournamentId: string | undefined) {
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+
+        if (!tournamentId) return;
+
+        // Subscribe to Realtime Changes
+        const channel = supabase
+            .channel(`tournament-${tournamentId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'matches',
+                    filter: `tournament_id=eq.${tournamentId}`
+                },
+                (payload) => {
+                    if (payload.eventType === 'UPDATE') {
+                        // Optimistic update for score/status changes
+                        const newMatch = payload.new as Match;
+                        setMatches(prev => prev.map(m => m.id === newMatch.id ? newMatch : m));
+                    } else if (payload.eventType === 'INSERT') {
+                        // New match created (new round generated) - fetch everything to be safe
+                        // Or just append if we trust the payload? 
+                        // Better to re-fetch to ensure consistency (e.g. participant IDs might be TBD initially then updated)
+                        fetchData();
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchData, tournamentId]);
 
     // Derived Values
     const swissMatches = matches.filter(m => m.stage === "swiss");
@@ -124,18 +156,38 @@ export function useBracketData(tournamentId: string | undefined) {
     const isTournamentComplete = isBracketRoundComplete && maxBracketRound >= totalBracketRounds;
 
     let winner = null, runnerUp = null, thirdPlace = null;
-    if (isTournamentComplete && totalBracketRounds > 0) {
-        const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === totalBracketRounds && m.match_number === 1);
+
+    // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
+    // Calculate Winner/Podium if Grand Final is done, regardless of full tournament completion status
+    const actualMaxBracketRound = Math.max(0, ...topCutMatches.map(m => Number(m.bracket_round)));
+    // FIX: Strictly use totalBracketRounds to identify the Final Round. 
+    // Do NOT fallback to actualMaxBracketRound, because that causes Semi-Final winners to be treated as Grand Champions.
+    const targetRound = totalBracketRounds;
+
+    if (targetRound > 0) {
+        const gfMatch = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 1);
         if (gfMatch && gfMatch.status === 'complete' && gfMatch.winner_id) {
             winner = participants[gfMatch.winner_id];
             const loserId = gfMatch.winner_id === gfMatch.participant_a_id ? gfMatch.participant_b_id : gfMatch.participant_a_id;
             if (loserId) runnerUp = participants[loserId];
         }
-        const p3Match = topCutMatches.find(m => Number(m.bracket_round) === totalBracketRounds && m.match_number === 2);
+        // 3rd place logic usually implies a specific match number or round, often 'Match 2' of the Final Round or a separate 'Round 3' etc.
+        // Assuming standard single elim where 3rd place match is often conceptually in the same 'Finals' phase or handled via `match_number`.
+        // If your bracket generator puts 3rd place match as Match 2 of final round:
+        const p3Match = topCutMatches.find(m => Number(m.bracket_round) === targetRound && m.match_number === 2);
         if (p3Match && p3Match.status === 'complete' && p3Match.winner_id) {
             thirdPlace = participants[p3Match.winner_id];
         }
     }
+
+    // Also find Swiss King if exists
+    // We can infer Swiss King from stats (Rank 1)
+    // We don't have standings in matches... but we can fetch them or assume seed 1 is king if swiss passed
+    // Actually `useBracketData` doesn't fetch standings. `BracketPage` loads `SwissView` which takes matches. 
+    // Wait, `SwissView` calculates standings internally? No, `SwissView` takes matches and participants.
+    // The `useBracketData` hook returns matches.
+    // We can calculate Swiss King here if needed, or better yet, `BracketPage` can pass it.
+    // For now let's just ensure winner/runnerUp/thirdPlace are populated.
 
     return {
         loading,

@@ -51,6 +51,34 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
         }
     } = useBracketData(tournamentId);
 
+    // Calculate Swiss King (Best Swiss Performer)
+    const swissKing = useMemo(() => {
+        if (!swissMatches || swissMatches.length === 0) return null;
+        // Simple calculation: Most Wins -> Best Diff -> Best BH (if we had specific BH data here, but we only have matches)
+        // We can approximate by strictly wins for now, or fetch standings properly.
+        // Actually, let's just find the player with most wins in Swiss.
+        const scores: Record<string, { wins: number, diff: number }> = {};
+        Object.keys(participants).forEach(pid => scores[pid] = { wins: 0, diff: 0 });
+
+        swissMatches.forEach(m => {
+            if (m.status !== 'complete' || !m.winner_id) return;
+            if (scores[m.winner_id]) {
+                scores[m.winner_id].wins++;
+                // Diff logic... simplified
+            }
+        });
+
+        // Find max
+        const kingId = Object.keys(scores).sort((a, b) => scores[b].wins - scores[a].wins)[0];
+        if (!kingId) return null;
+
+        return {
+            ...participants[kingId],
+            match_wins: scores[kingId].wins,
+            buchholz: 0 // Placeholder as we don't full calc here
+        };
+    }, [swissMatches, participants]);
+
     // Helpers
     const { isOwner, isJudge, isSuperAdmin } = permissions || { isOwner: false, isJudge: false, isSuperAdmin: false };
     const canEdit = isOwner || isJudge;
@@ -73,7 +101,16 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
     } = useBracketActions(tournamentId, refresh);
 
     // Local UI State
-    const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+    const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+    const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
+    const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
+
+    // Force "Tournament Completed" Modal Open on load if complete
+    useEffect(() => {
+        if (tournament?.status === 'completed' || (viewMode === 'top_cut' && winner)) {
+            setShowVictoryModal(true);
+        }
+    }, [tournament?.status, viewMode, winner, setShowVictoryModal]);
 
     return (
         <BrandedContainer
@@ -83,9 +120,9 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
             {/* Header */}
-            <div className="flex justify-between items-center mb-8">
-                <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+            <div className="flex justify-between items-center mb-8 landscape:mb-2">
+                <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors landscape:text-xs">
+                    <ArrowLeft className="w-4 h-4 mr-2 landscape:w-3 landscape:h-3" /> <span className="landscape:hidden">Back to </span>Dashboard
                 </Link>
 
                 {/* Swiss Controls */}
@@ -125,8 +162,8 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             </div>
 
             {/* Title & Debug */}
-            <div className="flex items-center gap-4 mb-8">
-                <h1 className="text-3xl font-bold">
+            <div className="flex items-center gap-4 mb-8 landscape:mb-2">
+                <h1 className="text-3xl font-bold landscape:text-xl">
                     {viewMode === "top_cut" ? "Elimination Bracket" : "Swiss Standings & Matches"}
                 </h1>
                 {isOwner && (
@@ -140,6 +177,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                             </button>
                         )}
                     </div>
+                )}
+                {/* Projector Link (Visible to everyone or just owners? Let's make it visible to owners/judges for now, or everyone?) */}
+                {(isOwner || isJudge) && (
+                    <Link href={`/t/${tournamentId}/projector`} target="_blank" className="ml-2 flex items-center gap-2 text-xs font-bold text-cyan-500 hover:text-cyan-400 border border-cyan-500/20 hover:border-cyan-500/50 bg-cyan-500/5 px-3 py-1 rounded-full transition-all landscape:hidden">
+                        <Loader2 className="w-3 h-3" /> Projector
+                    </Link>
                 )}
             </div>
 
@@ -158,10 +201,10 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                         <div className="mb-8 overflow-x-auto">
                             <BracketConnector matches={swissMatches} match_target_points={tournament?.match_target_points ?? 4} />
                         </div>
-                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
+                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
                     </>
                 ) : (
-                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatch(m)} />
+                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
                 )}
             </div>
 
@@ -170,12 +213,14 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                 isOpen={!!selectedMatch}
                 match={selectedMatch}
                 participants={participants}
-                onClose={() => setSelectedMatch(null)}
+                onClose={() => { refresh(); setSelectedMatchId(null); }}
                 refresh={refresh}
                 ruleset={tournament?.ruleset_config}
+                cutSize={tournament?.cut_size}
+                currentlyStreamingMatchId={currentlyStreamingMatch?.id}
             />
             <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title || ""} description={confirmState.description || ""} onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))} onConfirm={executeConfirmation} isLoading={advancing} confirmText={confirmState.type === 'proceed' ? "Proceed" : "Start Round"} />
-            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={null} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
+            <VictoryModal isOpen={showVictoryModal} onClose={() => setShowVictoryModal(false)} winner={winner} runnerUp={runnerUp} thirdPlace={thirdPlace} swissKing={swissKing} tournamentName={tournament?.name ?? ""} organizerName={tournament?.stores?.name || "Official Result"} />
             <ConcludeModal isOpen={concludePinOpen} onClose={() => setConcludePinOpen(false)} onConfirm={handleConclude} loading={advancing} isCasual={!tournament?.store_id} />
         </BrandedContainer>
     );
@@ -247,6 +292,23 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
     const roundsList = Object.keys(rounds).sort((a, b) => Number(a) - Number(b));
     const maxRound = roundsList.length > 0 ? roundsList[roundsList.length - 1] : 0;
 
+    // Calculate win counts for each player (across all completed rounds before the last)
+    const winCounts: Record<string, number> = {};
+    matches.forEach(m => {
+        if (m.status === 'complete' && m.winner_id && Number(m.swiss_round_number) < Number(maxRound)) {
+            winCounts[m.winner_id] = (winCounts[m.winner_id] || 0) + 1;
+        }
+    });
+    const maxWins = Object.values(winCounts).length > 0 ? Math.max(...Object.values(winCounts)) : 0;
+
+    // A match is a "Swiss King Battle" if both players have the top win count going into the last round
+    const isSwissKingMatch = (m: Match): boolean => {
+        if (Number(maxRound) < 2) return false; // Need at least 2 rounds
+        const winsA = m.participant_a_id ? (winCounts[m.participant_a_id] || 0) : 0;
+        const winsB = m.participant_b_id ? (winCounts[m.participant_b_id] || 0) : 0;
+        return winsA === maxWins && winsB === maxWins && maxWins > 0;
+    };
+
     return (
         <div className="flex flex-row gap-8 pb-12 min-w-max">
             {roundsList.map(rNumStr => {
@@ -256,8 +318,8 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
                     <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
                         <div className="flex flex-col gap-3">
-                            {(rounds[rNum] || []).map((m, idx) => (
-                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && idx === 0 && Number(rNum) >= 5} />
+                            {(rounds[rNum] || []).map((m) => (
+                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && isSwissKingMatch(m)} />
                             ))}
                         </div>
                     </div>
@@ -420,105 +482,113 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         computedStyles,
         teamNameFallback,
         resultFallback,
-    }: any) => (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                height: '100%',
-                background: '#0F172A',
-                borderRadius: '8px',
-                border: '1px solid #334155',
-                overflow: 'hidden',
-                cursor: 'pointer',
-            }}
-            onClick={() => {
-                const originalMatch = matchById[match.id];
-                if (originalMatch) onMatchClick(originalMatch);
-            }}
-        >
-            {/* Top Player */}
+    }: any) => {
+        // Check if this match is being actively scored by a judge
+        const originalMatch = matchById[match.id];
+        const isScoringActive = originalMatch && originalMatch.status !== 'complete' && originalMatch.metadata?.scoring_active;
+
+        return (
             <div
-                onMouseEnter={() => onMouseEnter(topParty.id)}
-                onMouseLeave={onMouseLeave}
                 style={{
                     display: 'flex',
-                    flex: '1',
-                    height: '50%',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
-                    borderBottom: '1px solid #334155',
-                    transition: 'background 0.2s',
+                    flexDirection: 'column',
+                    width: '100%',
+                    height: '100%',
+                    background: '#0F172A',
+                    borderRadius: '8px',
+                    border: isScoringActive ? '2px solid #22D3EE' : '1px solid #334155',
+                    boxShadow: isScoringActive ? '0 0 12px rgba(34, 211, 238, 0.35)' : 'none',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    animation: isScoringActive ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
+                }}
+                onClick={() => {
+                    const originalMatch = matchById[match.id];
+                    if (originalMatch) onMatchClick(originalMatch);
                 }}
             >
-                <span style={{
-                    color: topWon ? '#000000' : '#E2E8F0',
-                    fontSize: '11px',
-                    fontWeight: topWon ? 'bold' : 'normal',
-                    paddingRight: '8px',
-                    wordBreak: 'break-word',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    lineHeight: '1.1',
-                }}>
-                    {topParty.name || teamNameFallback}
-                </span>
-                <span style={{
-                    color: topWon ? '#000000' : '#94A3B8',
-                    fontSize: '12px',
-                    fontWeight: '900',
-                    fontFamily: 'monospace',
-                    minWidth: '20px',
-                    textAlign: 'right',
-                    opacity: topWon ? 1 : 0.6,
-                }}>
-                    {topParty.resultText || '-'}
-                </span>
+                {/* Top Player */}
+                <div
+                    onMouseEnter={() => onMouseEnter(topParty.id)}
+                    onMouseLeave={onMouseLeave}
+                    style={{
+                        display: 'flex',
+                        flex: '1',
+                        height: '50%',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
+                        borderBottom: '1px solid #334155',
+                        transition: 'background 0.2s',
+                    }}
+                >
+                    <span style={{
+                        color: topWon ? '#000000' : '#E2E8F0',
+                        fontSize: '11px',
+                        fontWeight: topWon ? 'bold' : 'normal',
+                        paddingRight: '8px',
+                        wordBreak: 'break-word',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        lineHeight: '1.1',
+                    }}>
+                        {topParty.name || teamNameFallback}
+                    </span>
+                    <span style={{
+                        color: topWon ? '#000000' : '#94A3B8',
+                        fontSize: '12px',
+                        fontWeight: '900',
+                        fontFamily: 'monospace',
+                        minWidth: '20px',
+                        textAlign: 'right',
+                        opacity: topWon ? 1 : 0.6,
+                    }}>
+                        {topParty.resultText || '-'}
+                    </span>
+                </div>
+                {/* Bottom Player */}
+                <div
+                    onMouseEnter={() => onMouseEnter(bottomParty.id)}
+                    onMouseLeave={onMouseLeave}
+                    style={{
+                        display: 'flex',
+                        flex: '1',
+                        height: '50%',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '4px 8px',
+                        background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
+                        transition: 'background 0.2s',
+                    }}
+                >
+                    <span style={{
+                        color: bottomWon ? '#000000' : '#E2E8F0',
+                        fontSize: '11px',
+                        fontWeight: bottomWon ? 'bold' : 'normal',
+                        paddingRight: '8px',
+                        wordBreak: 'break-word',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        lineHeight: '1.1',
+                    }}>
+                        {bottomParty.name || teamNameFallback}
+                    </span>
+                    <span style={{
+                        color: bottomWon ? '#000000' : '#94A3B8',
+                        fontSize: '12px',
+                        fontWeight: '900',
+                        fontFamily: 'monospace',
+                        minWidth: '20px',
+                        textAlign: 'right',
+                        opacity: bottomWon ? 1 : 0.6,
+                    }}>
+                        {bottomParty.resultText || '-'}
+                    </span>
+                </div>
             </div>
-            {/* Bottom Player */}
-            <div
-                onMouseEnter={() => onMouseEnter(bottomParty.id)}
-                onMouseLeave={onMouseLeave}
-                style={{
-                    display: 'flex',
-                    flex: '1',
-                    height: '50%',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
-                    transition: 'background 0.2s',
-                }}
-            >
-                <span style={{
-                    color: bottomWon ? '#000000' : '#E2E8F0',
-                    fontSize: '11px',
-                    fontWeight: bottomWon ? 'bold' : 'normal',
-                    paddingRight: '8px',
-                    wordBreak: 'break-word',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    lineHeight: '1.1',
-                }}>
-                    {bottomParty.name || teamNameFallback}
-                </span>
-                <span style={{
-                    color: bottomWon ? '#000000' : '#94A3B8',
-                    fontSize: '12px',
-                    fontWeight: '900',
-                    fontFamily: 'monospace',
-                    minWidth: '20px',
-                    textAlign: 'right',
-                    opacity: bottomWon ? 1 : 0.6,
-                }}>
-                    {bottomParty.resultText || '-'}
-                </span>
-            </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="flex flex-col gap-16 pb-24">
@@ -596,6 +666,7 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
     const winnerId = match.winner_id;
     const aWon = isCompleted && winnerId === match.participant_a_id;
     const bWon = isCompleted && winnerId === match.participant_b_id;
+    const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
     return (
         <div
@@ -603,7 +674,8 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
             className={cn(
                 "flex flex-col w-full rounded-md border overflow-hidden cursor-pointer transition-all duration-200 shadow-lg",
                 isSwissKing ? "border-yellow-500/50 shadow-yellow-500/10" : "border-slate-800",
-                isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700"
+                isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700",
+                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse"
             )}
             style={isSwissKing ? { background: 'linear-gradient(to bottom right, #0F172A, #1e1b10)' } : { background: '#0F172A' }}
         >

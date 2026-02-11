@@ -1,15 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { X, RefreshCcw, AlertTriangle, Trophy, Undo2, Swords, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction } from "@/app/actions"; // Updated import
+import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, toggleCameraStreamAction } from "@/app/actions/match"; // Updated import
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
+import { useUser } from "@stackframe/stack";
+import dynamic from "next/dynamic";
 
-export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any }) {
+const CameraStreamer = dynamic(() => import("./camera-streamer").then(mod => mod.CameraStreamer), { ssr: false });
+
+export function MatchScoringModal({ isOpen, onClose, match, participants, refresh, ruleset, cutSize, currentlyStreamingMatchId }: { isOpen: boolean; onClose: () => void; match: any; participants: any; refresh: () => void; ruleset?: any, cutSize?: number, currentlyStreamingMatchId?: string | null }) {
     const { toast } = useToast();
+    const user = useUser();
+
+    // --- FINAL MATCH DETECTION ---
+    const isFinalsMatch = (() => {
+        if (!match) return false;
+        if (match.metadata?.type === 'grand_final' || match.metadata?.type === '3rd_place') return true;
+        // Fallback: If Top Cut and Last Round
+        if (cutSize && match.stage === 'top_cut') {
+            const totalRounds = Math.log2(cutSize);
+            // match.bracket_round is usually a number, ensure type safety
+            if (Number(match.bracket_round) === totalRounds) return true;
+        }
+        return false;
+    })();
 
     // --- STATE ---
     // Standard / Global Score (or Sets Won)
@@ -41,21 +59,30 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     const isGameOver = scoreA >= WINNING_SCORE || scoreB >= WINNING_SCORE;
     const winner = scoreA >= WINNING_SCORE ? pA : (scoreB >= WINNING_SCORE ? pB : null);
 
+    // Ref-based state to prevent race conditions on rapid clicks
+    const scoreARef = useRef(match?.score_a || 0);
+    const scoreBRef = useRef(match?.score_b || 0);
+    const scoreASetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_a || 0) : 0);
+    const scoreBSetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_b || 0) : 0);
+
     // --- INITIALIZATION ---
     useEffect(() => {
         if (isOpen && match && match.id) {
             // Restore from Match Data
-            setScoreA(match.score_a || 0);
-            setScoreB(match.score_b || 0);
+            const restoredScoreA = match.score_a || 0;
+            const restoredScoreB = match.score_b || 0;
+            setScoreA(restoredScoreA);
+            setScoreB(restoredScoreB);
+            scoreARef.current = restoredScoreA;
+            scoreBRef.current = restoredScoreB;
 
             // Restore Metadata Logic for Best of 3
-            if (isBestOf3 && match.metadata) {
-                setCurrentSetScoreA(match.metadata.current_set_score_a || 0);
-                setCurrentSetScoreB(match.metadata.current_set_score_b || 0);
-            } else {
-                setCurrentSetScoreA(0);
-                setCurrentSetScoreB(0);
-            }
+            const restoredSetA = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_a || 0) : 0;
+            const restoredSetB = (isBestOf3 && match.metadata) ? (match.metadata.current_set_score_b || 0) : 0;
+            setCurrentSetScoreA(restoredSetA);
+            setCurrentSetScoreB(restoredSetB);
+            scoreASetRef.current = restoredSetA;
+            scoreBSetRef.current = restoredSetB;
 
             // Restore Beys
             setBeyA(match.bey_a || "");
@@ -64,56 +91,102 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             setWarningsA(0);
             setWarningsB(0);
             setLastMove(null);
-            setHistory([]);
+
+            // Seed history: if match already has scores, push a "zero" baseline
+            // so the judge can always undo back to 0-0
+            if (match.metadata?.scoring_history && match.metadata.scoring_history.length > 0) {
+                // Restore persisted history
+                setHistory(match.metadata.scoring_history);
+            } else {
+                // DO NOT seed 0-0 if no history exists.
+                // This prevents "Undoing" to 0-0 when the user just opened the modal to edit a score.
+                setHistory([]);
+            }
+
+            // Signal that this match is being actively scored (real-time highlight)
+            syncMatchStateAction(match.id, restoredScoreA, restoredScoreB, {
+                ...(match.metadata || {}),
+                scoring_active: true,
+            }).catch(console.error);
         }
-    }, [isOpen, match, isBestOf3]);
+    }, [isOpen, match?.id]);
+
+    // Cleanup: clear scoring_active when modal unmounts or closes
+    useEffect(() => {
+        const matchId = match?.id;
+        const matchMeta = match?.metadata;
+        const matchScoreA = match?.score_a ?? 0;
+        const matchScoreB = match?.score_b ?? 0;
+        return () => {
+            if (matchId) {
+                syncMatchStateAction(matchId, matchScoreA, matchScoreB, {
+                    ...(matchMeta || {}),
+                    scoring_active: false,
+                }).catch(console.error);
+            }
+        };
+    }, [match?.id]);
 
     // --- HELPERS ---
     const saveState = () => {
-        setHistory(prev => [...prev, {
+        const newEntry = {
             scoreA, scoreB,
             currentSetScoreA, currentSetScoreB,
             warningsA, warningsB,
             lastMove
-        }]);
+        };
+        const newHistory = [...history, newEntry];
+        setHistory(newHistory);
+        return newHistory;
     };
 
-    const syncDB = async (sA: number, sB: number, curA: number, curB: number) => {
-        // Syncs global score AND internal set score
-        const metadata = isBestOf3 ? {
-            current_set_score_a: curA,
-            current_set_score_b: curB,
-            // We could store set history here too
-        } : {};
+    const syncDB = async (sA: number, sB: number, curA: number, curB: number, updatedHistory?: any[]) => {
+        // Syncs global score AND internal set score, preserving existing metadata
+        const existingMeta = match?.metadata || {};
+        const newMeta = {
+            ...existingMeta,
+            ...(isBestOf3 ? { current_set_score_a: curA, current_set_score_b: curB } : {}),
+            scoring_history: updatedHistory ?? history,
+            scoring_active: true, // Keep highlight active while modal is open
+        };
 
-        syncMatchStateAction(match.id, sA, sB, metadata).catch(console.error);
+        syncMatchStateAction(match.id, sA, sB, newMeta).catch(console.error);
     };
 
     const handleUndo = () => {
         if (history.length === 0) return;
         const prev = history[history.length - 1];
+        const newHistory = history.slice(0, -1);
         setScoreA(prev.scoreA);
         setScoreB(prev.scoreB);
         setCurrentSetScoreA(prev.currentSetScoreA);
         setCurrentSetScoreB(prev.currentSetScoreB);
+
+        // Sync Refs
+        scoreARef.current = prev.scoreA;
+        scoreBRef.current = prev.scoreB;
+        scoreASetRef.current = prev.currentSetScoreA;
+        scoreBSetRef.current = prev.currentSetScoreB;
         setWarningsA(prev.warningsA);
         setWarningsB(prev.warningsB);
         setLastMove(prev.lastMove);
-        setHistory(prev => prev.slice(0, -1));
+        setHistory(newHistory);
 
-        syncDB(prev.scoreA, prev.scoreB, prev.currentSetScoreA, prev.currentSetScoreB);
+        syncDB(prev.scoreA, prev.scoreB, prev.currentSetScoreA, prev.currentSetScoreB, newHistory);
         toast({ title: "Undone", description: "Reverted last action." });
     };
 
     // --- SCORING LOGIC ---
     const handleScore = (player: string, pts: number, type: string) => {
         if (isGameOver) return;
-        saveState();
 
-        let sA = scoreA;
-        let sB = scoreB;
-        let cA = currentSetScoreA;
-        let cB = currentSetScoreB;
+        // Save current state before modification
+        const newHistory = saveState();
+
+        let sA = scoreARef.current;
+        let sB = scoreBRef.current;
+        let cA = scoreASetRef.current;
+        let cB = scoreBSetRef.current;
 
         // Update Logic depending on Mode
         if (player === 'A') {
@@ -155,6 +228,13 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         }
 
         // Apply
+        // Apply to Refs
+        scoreARef.current = sA;
+        scoreBRef.current = sB;
+        scoreASetRef.current = cA;
+        scoreBSetRef.current = cB;
+
+        // Apply to State (Trigger Render)
         setScoreA(sA);
         setScoreB(sB);
         setCurrentSetScoreA(cA);
@@ -162,7 +242,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         setWarningsA(0);
         setWarningsB(0);
 
-        syncDB(sA, sB, cA, cB);
+        syncDB(sA, sB, cA, cB, newHistory);
     };
 
     // Warning Logic (Simplified: Adds point to opponent)
@@ -238,8 +318,8 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
     // --- RENDER ---
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-card w-full max-w-5xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 md:p-4 animate-in fade-in duration-200">
+            <div className="bg-card w-full max-w-7xl rounded-xl shadow-2xl overflow-hidden flex flex-col h-[95vh] md:h-auto md:max-h-[90vh]">
 
                 {/* HEADER */}
                 <div className="p-3 md:p-4 border-b flex justify-between items-center bg-muted/20 shrink-0">
@@ -252,17 +332,36 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                             R{match.bracket_round} • Match {match.match_number}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-muted rounded-full">
-                        <X className="w-5 h-5 md:w-6 md:h-6" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {/* Camera Toggle for Finals */}
+                        {isFinalsMatch && (
+                            <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} currentlyStreamingMatchId={currentlyStreamingMatchId} />
+                        )}
+                        <button onClick={() => {
+                            // If streaming, ensure we stop it before closing
+                            if (match?.metadata?.streaming_judge_id === user?.id) {
+                                toggleCameraStreamAction(match.id, false).catch(console.error);
+                            }
+                            // Clear scoring_active highlight
+                            syncMatchStateAction(match.id, match.score_a ?? scoreA, match.score_b ?? scoreB, {
+                                ...(match.metadata || {}),
+                                scoring_active: false,
+                            }).catch(console.error);
+                            refresh();
+                            onClose();
+                        }} className="p-2 hover:bg-muted rounded-full">
+                            <X className="w-5 h-5 md:w-6 md:h-6" />
+                        </button>
+                    </div>
                 </div>
 
-                {/* GAME AREA */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-col lg:flex-row gap-8">
+                {/* GAME AREA - Force Row even on mobile */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden p-1 md:p-8 relative bg-slate-50/50 dark:bg-slate-950/50 flex flex-row gap-1 md:gap-8">
 
                     {/* LEFT PLAYER */}
                     <PlayerConsole
-                        player={pA} label="Player 1"
+                        player={pA} label="P1"
                         score={scoreA} setScore={currentSetScoreA}
                         warnings={warningsA}
                         isWinner={scoreA >= WINNING_SCORE}
@@ -274,20 +373,20 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         disabled={isGameOver}
                     />
 
-                    {/* CENTER CONTROLS (Undo, Submit) */}
-                    <div className="flex flex-row lg:flex-col items-center justify-center gap-4 p-4 lg:p-0 border-t lg:border-t-0 lg:border-x bg-background/50 lg:w-32 shrink-0">
-                        <button onClick={handleUndo} disabled={history.length === 0} className="md:w-16 md:h-16 w-12 h-12 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
-                            <Undo2 className="w-5 h-5 md:w-6 md:h-6" />
+                    {/* CENTER CONTROLS (Undo, Submit) - Narrow Column */}
+                    <div className="flex flex-col items-center justify-center gap-2 p-1 border-x bg-background/50 w-12 md:w-32 shrink-0 z-10">
+                        <button onClick={handleUndo} disabled={history.length === 0} className="md:w-16 md:h-16 w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
+                            <Undo2 className="w-4 h-4 md:w-6 md:h-6" />
                         </button>
 
                         {isGameOver && (
                             <button
                                 onClick={handleSubmit}
                                 disabled={submitting}
-                                className="flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 shadow-green-500/20 shadow-lg transition-all hover:scale-105 w-full lg:w-auto"
+                                className="flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-1 md:p-3 shadow-green-500/20 shadow-lg transition-all hover:scale-105 w-full"
                             >
-                                <Trophy className="w-6 h-6" />
-                                <span className="text-[10px] font-black uppercase">Finish</span>
+                                <Trophy className="w-4 h-4 md:w-6 md:h-6" />
+                                <span className="text-[8px] md:text-[10px] font-black uppercase hidden md:block">Finish</span>
                             </button>
                         )}
                     </div>
@@ -308,6 +407,20 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
                 </div>
             </div>
+
+
+
+            {/* Logic for Streamer */}
+            {user && match?.metadata?.streaming_judge_id === user.id && (
+                <>
+
+                    <CameraStreamer matchId={match.id} broadcasterId={match.metadata?.broadcaster_id} onClose={() => {
+                        console.log("Closing Camera Streamer manually");
+                        // Optimistically update metadata locally or call toggle off
+                        toggleCameraStreamAction(match.id, false).then(() => refresh());
+                    }} />
+                </>
+            )}
         </div>
     );
 }
@@ -394,6 +507,58 @@ function ScoreBtn({ onClick, label, pts, color, disabled }: any) {
         >
             <span className="text-xl font-black">{pts}</span>
             <span className="text-[10px] font-bold uppercase opacity-75">{label}</span>
+        </button>
+    )
+}
+
+function CameraToggleButton({ matchId, currentStreamer, refresh, currentlyStreamingMatchId }: { matchId: string, currentStreamer: string | null, refresh: () => void, currentlyStreamingMatchId?: string | null }) {
+    const { toast } = useToast();
+    const [loading, setLoading] = useState(false);
+
+    // UI state: Active if ANYONE is streaming (red), Inactive if none (gray)
+    const isActive = !!currentStreamer;
+    const isLocked = !!currentlyStreamingMatchId && currentlyStreamingMatchId !== matchId;
+
+    async function handleToggle() {
+        setLoading(true);
+        try {
+            // If active -> Turn Off. If inactive -> Turn On.
+            const isStreaming = !!currentStreamer; // Re-derive specifically
+            const newStatus = !isStreaming;
+            const broadcasterId = newStatus ? `broadcaster-${matchId}-${Date.now()}` : undefined;
+
+            const res = await toggleCameraStreamAction(matchId, newStatus, broadcasterId);
+
+            if (!res.success) {
+                alert(res.error || "Failed to toggle camera stream");
+            } else {
+                toast({ title: newStatus ? "Gone Live!" : "Stream Ended", description: newStatus ? "You are now streaming this match." : "Camera stream unavailable." });
+                refresh();
+            }
+        } catch (error) {
+            console.error("Camera Toggle Error:", error);
+            alert("An unexpected error occurred while toggling the camera.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <button
+            onClick={handleToggle}
+            disabled={loading || isLocked}
+            title={isLocked ? "Another match is currently live" : ""}
+            className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border",
+                isActive
+                    ? "bg-red-500/10 text-red-600 border-red-500/20 animate-pulse"
+                    : isLocked
+                        ? "bg-muted/30 text-muted-foreground/50 border-transparent cursor-not-allowed"
+                        : "bg-muted/50 text-muted-foreground border-transparent hover:bg-muted"
+            )}
+        >
+            <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-red-600" : isLocked ? "bg-slate-500/50" : "bg-slate-400")} />
+            {loading ? "..." : (isActive ? "LIVE" : isLocked ? "BUSY" : "CAM")}
         </button>
     )
 }
