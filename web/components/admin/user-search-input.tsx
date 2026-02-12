@@ -127,7 +127,7 @@ export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, sele
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="text-sm font-medium truncate">{user.display_name || user.username || "Unknown"}</div>
-                                    <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                                    <div className="text-xs text-muted-foreground truncate">@{user.username}</div>
                                 </div>
                                 {user.decks?.length > 0 && (
                                     <div className="ml-auto text-xs bg-cyan-500/10 text-cyan-500 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">

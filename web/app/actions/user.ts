@@ -276,23 +276,40 @@ export async function getNotificationsAction() {
 export async function searchUsersAndDecksAction(query: string) {
     if (!query || query.length < 2) return { success: false, error: "Query too short" };
 
+    // 1. Search profiles by username or display_name
     const { data: profiles, error } = await supabaseAdmin
         .from("profiles")
-        .select(`
-            id,
-            username,
-            display_name,
-            email,
-            avatar_url,
-            decks (
-                id,
-                name
-            )
-        `)
-        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .select("id, username, display_name, avatar_url")
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(10);
 
     if (error) return { success: false, error: error.message };
+    if (!profiles || profiles.length === 0) return { success: true, users: [] };
 
-    return { success: true, users: profiles };
+    // 2. Fetch decks for all matched user IDs
+    const userIds = profiles.map(p => p.id);
+    const { data: decks } = await supabaseAdmin
+        .from("decks")
+        .select("id, name, user_id")
+        .in("user_id", userIds);
+
+    // 3. Merge decks into user objects
+    const decksByUser = new Map<string, any[]>();
+    if (decks) {
+        for (const deck of decks) {
+            const existing = decksByUser.get(deck.user_id) || [];
+            existing.push({ id: deck.id, name: deck.name });
+            decksByUser.set(deck.user_id, existing);
+        }
+    }
+
+    const users = profiles.map(p => ({
+        id: p.id,
+        username: p.username,
+        display_name: p.display_name,
+        avatar_url: p.avatar_url,
+        decks: decksByUser.get(p.id) || []
+    }));
+
+    return { success: true, users };
 }
