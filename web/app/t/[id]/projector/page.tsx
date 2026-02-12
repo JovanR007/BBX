@@ -151,6 +151,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setOrigin(window.location.origin);
         }
 
@@ -202,25 +203,24 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
         }
     }, [viewMode, activeGridMatches, totalRounds]);
 
+    // Safe Page Calculation (Derived State)
+    const safeCurrentPage = (totalPages > 0 && currentPage >= totalPages) ? 0 : currentPage;
+
     // Auto-Cycle Pages Every 15 Seconds
     useEffect(() => {
-        // Reset page if out of bounds (e.g. matches completed)
-        if (currentPage >= totalPages && totalPages > 0) {
-            setCurrentPage(0);
-        }
-
-        if (totalPages <= 1) {
-            // Ensure we are on page 0 if only 1 page
-            if (currentPage !== 0) setCurrentPage(0);
-            return;
-        }
+        if (totalPages <= 1) return;
 
         const timer = setInterval(() => {
-            setCurrentPage(prev => (prev + 1) % totalPages);
+            setCurrentPage(prev => {
+                const next = prev + 1;
+                return next >= totalPages ? 0 : next;
+            });
         }, 15000);
 
         return () => clearInterval(timer);
-    }, [totalPages, currentPage]);
+    }, [totalPages]);
+
+
 
     const toggleFullscreen = () => {
         if (!document.fullscreenElement) {
@@ -556,7 +556,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                 <div className="flex flex-col h-full">
                                     {/* Grid Layout */}
                                     <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6 w-full auto-rows-fr flex-1 content-start">
-                                        {activeGridMatches.slice(currentPage * MATCHES_PER_PAGE, (currentPage + 1) * MATCHES_PER_PAGE).map(m => (
+                                        {activeGridMatches.slice(safeCurrentPage * MATCHES_PER_PAGE, (safeCurrentPage + 1) * MATCHES_PER_PAGE).map(m => (
                                             <div key={m.id} className="min-h-[140px]">
                                                 <ProjectorMatchCard
                                                     match={m}
@@ -575,7 +575,7 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                                                     key={idx}
                                                     className={cn(
                                                         "h-2 rounded-full transition-all duration-700",
-                                                        idx === currentPage ? "w-12 bg-cyan-400" : "w-3 bg-slate-700"
+                                                        idx === safeCurrentPage ? "w-12 bg-cyan-400" : "w-3 bg-slate-700"
                                                     )}
                                                 />
                                             ))}
@@ -680,20 +680,20 @@ export default function ProjectorPage({ params }: { params: Promise<{ id: string
                 })()}
 
                 {/* Right: Sidebar */}
-                <div className="hidden xl:flex w-[400px] shrink-0 border-l border-white/5 flex-col bg-slate-900/40 backdrop-blur-xl">
+                <div className="hidden xl:flex w-[320px] shrink-0 border-l border-white/5 flex-col bg-slate-900/40 backdrop-blur-xl">
                     <div className="flex-1 overflow-y-auto no-scrollbar">
                         <LiveStandings participants={participants || {}} matches={swissMatches || []} />
                     </div>
 
                     {/* QR Code integrated into sidebar */}
-                    <div className="p-8 border-t border-white/5 bg-slate-900/80">
-                        <div className="flex items-center gap-6">
+                    <div className="p-6 border-t border-white/5 bg-slate-900/80">
+                        <div className="flex items-center gap-4">
                             <div className="bg-white p-2 rounded-lg shrink-0 shadow-lg">
-                                <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={80} />
+                                <QRCodeDisplay url={`${origin}/t/${tournamentId}`} size={70} />
                             </div>
                             <div>
-                                <div className="text-lg font-bold text-slate-200 leading-tight">Live Updates</div>
-                                <div className="text-xs text-slate-500 font-mono mt-1 uppercase tracking-widest">beybracket.com</div>
+                                <div className="text-base font-bold text-slate-200 leading-tight">Live Updates</div>
+                                <div className="text-[10px] text-slate-500 font-mono mt-1 uppercase tracking-widest">beybracket.com</div>
                                 <div className="mt-2 flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
                                     <span className="text-[10px] text-cyan-500/80 font-bold uppercase">Real-time sync</span>
