@@ -131,7 +131,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                         <MapPin className="w-4 h-4 text-primary/70" /> {tournament.location || "Online"}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4 text-primary/70" /> {format(new Date(tournament.start_time), 'MMM do, yyyy')}
+                                        <Calendar className="w-4 h-4 text-primary/70" /> {tournament.start_time ? format(new Date(tournament.start_time), 'MMM do, yyyy') : 'No Date Set'}
                                     </div>
                                 </div>
                             </div>
