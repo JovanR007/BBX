@@ -110,19 +110,22 @@ export function useBracketData(tournamentId: string | undefined) {
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
+    }, [fetchData]);
 
-        if (!tournamentId) return;
+    useEffect(() => {
+        const actualId = tournament?.id;
+        if (!actualId) return;
 
-        // Subscribe to Realtime Changes
+        // Subscribe to Realtime Changes using the resolved UUID
         const channel = supabase
-            .channel(`tournament-data-${tournamentId}`)
+            .channel(`tournament-data-${actualId}`)
             .on(
                 'postgres_changes',
                 {
                     event: '*',
                     schema: 'public',
                     table: 'matches',
-                    filter: `tournament_id=eq.${tournamentId}`
+                    filter: `tournament_id=eq.${actualId}`
                 },
                 (payload) => {
                     if (payload.eventType === 'UPDATE') {
@@ -139,7 +142,7 @@ export function useBracketData(tournamentId: string | undefined) {
                     event: '*',
                     schema: 'public',
                     table: 'tournaments',
-                    filter: `id=eq.${tournamentId}`
+                    filter: `id=eq.${actualId}`
                 },
                 () => fetchData(true)
             )
@@ -148,8 +151,8 @@ export function useBracketData(tournamentId: string | undefined) {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'tournament_participants',
-                    filter: `tournament_id=eq.${tournamentId}`
+                    table: 'participants',
+                    filter: `tournament_id=eq.${actualId}`
                 },
                 () => fetchData(true)
             )
@@ -158,7 +161,7 @@ export function useBracketData(tournamentId: string | undefined) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [fetchData, tournamentId]);
+    }, [fetchData, tournament?.id]);
 
     // Derived Values
     const swissMatches = matches.filter(m => m.stage === "swiss");
