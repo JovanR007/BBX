@@ -600,11 +600,6 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                             }}
                         />
 
-                        {selectedUserId && (
-                            <p className="text-[10px] text-cyan-500 bg-cyan-500/10 px-2 py-1 rounded">
-                                ✓ Linked to account — deck selection available above
-                            </p>
-                        )}
 
                         <button
                             type="button"

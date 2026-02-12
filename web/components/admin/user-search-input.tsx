@@ -140,7 +140,7 @@ export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, sele
                 )}
             </div>
 
-            {/* Deck Selection - Only if user selected and has decks */}
+            {/* Deck Selection - After user is selected */}
             {selectedUserId && selectedUserDecks.length > 0 && (
                 <div className="space-y-1 animate-in slide-in-from-top-1">
                     <label className="text-xs font-semibold text-muted-foreground uppercase flex items-center gap-1">
@@ -166,6 +166,13 @@ export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, sele
                         </SelectContent>
                     </Select>
                 </div>
+            )}
+
+            {/* Linked but no decks */}
+            {selectedUserId && selectedUserDecks.length === 0 && (
+                <p className="text-[10px] text-muted-foreground bg-muted px-2 py-1.5 rounded">
+                    ✓ Linked to account — this player has no saved decks yet.
+                </p>
             )}
         </div>
     );
