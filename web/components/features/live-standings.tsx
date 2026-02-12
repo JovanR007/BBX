@@ -65,7 +65,7 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
                     <div className="text-left">Player</div>
                     <div>Mat</div>
                     <div>Diff</div>
-                    <div className="text-right pr-1">Win</div>
+                    <div>Win</div>
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -95,7 +95,7 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
                             </div>
 
                             {/* Wins */}
-                            <div className="text-right font-black text-cyan-400 text-base font-mono leading-none pr-1">
+                            <div className="text-center font-black text-cyan-400 text-base font-mono leading-none">
                                 {s.wins}
                             </div>
                         </div>

@@ -357,7 +357,7 @@ function SwissView({
                         const rNum = Number(rNumStr);
                         const isLastRound = rNum === Number(maxRound);
                         return (
-                            <div key={rNum} className="flex flex-col gap-3 min-w-[280px]">
+                            <div key={rNum} className="flex flex-col gap-3 min-w-[240px]">
                                 <div className="text-center font-bold text-muted-foreground uppercase tracking-wider text-xs border-b border-white/5 pb-2">Round {rNum}</div>
                                 <div className="flex flex-col gap-2">
                                     {(rounds[rNum] || []).map((m) => (
@@ -790,7 +790,7 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono min-w-[20px] text-right",
-                    aWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                    aWon ? "text-slate-950" : "text-cyan-400 opacity-90"
                 )}>
                     {match.score_a ?? "-"}
                 </span>
