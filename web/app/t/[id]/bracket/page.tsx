@@ -352,14 +352,14 @@ function SwissView({
         <div className="flex flex-col lg:flex-row gap-6 pb-12">
             {/* Left: Horizontal Scrollable Matches */}
             <div className="flex-1 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40">
-                <div className="flex flex-row gap-6 min-w-max pr-4">
+                <div className="flex flex-row gap-4 min-w-max pr-4">
                     {roundsList.map(rNumStr => {
                         const rNum = Number(rNumStr);
                         const isLastRound = rNum === Number(maxRound);
                         return (
-                            <div key={rNum} className="flex flex-col gap-3 min-w-[240px]">
-                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider text-xs border-b border-white/5 pb-2">Round {rNum}</div>
-                                <div className="flex flex-col gap-2">
+                            <div key={rNum} className="flex flex-col gap-2 min-w-[160px] max-w-[180px]">
+                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider text-[10px] border-b border-white/5 pb-1">Round {rNum}</div>
+                                <div className="flex flex-col gap-1.5">
                                     {(rounds[rNum] || []).map((m) => (
                                         <MatchCard
                                             key={m.id}
@@ -378,7 +378,7 @@ function SwissView({
             </div>
 
             {/* Right: Live Standings Sidebar */}
-            <div className="w-full lg:w-[350px] shrink-0 space-y-4">
+            <div className="w-full lg:w-[300px] shrink-0 space-y-4">
                 <div className="rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-xl backdrop-blur-md">
                     <LiveStandings participants={participants} matches={matches} />
                 </div>
@@ -797,7 +797,7 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant A */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[26px] items-center px-2 py-0.5 transition-colors",
+                "grid grid-cols-[1fr_22px_22px] min-h-[24px] items-center px-1.5 py-0.5 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
@@ -834,7 +834,7 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant B */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[26px] items-center px-2 py-0.5 transition-colors",
+                "grid grid-cols-[1fr_22px_22px] min-h-[24px] items-center px-1.5 py-0.5 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
