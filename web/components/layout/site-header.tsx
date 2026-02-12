@@ -130,7 +130,7 @@ export function SiteHeader() {
                 </div>
 
                 {/* Right Section: Actions */}
-                <div className="flex items-center justify-end gap-2 md:gap-4 min-w-0 overflow-hidden">
+                <div className="flex items-center justify-end gap-2 md:gap-4 min-w-0">
                     {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
                     <div className="hidden sm:block">
                         <div className="hidden xl:block">
