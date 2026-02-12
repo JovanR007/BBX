@@ -80,11 +80,11 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container h-16 grid grid-cols-3 items-center px-2 md:px-6">
+            <div className="container h-16 grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 max-w-[1400px]">
                 {/* Left Section: Logo */}
-                <div className="flex items-center justify-start">
+                <div className="flex items-center justify-start min-w-0">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="relative w-28 sm:w-32 md:w-48 h-10 sm:h-12 md:h-16">
+                        <div className="relative w-28 sm:w-32 md:w-40 h-10 sm:h-12 md:h-14">
                             <Image
                                 src="/logo.png"
                                 alt="BeyBracket"
@@ -97,9 +97,24 @@ export function SiteHeader() {
                 </div>
 
                 {/* Center Section: Navigation */}
-                <div className="flex justify-center">
+                <div className="flex justify-center flex-none px-2 lg:px-6">
                     {/* Main Navigation - Desktop */}
-                    <nav className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-wider whitespace-nowrap">
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-xs font-black uppercase tracking-widest whitespace-nowrap">
+                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                            Events
+                        </Link>
+                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                            Directory
+                        </Link>
+                        {user && (
+                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                                Host Event
+                            </Link>
+                        )}
+                    </nav>
+
+                    {/* Mobile Navigation - Only visible on small screens */}
+                    <nav className="flex md:hidden items-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap">
                         <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors">
                             Events
                         </Link>
@@ -108,21 +123,6 @@ export function SiteHeader() {
                         </Link>
                         {user && (
                             <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors">
-                                Host Event
-                            </Link>
-                        )}
-                    </nav>
-
-                    {/* Mobile Navigation - Only visible on small screens */}
-                    <nav className="flex md:hidden items-center gap-2 sm:gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap">
-                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors px-1">
-                            Events
-                        </Link>
-                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-colors px-1">
-                            Directory
-                        </Link>
-                        {user && (
-                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors px-1">
                                 Host
                             </Link>
                         )}
@@ -130,19 +130,19 @@ export function SiteHeader() {
                 </div>
 
                 {/* Right Section: Actions */}
-                <div className="flex items-center justify-end gap-2 md:gap-4">
+                <div className="flex items-center justify-end gap-2 md:gap-4 min-w-0 overflow-hidden">
                     {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
                     <div className="hidden sm:block">
-                        <div className="hidden lg:block">
+                        <div className="hidden xl:block">
                             <SupportButton variant="full" />
                         </div>
-                        <div className="lg:hidden">
+                        <div className="xl:hidden">
                             <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
                         </div>
                     </div>
 
                     {user ? (
-                        <div className="flex items-center gap-2 md:gap-4">
+                        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                             <NotificationCenter />
                             <div className="relative" onClick={(e) => e.stopPropagation()}>
                                 <button
