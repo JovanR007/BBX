@@ -592,10 +592,9 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                 >
                     <span style={{
                         color: topWon ? '#000000' : '#E2E8F0',
-                        fontSize: '11px',
-                        fontWeight: topWon ? 'bold' : 'normal',
-                        paddingRight: '8px',
-                        wordBreak: 'break-word',
+                        fontSize: '10px',
+                        fontWeight: topWon ? '900' : 'bold',
+                        paddingRight: '4px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
                         whiteSpace: 'nowrap',
@@ -603,16 +602,20 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         textOverflow: 'ellipsis',
                         flex: 1
                     }}>
-                        {(participants[topParty.id] as any)?.profiles?.[0]?.display_name || topParty.name || teamNameFallback}
+                        {(() => {
+                            const p = participants[topParty.id];
+                            const profile: any = p?.profiles;
+                            return (Array.isArray(profile) ? profile[0] : profile)?.display_name || topParty.name || teamNameFallback;
+                        })()}
                     </span>
                     <span style={{
                         color: topWon ? '#000000' : '#94A3B8',
-                        fontSize: '11px',
+                        fontSize: '10px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '18px',
+                        minWidth: '16px',
                         textAlign: 'right',
-                        opacity: topWon ? 1 : 0.6,
+                        opacity: topWon ? 1 : 0.8,
                     }}>
                         {topParty.resultText || '-'}
                     </span>
@@ -620,12 +623,12 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(topParty.deck); }}
                             className={cn(
-                                "ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                "ml-1 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
                                 topWon ? "text-slate-950" : "text-cyan-500"
                             )}
                             title={`View Deck: ${topParty.deck.name}`}
                         >
-                            <Eye className="w-2.5 h-2.5" />
+                            <Eye className="w-2.5 h-2.5 stroke-[3]" />
                         </div>
                     )}
                 </div>
@@ -647,10 +650,9 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                 >
                     <span style={{
                         color: bottomWon ? '#000000' : '#E2E8F0',
-                        fontSize: '11px',
-                        fontWeight: bottomWon ? 'bold' : 'normal',
-                        paddingRight: '8px',
-                        wordBreak: 'break-word',
+                        fontSize: '10px',
+                        fontWeight: bottomWon ? '900' : 'bold',
+                        paddingRight: '4px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
                         whiteSpace: 'nowrap',
@@ -658,16 +660,20 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         textOverflow: 'ellipsis',
                         flex: 1
                     }}>
-                        {(participants[bottomParty.id] as any)?.profiles?.[0]?.display_name || bottomParty.name || teamNameFallback}
+                        {(() => {
+                            const p = participants[bottomParty.id];
+                            const profile: any = p?.profiles;
+                            return (Array.isArray(profile) ? profile[0] : profile)?.display_name || bottomParty.name || teamNameFallback;
+                        })()}
                     </span>
                     <span style={{
                         color: bottomWon ? '#000000' : '#94A3B8',
-                        fontSize: '11px',
+                        fontSize: '10px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '18px',
+                        minWidth: '16px',
                         textAlign: 'right',
-                        opacity: bottomWon ? 1 : 0.6,
+                        opacity: bottomWon ? 1 : 0.8,
                     }}>
                         {bottomParty.resultText || '-'}
                     </span>
@@ -675,12 +681,12 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(bottomParty.deck); }}
                             className={cn(
-                                "ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                "ml-1 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
                                 bottomWon ? "text-slate-950" : "text-cyan-500"
                             )}
                             title={`View Deck: ${bottomParty.deck.name}`}
                         >
-                            <Eye className="w-2.5 h-2.5" />
+                            <Eye className="w-2.5 h-2.5 stroke-[3]" />
                         </div>
                     )}
                 </div>
@@ -706,10 +712,10 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         theme={BeybladeTheme}
                         options={{
                             style: {
-                                width: 160,
-                                boxHeight: 64,
+                                width: 140,
+                                boxHeight: 48,
                                 spaceBetweenColumns: 40,
-                                spaceBetweenRows: 16,
+                                spaceBetweenRows: 12,
                                 canvasPadding: 20,
                                 roundHeader: {
                                     backgroundColor: 'transparent',
@@ -791,15 +797,18 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant A */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[30px] items-center px-2 py-1 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[26px] items-center px-2 py-0.5 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight truncate",
+                    "text-[10px] uppercase font-black tracking-tighter truncate",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {(pA as any)?.profiles?.[0]?.display_name || pA?.display_name || "BYE"}
+                    {(() => {
+                        const profile: any = pA?.profiles;
+                        return (Array.isArray(profile) ? profile[0] : profile)?.display_name || pA?.display_name || "BYE";
+                    })()}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono text-center",
@@ -812,12 +821,12 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
                             className={cn(
-                                "w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                "w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
                                 aWon ? "text-slate-950" : "text-cyan-500"
                             )}
                             title={`View Deck: ${pA.deck.name}`}
                         >
-                            <Eye className="w-2.5 h-2.5" />
+                            <Eye className="w-2 h-2 stroke-[3]" />
                         </div>
                     )}
                 </div>
@@ -825,14 +834,17 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant B */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[30px] items-center px-2 py-1 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[26px] items-center px-2 py-0.5 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight truncate",
+                    "text-[10px] uppercase font-black tracking-tighter truncate",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {(pB as any)?.profiles?.[0]?.display_name || pB?.display_name || "BYE"}
+                    {(() => {
+                        const profile: any = pB?.profiles;
+                        return (Array.isArray(profile) ? profile[0] : profile)?.display_name || pB?.display_name || "BYE";
+                    })()}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono text-center",
@@ -845,12 +857,12 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
                             className={cn(
-                                "w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                "w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
                                 bWon ? "text-slate-950" : "text-cyan-500"
                             )}
                             title={`View Deck: ${pB.deck.name}`}
                         >
-                            <Eye className="w-2.5 h-2.5" />
+                            <Eye className="w-2 h-2 stroke-[3]" />
                         </div>
                     )}
                 </div>

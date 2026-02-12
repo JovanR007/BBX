@@ -244,7 +244,11 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                                 {idx + 1}
                                             </span>
                                             <span className="text-sm font-bold truncate max-w-[120px]">
-                                                {(participants[player.id] as any)?.profiles?.[0]?.display_name || participants[player.id]?.display_name || "Unknown"}
+                                                {(() => {
+                                                    const p = participants[player.id];
+                                                    const profile: any = p?.profiles;
+                                                    return (Array.isArray(profile) ? profile[0] : profile)?.display_name || p?.display_name || "Unknown";
+                                                })()}
                                             </span>
                                         </div>
                                         <div className="text-xs font-mono font-bold text-primary">{player.wins || 0} PTS</div>
@@ -275,11 +279,19 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                         </div>
                                         <div className="grid grid-cols-5 items-center gap-2 p-3 bg-muted/20 rounded-2xl border border-white/5">
                                             <div className="col-span-2 truncate text-xs font-bold text-center">
-                                                {(participants[match.participant_a_id] as any)?.profiles?.[0]?.display_name || participants[match.participant_a_id]?.display_name || "BYE"}
+                                                {(() => {
+                                                    const p = participants[match.participant_a_id];
+                                                    const profile: any = p?.profiles;
+                                                    return (Array.isArray(profile) ? profile[0] : profile)?.display_name || p?.display_name || "BYE";
+                                                })()}
                                             </div>
                                             <div className="col-span-1 text-[10px] font-black text-center text-primary">{match.score_a} - {match.score_b}</div>
                                             <div className="col-span-2 truncate text-xs font-bold text-center">
-                                                {(participants[match.participant_b_id] as any)?.profiles?.[0]?.display_name || participants[match.participant_b_id]?.display_name || "BYE"}
+                                                {(() => {
+                                                    const p = participants[match.participant_b_id];
+                                                    const profile: any = p?.profiles;
+                                                    return (Array.isArray(profile) ? profile[0] : profile)?.display_name || p?.display_name || "BYE";
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
