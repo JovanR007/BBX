@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction, bulkAddParticipantsAction, seedTournamentAction } from "@/app/actions";
-import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban, Layers } from "lucide-react";
+import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban, Layers, Plus } from "lucide-react";
 import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
 import { MatchScoringModal } from "@/components/features/match-scoring-modal";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 import { useTournament } from "@/hooks/use-tournament";
 import { UserSearchInput } from "@/components/admin/user-search-input";
+import { AdminDeckModal } from "@/components/admin/admin-deck-modal";
 
 export default function AdminPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -328,6 +329,7 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
     const [loading, setLoading] = useState(false);
     const [showDropModal, setShowDropModal] = useState(false);
     const [showDeckModal, setShowDeckModal] = useState(false);
+    const [showAdminDeckModal, setShowAdminDeckModal] = useState(false);
 
     const deck = participant.deck;
 
@@ -450,8 +452,8 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                     </span>
                     {participant.dropped && <span className="text-[10px] bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded uppercase font-bold">Dropped</span>}
 
-                    {/* Deck Badge */}
-                    {deck && (
+                    {/* Deck Badge or Add Button */}
+                    {deck ? (
                         <button
                             onClick={() => setShowDeckModal(true)}
                             className="ml-1 text-[10px] bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 px-2 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
@@ -460,6 +462,16 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                             <Layers className="w-3 h-3" />
                             {deck.name}
                         </button>
+                    ) : (
+                        !readOnly && (
+                            <button
+                                onClick={() => setShowAdminDeckModal(true)}
+                                className="ml-1 text-[10px] bg-primary/10 text-primary hover:bg-primary px-2 py-0.5 rounded flex items-center gap-1 transition-all opacity-0 group-hover:opacity-100 cursor-pointer font-bold uppercase"
+                            >
+                                <Plus className="w-3 h-3" />
+                                Add Deck
+                            </button>
+                        )
                     )}
                 </div>
 
@@ -509,6 +521,15 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                 onConfirm={confirmDrop}
                 playerName={participant.display_name}
                 loading={loading}
+            />
+
+            <AdminDeckModal
+                isOpen={showAdminDeckModal}
+                onClose={() => setShowAdminDeckModal(false)}
+                participantId={participant.id}
+                userId={participant.user_id}
+                playerName={participant.display_name}
+                onDeckCreated={refresh}
             />
 
             {/* Deck Detail Modal */}

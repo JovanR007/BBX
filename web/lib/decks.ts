@@ -75,7 +75,7 @@ export async function getUserDecks(userId: string) {
     return data;
 }
 
-export async function createDeck(userId: string, deckData: any) {
+export async function createDeck(userId: string | null, deckData: any) {
     // 1. Create Deck
     const { data: deck, error: deckError } = await supabaseAdmin
         .from('decks')
@@ -112,9 +112,9 @@ export async function createDeck(userId: string, deckData: any) {
     return deck;
 }
 
-export async function updateDeck(userId: string, deckId: string, deckData: any) {
+export async function updateDeck(userId: string | null, deckId: string, deckData: any) {
     // 1. Update Deck Details
-    const { data: deck, error: deckError } = await supabaseAdmin
+    const query = supabaseAdmin
         .from('decks')
         .update({
             name: deckData.name,
@@ -122,8 +122,15 @@ export async function updateDeck(userId: string, deckId: string, deckData: any) 
             image_url: deckData.image_url,
             updated_at: new Date().toISOString()
         })
-        .eq('id', deckId)
-        .eq('user_id', userId) // Security check
+        .eq('id', deckId);
+
+    if (userId) {
+        query.eq('user_id', userId);
+    } else {
+        query.is('user_id', null);
+    }
+
+    const { data: deck, error: deckError } = await query
         .select()
         .single();
 
@@ -162,12 +169,19 @@ export async function updateDeck(userId: string, deckId: string, deckData: any) 
     return deck;
 }
 
-export async function deleteDeck(userId: string, deckId: string) {
-    const { error } = await supabaseAdmin
+export async function deleteDeck(userId: string | null, deckId: string) {
+    const query = supabaseAdmin
         .from('decks')
         .delete()
-        .eq('id', deckId)
-        .eq('user_id', userId); // Security check
+        .eq('id', deckId);
+
+    if (userId) {
+        query.eq('user_id', userId);
+    } else {
+        query.is('user_id', null);
+    }
+
+    const { error } = await query;
 
     if (error) throw error;
     return true;

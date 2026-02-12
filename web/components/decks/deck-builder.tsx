@@ -13,9 +13,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface DeckBuilderProps {
-    userId: string;
+    userId: string | null;
     existingDeck?: Deck | null;
-    onDeckCreated?: () => void;
+    onDeckCreated?: (deckId: string) => void;
     onDeckUpdated?: () => void;
     onDeckDeleted?: () => void;
     onCancel?: () => void;
@@ -188,9 +188,9 @@ export function DeckBuilder({ userId, existingDeck, onDeckCreated, onDeckUpdated
                 toast({ title: "Deck updated successfully!" });
                 if (onDeckUpdated) onDeckUpdated();
             } else {
-                await createDeck(userId, deckData);
+                const deck = await createDeck(userId, deckData);
                 toast({ title: "Deck created successfully!" });
-                if (onDeckCreated) onDeckCreated();
+                if (onDeckCreated) onDeckCreated(deck.id);
             }
 
             // Cleanup provided by parent (switching views)

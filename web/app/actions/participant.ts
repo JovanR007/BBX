@@ -453,3 +453,15 @@ export async function bulkAddParticipantsAction(formData: FormData) {
     revalidatePath(`/t/${tournamentId}/admin`);
     return { success: true, count: names.length };
 }
+
+export async function updateParticipantDeckAction(participantId: string, deckId: string) {
+    if (!participantId || !deckId) return { success: false, error: "Missing required IDs" };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ deck_id: deckId })
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
