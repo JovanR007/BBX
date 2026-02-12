@@ -19,9 +19,9 @@ export function useBracketData(tournamentId: string | undefined) {
     const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false, isSuperAdmin: false });
     const user = useUser();
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (silent = false) => {
         if (!tournamentId) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
 
         const res = await getTournamentDataAction(tournamentId);
 
@@ -108,13 +108,14 @@ export function useBracketData(tournamentId: string | undefined) {
     }, [tournamentId, toast, user]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
 
         if (!tournamentId) return;
 
         // Subscribe to Realtime Changes
         const channel = supabase
-            .channel(`tournament-${tournamentId}`)
+            .channel(`tournament-data-${tournamentId}`)
             .on(
                 'postgres_changes',
                 {
@@ -125,16 +126,32 @@ export function useBracketData(tournamentId: string | undefined) {
                 },
                 (payload) => {
                     if (payload.eventType === 'UPDATE') {
-                        // Optimistic update for score/status changes
                         const newMatch = payload.new as Match;
                         setMatches(prev => prev.map(m => m.id === newMatch.id ? newMatch : m));
-                    } else if (payload.eventType === 'INSERT') {
-                        // New match created (new round generated) - fetch everything to be safe
-                        // Or just append if we trust the payload? 
-                        // Better to re-fetch to ensure consistency (e.g. participant IDs might be TBD initially then updated)
-                        fetchData();
+                    } else {
+                        fetchData(true);
                     }
                 }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tournaments',
+                    filter: `id=eq.${tournamentId}`
+                },
+                () => fetchData(true)
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tournament_participants',
+                    filter: `tournament_id=eq.${tournamentId}`
+                },
+                () => fetchData(true)
             )
             .subscribe();
 

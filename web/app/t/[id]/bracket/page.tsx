@@ -763,8 +763,8 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                 "flex flex-col w-full rounded-md border overflow-hidden cursor-pointer transition-all duration-200 shadow-lg",
                 isSwissKing ? "border-yellow-500/50 shadow-yellow-500/10" : "border-slate-800",
                 isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700",
-                isPending && !isHighlighted && "border-indigo-500/50 shadow-[0_0_10px_rgba(99,102,241,0.15)] bg-indigo-500/5",
-                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse bg-cyan-950/10"
+                isPending && !isHighlighted && "border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)] bg-cyan-950/20",
+                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.4)] animate-pulse bg-cyan-950/20"
             )}
             style={isSwissKing ? { background: 'linear-gradient(to bottom right, #0F172A, #1e1b10)' } : { background: '#0F172A' }}
         >

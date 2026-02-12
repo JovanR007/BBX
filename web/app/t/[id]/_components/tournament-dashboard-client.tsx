@@ -243,9 +243,11 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                             )}>
                                                 {idx + 1}
                                             </span>
-                                            <span className="text-sm font-bold truncate max-w-[120px]">{player.display_name}</span>
+                                            <span className="text-sm font-bold truncate max-w-[120px]">
+                                                {participants[player.id]?.display_name || "Unknown"}
+                                            </span>
                                         </div>
-                                        <div className="text-xs font-mono font-bold text-primary">{player.points || 0} PTS</div>
+                                        <div className="text-xs font-mono font-bold text-primary">{player.wins || 0} PTS</div>
                                     </div>
                                 ))
                             ) : (
