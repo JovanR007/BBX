@@ -584,7 +584,7 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         height: '50%',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '4px 8px',
+                        padding: '2px 8px',
                         background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
                         borderBottom: '1px solid #334155',
                         transition: 'background 0.2s',
@@ -598,16 +598,19 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         wordBreak: 'break-word',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        lineHeight: '1.1',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1
                     }}>
-                        {topParty.name || teamNameFallback}
+                        {(participants[topParty.id] as any)?.profiles?.[0]?.display_name || topParty.name || teamNameFallback}
                     </span>
                     <span style={{
                         color: topWon ? '#000000' : '#94A3B8',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '20px',
+                        minWidth: '18px',
                         textAlign: 'right',
                         opacity: topWon ? 1 : 0.6,
                     }}>
@@ -616,13 +619,17 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                     {topParty.deck && (
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(topParty.deck); }}
-                            className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer"
+                            className={cn(
+                                "ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                topWon ? "text-slate-950" : "text-cyan-500"
+                            )}
                             title={`View Deck: ${topParty.deck.name}`}
                         >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-2.5 h-2.5" />
                         </div>
                     )}
                 </div>
+
                 {/* Bottom Player */}
                 <div
                     onMouseEnter={() => onMouseEnter(bottomParty.id)}
@@ -633,7 +640,7 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         height: '50%',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '4px 8px',
+                        padding: '2px 8px',
                         background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
                         transition: 'background 0.2s',
                     }}
@@ -646,16 +653,19 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         wordBreak: 'break-word',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        lineHeight: '1.1',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1
                     }}>
-                        {bottomParty.name || teamNameFallback}
+                        {(participants[bottomParty.id] as any)?.profiles?.[0]?.display_name || bottomParty.name || teamNameFallback}
                     </span>
                     <span style={{
                         color: bottomWon ? '#000000' : '#94A3B8',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '20px',
+                        minWidth: '18px',
                         textAlign: 'right',
                         opacity: bottomWon ? 1 : 0.6,
                     }}>
@@ -664,10 +674,13 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                     {bottomParty.deck && (
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(bottomParty.deck); }}
-                            className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer"
+                            className={cn(
+                                "ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                bottomWon ? "text-slate-950" : "text-cyan-500"
+                            )}
                             title={`View Deck: ${bottomParty.deck.name}`}
                         >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-2.5 h-2.5" />
                         </div>
                     )}
                 </div>
@@ -693,10 +706,10 @@ function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize 
                         theme={BeybladeTheme}
                         options={{
                             style: {
-                                width: 180,
-                                boxHeight: 80,
-                                spaceBetweenColumns: 60,
-                                spaceBetweenRows: 24,
+                                width: 160,
+                                boxHeight: 64,
+                                spaceBetweenColumns: 40,
+                                spaceBetweenRows: 16,
                                 canvasPadding: 20,
                                 roundHeader: {
                                     backgroundColor: 'transparent',
@@ -778,7 +791,7 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant A */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[40px] items-center px-3 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[30px] items-center px-2 py-1 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
@@ -786,7 +799,7 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                     "text-[10px] uppercase font-bold tracking-tight truncate",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pA?.display_name || "BYE"}
+                    {(pA as any)?.profiles?.[0]?.display_name || pA?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono text-center",
@@ -798,10 +811,13 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                     {pA?.deck && onDeckClick && (
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
-                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                            className={cn(
+                                "w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                aWon ? "text-slate-950" : "text-cyan-500"
+                            )}
                             title={`View Deck: ${pA.deck.name}`}
                         >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-2.5 h-2.5" />
                         </div>
                     )}
                 </div>
@@ -809,14 +825,14 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant B */}
             <div className={cn(
-                "grid grid-cols-[1fr_24px_24px] min-h-[40px] items-center px-3 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[30px] items-center px-2 py-1 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
                     "text-[10px] uppercase font-bold tracking-tight truncate",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pB?.display_name || "BYE"}
+                    {(pB as any)?.profiles?.[0]?.display_name || pB?.display_name || "BYE"}
                 </span>
                 <span className={cn(
                     "text-xs font-black font-mono text-center",
@@ -828,10 +844,13 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
                     {pB?.deck && onDeckClick && (
                         <div
                             onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
-                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                            className={cn(
+                                "w-4 h-4 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                bWon ? "text-slate-950" : "text-cyan-500"
+                            )}
                             title={`View Deck: ${pB.deck.name}`}
                         >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-2.5 h-2.5" />
                         </div>
                     )}
                 </div>

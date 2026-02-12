@@ -25,6 +25,7 @@ export async function getTournamentDataAction(tournamentId: string) {
             supabaseAdmin.from("participants")
                 .select(`
                     id, created_at, tournament_id, user_id, display_name, dropped, checked_in, deck_id,
+                    profiles:user_id ( display_name ),
                     deck:decks (
                         *,
                         deck_beys (

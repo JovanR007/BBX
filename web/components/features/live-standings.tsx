@@ -44,7 +44,7 @@ export function LiveStandings({ participants, matches }: LiveStandingsProps) {
 
                             {/* Name */}
                             <div className="font-bold text-white text-sm truncate group-hover:text-cyan-400 transition-colors">
-                                {participants[s.id]?.display_name || "Unknown"}
+                                {(participants[s.id] as any)?.profiles?.[0]?.display_name || participants[s.id]?.display_name || "Unknown"}
                             </div>
 
                             {/* Matches */}
