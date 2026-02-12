@@ -6,7 +6,7 @@ import { Menu } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, LogOut, Settings, Trophy, CreditCard, Shield, Medal } from "lucide-react";
+import { User, LogOut, Settings, Trophy, CreditCard, Shield, Medal, Sword } from "lucide-react";
 import Image from "next/image";
 import { NotificationCenter } from "@/components/features/notification-center";
 import { SupportButton } from "@/components/features/support-button";
@@ -104,9 +104,6 @@ export function SiteHeader() {
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
                         Directory
                     </Link>
-                    <Link href="/decks" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Decks
-                    </Link>
                     {user && (
                         <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
                             Host Event
@@ -121,9 +118,6 @@ export function SiteHeader() {
                     </Link>
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
                         Directory
-                    </Link>
-                    <Link href="/decks" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                        Decks
                     </Link>
                     {user && (
                         <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
@@ -201,6 +195,13 @@ export function SiteHeader() {
                                                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
                                                 >
                                                     <User className="w-4 h-4" /> My Profile
+                                                </Link>
+                                                <Link
+                                                    href="/decks"
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                >
+                                                    <Sword className="w-4 h-4" /> My Decks
                                                 </Link>
                                                 <Link
                                                     href="/account"
