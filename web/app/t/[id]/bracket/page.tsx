@@ -778,59 +778,63 @@ function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isH
 
             {/* Participant A */}
             <div className={cn(
-                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[40px] items-center px-3 py-1.5 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    "text-[10px] uppercase font-bold tracking-tight truncate",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
                     {pA?.display_name || "BYE"}
                 </span>
                 <span className={cn(
-                    "text-xs font-black font-mono min-w-[20px] text-right",
-                    aWon ? "text-slate-950" : "text-cyan-400 opacity-90"
+                    "text-xs font-black font-mono text-center",
+                    aWon ? "text-slate-950" : "text-cyan-400"
                 )}>
                     {match.score_a ?? "-"}
                 </span>
-                {pA?.deck && onDeckClick && (
-                    <div
-                        onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
-                        className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
-                        title={`View Deck: ${pA.deck.name}`}
-                    >
-                        <Eye className="w-3 h-3" />
-                    </div>
-                )}
+                <div className="flex justify-center">
+                    {pA?.deck && onDeckClick && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                            title={`View Deck: ${pA.deck.name}`}
+                        >
+                            <Eye className="w-3 h-3" />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Participant B */}
             <div className={cn(
-                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_24px_24px] min-h-[40px] items-center px-3 py-1.5 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    "text-[10px] uppercase font-bold tracking-tight truncate",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
                     {pB?.display_name || "BYE"}
                 </span>
                 <span className={cn(
-                    "text-xs font-black font-mono min-w-[20px] text-right",
-                    bWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                    "text-xs font-black font-mono text-center",
+                    bWon ? "text-slate-950" : "text-cyan-400"
                 )}>
                     {match.score_b ?? "-"}
                 </span>
-                {pB?.deck && onDeckClick && (
-                    <div
-                        onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
-                        className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
-                        title={`View Deck: ${pB.deck.name}`}
-                    >
-                        <Eye className="w-3 h-3" />
-                    </div>
-                )}
+                <div className="flex justify-center">
+                    {pB?.deck && onDeckClick && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
+                            className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                            title={`View Deck: ${pB.deck.name}`}
+                        >
+                            <Eye className="w-3 h-3" />
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );
