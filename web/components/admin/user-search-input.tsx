@@ -12,9 +12,10 @@ interface UserSearchInputProps {
     onNameChange: (name: string) => void;
     selectedUserId: string | null;
     resetTrigger?: number;
+    renderAddDeckButton?: (userId: string | null, playerName: string) => React.ReactNode;
 }
 
-export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, selectedUserId, resetTrigger }: UserSearchInputProps) {
+export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, selectedUserId, resetTrigger, renderAddDeckButton }: UserSearchInputProps) {
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -170,9 +171,12 @@ export function UserSearchInput({ onSelectUser, onSelectDeck, onNameChange, sele
 
             {/* Linked but no decks */}
             {selectedUserId && selectedUserDecks.length === 0 && (
-                <p className="text-[10px] text-muted-foreground bg-muted px-2 py-1.5 rounded">
-                    ✓ Linked to account — this player has no saved decks yet.
-                </p>
+                <div className="flex items-center gap-2 bg-muted px-2 py-1.5 rounded">
+                    <p className="text-[10px] text-muted-foreground flex-1">
+                        ✓ Linked to account — this player has no saved decks yet.
+                    </p>
+                    {renderAddDeckButton && renderAddDeckButton(selectedUserId, query)}
+                </div>
             )}
         </div>
     );

@@ -466,7 +466,7 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                         !readOnly && (
                             <button
                                 onClick={() => setShowAdminDeckModal(true)}
-                                className="ml-1 text-[10px] bg-primary/10 text-primary hover:bg-primary px-2 py-0.5 rounded flex items-center gap-1 transition-all opacity-0 group-hover:opacity-100 cursor-pointer font-bold uppercase"
+                                className="ml-1 text-[10px] bg-primary/10 text-primary hover:bg-primary px-2 py-0.5 rounded flex items-center gap-1 transition-all opacity-60 group-hover:opacity-100 cursor-pointer font-bold uppercase"
                             >
                                 <Plus className="w-3 h-3" />
                                 Add Deck
@@ -611,6 +611,7 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
     const [playerName, setPlayerName] = useState("");
     const [addingPlayer, setAddingPlayer] = useState(false);
     const [resetTrigger, setResetTrigger] = useState(0);
+    const [showPreRegDeckModal, setShowPreRegDeckModal] = useState(false);
 
     async function handleToggle() {
         const formData = new FormData();
@@ -699,7 +700,29 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                                     setSelectedDeckId(null);
                                 }
                             }}
+                            renderAddDeckButton={(uid, pName) => (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPreRegDeckModal(true)}
+                                    className="text-[10px] bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600 hover:text-white px-2 py-1 rounded transition-all font-bold uppercase shrink-0"
+                                >
+                                    <Plus className="w-2.5 h-2.5 inline mr-1" />
+                                    Create Deck
+                                </button>
+                            )}
                         />
+
+                        {showPreRegDeckModal && (
+                            <AdminDeckModal
+                                isOpen={showPreRegDeckModal}
+                                onClose={() => setShowPreRegDeckModal(false)}
+                                userId={selectedUserId}
+                                playerName={playerName}
+                                onDeckCreated={(deckId) => {
+                                    if (deckId) setSelectedDeckId(deckId);
+                                }}
+                            />
+                        )}
 
 
                         <button

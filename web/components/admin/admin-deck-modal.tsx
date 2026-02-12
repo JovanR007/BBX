@@ -9,10 +9,10 @@ import { useToast } from "@/components/ui/toaster";
 interface AdminDeckModalProps {
     isOpen: boolean;
     onClose: () => void;
-    participantId: string;
+    participantId?: string;
     userId: string | null;
     playerName: string;
-    onDeckCreated: () => void;
+    onDeckCreated: (deckId?: string) => void;
 }
 
 export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerName, onDeckCreated }: AdminDeckModalProps) {
@@ -24,14 +24,17 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
     const handleDeckCreated = async (deckId: string) => {
         setIsSaving(true);
         try {
-            const res = await updateParticipantDeckAction(participantId, deckId);
-            if (res.success) {
-                toast({ title: "Deck Assigned", description: "The deck has been linked to this participant.", variant: "success" });
-                onDeckCreated();
-                onClose();
-            } else {
-                toast({ title: "Failed to Link Deck", description: res.error, variant: "destructive" });
+            if (participantId) {
+                const res = await updateParticipantDeckAction(participantId, deckId);
+                if (res.success) {
+                    toast({ title: "Deck Assigned", description: "The deck has been linked to this participant.", variant: "success" });
+                } else {
+                    toast({ title: "Failed to Link Deck", description: res.error, variant: "destructive" });
+                    return; // Don't close if fail? Or let them try again?
+                }
             }
+            onDeckCreated(deckId);
+            onClose();
         } catch (e: any) {
             toast({ title: "Error", description: e.message, variant: "destructive" });
         } finally {
