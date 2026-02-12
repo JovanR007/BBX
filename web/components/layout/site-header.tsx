@@ -80,9 +80,9 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container h-16 grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 max-w-[1400px]">
+            <div className="container h-16 flex items-center justify-between px-4 md:px-8 max-w-[1400px]">
                 {/* Left Section: Logo */}
-                <div className="flex items-center justify-start min-w-0">
+                <div className="flex items-center justify-start flex-shrink-0">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <div className="relative w-28 sm:w-32 md:w-40 h-10 sm:h-12 md:h-14">
                             <Image
@@ -96,19 +96,19 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Center Section: Navigation */}
-                <div className="flex justify-center flex-none px-2 lg:px-6">
-                    {/* Main Navigation - Desktop */}
-                    <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-xs font-black uppercase tracking-widest whitespace-nowrap">
+                {/* Right Section: Navigation + Actions */}
+                <div className="flex items-center justify-end gap-6 md:gap-8 flex-1">
+                    {/* Main Navigation - Desktop (Far Right) */}
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-xs font-black uppercase tracking-widest whitespace-nowrap">
                         <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
-                            Events
+                            Tournaments
                         </Link>
                         <Link href="/stores" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
-                            Directory
+                            Stores
                         </Link>
                         {user && (
                             <Link href="/create" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
-                                Host Event
+                                Create Tournament
                             </Link>
                         )}
                     </nav>
@@ -116,136 +116,138 @@ export function SiteHeader() {
                     {/* Mobile Navigation - Only visible on small screens */}
                     <nav className="flex md:hidden items-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap">
                         <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors">
-                            Events
+                            Tournaments
                         </Link>
                         <Link href="/stores" className="text-foreground/60 hover:text-primary transition-colors">
-                            Directory
+                            Stores
                         </Link>
                         {user && (
                             <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors">
-                                Host
+                                Create
                             </Link>
                         )}
                     </nav>
-                </div>
 
-                {/* Right Section: Actions */}
-                <div className="flex items-center justify-end gap-2 md:gap-4 min-w-0">
-                    {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
-                    <div className="hidden sm:block">
-                        <div className="hidden xl:block">
-                            <SupportButton variant="full" />
+                    <div className="h-4 w-px bg-border hidden md:block" />
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end gap-2 md:gap-4 flex-shrink-0">
+                        {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
+                        <div className="hidden sm:block">
+                            <div className="hidden xl:block">
+                                <SupportButton variant="full" />
+                            </div>
+                            <div className="xl:hidden">
+                                <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
+                            </div>
                         </div>
-                        <div className="xl:hidden">
-                            <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
-                        </div>
-                    </div>
 
-                    {user ? (
-                        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                            <NotificationCenter />
-                            <div className="relative" onClick={(e) => e.stopPropagation()}>
-                                <button
-                                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                                    className="relative w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition-all pointer-events-auto"
-                                >
-                                    {profile.avatar_url ? (
-                                        <Image
-                                            src={profile.avatar_url}
-                                            alt="Profile"
-                                            fill
-                                            className="object-cover"
-                                        />
-                                    ) : user.profileImageUrl ? (
-                                        <Image
-                                            src={user.profileImageUrl}
-                                            alt="Profile"
-                                            fill
-                                            className="object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-[#1f2937] flex items-center justify-center">
-                                            <User className="w-5 h-5 text-slate-400" />
-                                        </div>
-                                    )}
-                                </button>
-
-                                {/* Dropdown Menu - Click Based Toggle */}
-                                {isMenuOpen && (
-                                    <div className="absolute right-0 top-full pt-2 w-64 transition-all z-[100]">
-                                        <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden ring-1 ring-black/5">
-                                            <div className="p-4 border-b border-slate-800 bg-slate-900/50">
-                                                <p className="font-bold text-white truncate">{profile.username || "User"}</p>
-                                                <p className="text-xs text-slate-400 truncate">{user.primaryEmail}</p>
+                        {user ? (
+                            <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                                <NotificationCenter />
+                                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                        className="relative w-9 h-9 md:w-10 md:h-10 rounded-full overflow-hidden border-2 border-primary/20 hover:border-primary hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition-all pointer-events-auto"
+                                    >
+                                        {profile.avatar_url ? (
+                                            <Image
+                                                src={profile.avatar_url}
+                                                alt="Profile"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        ) : user.profileImageUrl ? (
+                                            <Image
+                                                src={user.profileImageUrl}
+                                                alt="Profile"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-[#1f2937] flex items-center justify-center">
+                                                <User className="w-5 h-5 text-slate-400" />
                                             </div>
-                                            <div className="p-2">
-                                                {user.primaryEmail === 'shearjovan7@gmail.com' && (
-                                                    <Link href="/admin" className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors mb-2 border border-red-500/20">
-                                                        <Shield className="w-4 h-4" /> Admin Console
+                                        )}
+                                    </button>
+
+                                    {/* Dropdown Menu - Click Based Toggle */}
+                                    {isMenuOpen && (
+                                        <div className="absolute right-0 top-full pt-2 w-64 transition-all z-[100]">
+                                            <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden ring-1 ring-black/5">
+                                                <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+                                                    <p className="font-bold text-white truncate">{profile.username || "User"}</p>
+                                                    <p className="text-xs text-slate-400 truncate">{user.primaryEmail}</p>
+                                                </div>
+                                                <div className="p-2">
+                                                    {user.primaryEmail === 'shearjovan7@gmail.com' && (
+                                                        <Link href="/admin" className="flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors mb-2 border border-red-500/20">
+                                                            <Shield className="w-4 h-4" /> Admin Console
+                                                        </Link>
+                                                    )}
+                                                    <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                        <Trophy className="w-4 h-4" /> My Dashboard
                                                     </Link>
-                                                )}
-                                                <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
-                                                    <Trophy className="w-4 h-4" /> My Dashboard
-                                                </Link>
-                                                <Link href="/leaderboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
-                                                    <Trophy className="w-4 h-4" /> Leaderboards
-                                                </Link>
-                                                <Link href="/achievements" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
-                                                    <Medal className="w-4 h-4" /> Achievements
-                                                </Link>
-                                                <Link
-                                                    href={profile.username ? `/u/${profile.username}` : "/account"}
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                                >
-                                                    <User className="w-4 h-4" /> My Profile
-                                                </Link>
-                                                <Link
-                                                    href="/decks"
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                                >
-                                                    <Sword className="w-4 h-4" /> My Decks
-                                                </Link>
-                                                <Link
-                                                    href="/account"
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                                >
-                                                    <Settings className="w-4 h-4" /> Account Settings
-                                                </Link>
-                                                <Link
-                                                    href="/dashboard/billing"
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                                                >
-                                                    <CreditCard className="w-4 h-4" /> Billing & Subscription
-                                                </Link>
-                                                {/* Mobile Only Support Button in Menu - Keeping it for consistency in menu flow as well */}
-                                                <div className="md:hidden pt-2 mt-2 border-t border-slate-800">
-                                                    <SupportButton variant="mobile" />
+                                                    <Link href="/leaderboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                        <Trophy className="w-4 h-4" /> Leaderboards
+                                                    </Link>
+                                                    <Link href="/achievements" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                        <Medal className="w-4 h-4" /> Achievements
+                                                    </Link>
+                                                    <Link
+                                                        href={profile.username ? `/u/${profile.username}` : "/account"}
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                    >
+                                                        <User className="w-4 h-4" /> My Profile
+                                                    </Link>
+                                                    <Link
+                                                        href="/decks"
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                    >
+                                                        <Sword className="w-4 h-4" /> My Decks
+                                                    </Link>
+                                                    <Link
+                                                        href="/account"
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                    >
+                                                        <Settings className="w-4 h-4" /> Account Settings
+                                                    </Link>
+                                                    <Link
+                                                        href="/dashboard/billing"
+                                                        onClick={() => setIsMenuOpen(false)}
+                                                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                    >
+                                                        <CreditCard className="w-4 h-4" /> Billing & Subscription
+                                                    </Link>
+                                                    {/* Mobile Only Support Button in Menu - Keeping it for consistency in menu flow as well */}
+                                                    <div className="md:hidden pt-2 mt-2 border-t border-slate-800">
+                                                        <SupportButton variant="mobile" />
+                                                    </div>
+                                                </div>
+                                                <div className="p-2 border-t border-slate-800">
+                                                    <button onClick={() => { user.signOut(); setIsMenuOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors">
+                                                        <LogOut className="w-4 h-4" /> Sign Out
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="p-2 border-t border-slate-800">
-                                                <button onClick={() => { user.signOut(); setIsMenuOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-900/10 rounded-lg transition-colors">
-                                                    <LogOut className="w-4 h-4" /> Sign Out
-                                                </button>
-                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        !isAuthPage && (
-                            <div className="flex items-center gap-4">
-                                {/* Duplicate Button Removed Here */}
-                                <Link href="/sign-in" className="text-sm font-medium hover:text-primary transition-colors">
-                                    Sign In
-                                </Link>
-                            </div>
-                        )
-                    )}
+                        ) : (
+                            !isAuthPage && (
+                                <div className="flex items-center gap-4">
+                                    {/* Duplicate Button Removed Here */}
+                                    <Link href="/sign-in" className="text-sm font-medium hover:text-primary transition-colors">
+                                        Sign In
+                                    </Link>
+                                </div>
+                            )
+                        )}
+                    </div>
                 </div>
             </div>
         </header>
