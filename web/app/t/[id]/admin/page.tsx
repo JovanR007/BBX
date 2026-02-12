@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction, bulkAddParticipantsAction, seedTournamentAction } from "@/app/actions";
-import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban } from "lucide-react";
+import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban, Layers } from "lucide-react";
 import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
 import { MatchScoringModal } from "@/components/features/match-scoring-modal";
@@ -327,6 +327,9 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
     const [name, setName] = useState(participant.display_name);
     const [loading, setLoading] = useState(false);
     const [showDropModal, setShowDropModal] = useState(false);
+    const [showDeckModal, setShowDeckModal] = useState(false);
+
+    const deck = participant.deck;
 
     async function handleUpdate(e: React.FormEvent) {
         e.preventDefault();
@@ -446,6 +449,18 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                         {participant.display_name}
                     </span>
                     {participant.dropped && <span className="text-[10px] bg-red-500/20 text-red-500 px-1.5 py-0.5 rounded uppercase font-bold">Dropped</span>}
+
+                    {/* Deck Badge */}
+                    {deck && (
+                        <button
+                            onClick={() => setShowDeckModal(true)}
+                            className="ml-1 text-[10px] bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 px-2 py-0.5 rounded flex items-center gap-1 transition-colors cursor-pointer"
+                            title={`View deck: ${deck.name}`}
+                        >
+                            <Layers className="w-3 h-3" />
+                            {deck.name}
+                        </button>
+                    )}
                 </div>
 
                 {!readOnly && !participant.dropped && (
@@ -495,6 +510,71 @@ function ParticipantRow({ participant, index, tournamentId, refresh, readOnly, i
                 playerName={participant.display_name}
                 loading={loading}
             />
+
+            {/* Deck Detail Modal */}
+            {showDeckModal && deck && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowDeckModal(false)}>
+                    <div className="bg-card border rounded-xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold flex items-center gap-2">
+                                    <Layers className="w-4 h-4 text-cyan-500" />
+                                    {deck.name}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">{participant.display_name}&apos;s Deck</p>
+                            </div>
+                            <button onClick={() => setShowDeckModal(false)} className="p-1.5 hover:bg-muted rounded-md transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {deck.deck_beys && deck.deck_beys.length > 0 ? (
+                                deck.deck_beys
+                                    .sort((a: any, b: any) => a.slot_number - b.slot_number)
+                                    .map((bey: any) => (
+                                        <div key={bey.id} className="bg-muted/50 rounded-lg p-4 space-y-2">
+                                            <h4 className="text-sm font-bold text-primary uppercase tracking-wider">
+                                                Bey #{bey.slot_number}
+                                            </h4>
+                                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                                <div className="bg-background rounded-md p-2 text-center">
+                                                    <div className="text-muted-foreground mb-0.5">Blade</div>
+                                                    <div className="font-semibold truncate">{bey.blade?.name || '—'}</div>
+                                                </div>
+                                                <div className="bg-background rounded-md p-2 text-center">
+                                                    <div className="text-muted-foreground mb-0.5">Ratchet</div>
+                                                    <div className="font-semibold truncate">{bey.ratchet?.name || '—'}</div>
+                                                </div>
+                                                <div className="bg-background rounded-md p-2 text-center">
+                                                    <div className="text-muted-foreground mb-0.5">Bit</div>
+                                                    <div className="font-semibold truncate">{bey.bit?.name || '—'}</div>
+                                                </div>
+                                            </div>
+                                            {(bey.lock_chip || bey.assist_blade) && (
+                                                <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                                                    {bey.lock_chip && (
+                                                        <div className="bg-background rounded-md p-2 text-center">
+                                                            <div className="text-muted-foreground mb-0.5">Lock Chip</div>
+                                                            <div className="font-semibold truncate">{bey.lock_chip.name}</div>
+                                                        </div>
+                                                    )}
+                                                    {bey.assist_blade && (
+                                                        <div className="bg-background rounded-md p-2 text-center">
+                                                            <div className="text-muted-foreground mb-0.5">Assist Blade</div>
+                                                            <div className="font-semibold truncate">{bey.assist_blade.name}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                            ) : (
+                                <p className="text-sm text-muted-foreground text-center py-4">No beys configured in this deck.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
