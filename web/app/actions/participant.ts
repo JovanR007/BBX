@@ -470,7 +470,19 @@ export async function validateBulkAddAction(tournamentId: string, names: string[
     if (!names || names.length === 0) return { success: false, error: "No names provided" };
 
     try {
-        // 1. Fetch profiles for these names
+        // 1. Fetch existing participants to check for duplicates
+        const { data: existingParticipants, error: participantError } = await supabaseAdmin
+            .from("participants")
+            .select("display_name, user_id")
+            .eq("tournament_id", tournamentId)
+            .eq("dropped", false);
+
+        if (participantError) throw participantError;
+
+        const existingNames = new Set(existingParticipants?.map(p => p.display_name.toLowerCase()) || []);
+        const existingUserIds = new Set(existingParticipants?.map(p => p.user_id).filter(Boolean) || []);
+
+        // 2. Fetch profiles for these names
         const { data: profiles, error: profileError } = await supabaseAdmin
             .from("profiles")
             .select("id, username, display_name")
@@ -483,7 +495,7 @@ export async function validateBulkAddAction(tournamentId: string, names: string[
             profiles.forEach((p: any) => profileMap.set(p.username.toLowerCase(), p));
         }
 
-        // 2. Fetch decks for these users
+        // 3. Fetch decks for these users
         const userIds = profiles?.map(p => p.id) || [];
         let deckMap = new Map();
 
@@ -503,14 +515,18 @@ export async function validateBulkAddAction(tournamentId: string, names: string[
             }
         }
 
-        // 3. Construct results
+        // 4. Construct results
         const results = names.map(name => {
             const profile = profileMap.get(name.toLowerCase());
+            const isDuplicateName = existingNames.has(name.toLowerCase());
+            const isDuplicateUser = profile ? existingUserIds.has(profile.id) : false;
+
             return {
                 name: name,
                 userId: profile?.id || null,
                 username: profile?.username || null,
                 displayName: profile?.display_name || null,
+                isDuplicate: isDuplicateName || isDuplicateUser,
                 decks: profile ? (deckMap.get(profile.id) || []) : []
             };
         });

@@ -1047,11 +1047,13 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
 
     const handleSubmit = async () => {
         setLoading(true);
-        const participants = verificationData.map((p, idx) => ({
-            name: p.name,
-            userId: playerSelections[idx]?.userId,
-            deckId: playerSelections[idx]?.deckId
-        }));
+        const participants = verificationData
+            .filter(p => !p.isDuplicate) // Filter out duplicates
+            .map((p, idx) => ({
+                name: p.name,
+                userId: playerSelections[idx]?.userId,
+                deckId: playerSelections[idx]?.deckId
+            }));
 
         const formData = new FormData();
         formData.append("tournament_id", tournamentId);
@@ -1129,20 +1131,32 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
                                 </thead>
                                 <tbody className="divide-y">
                                     {verificationData.map((p, idx) => (
-                                        <tr key={idx} className="hover:bg-muted/50">
-                                            <td className="px-4 py-3 font-medium">{p.name}</td>
+                                        <tr key={idx} className={cn("hover:bg-muted/50 transition-colors", p.isDuplicate && "bg-destructive/5 hover:bg-destructive/10")}>
+                                            <td className="px-4 py-3 font-medium">
+                                                <div className="flex flex-col">
+                                                    <span className={cn(p.isDuplicate && "text-destructive font-bold")}>{p.name}</span>
+                                                    {p.isDuplicate && (
+                                                        <span className="text-[9px] text-destructive uppercase font-bold flex items-center gap-1 mt-0.5">
+                                                            <Ban className="w-2 h-2" /> Already in tournament
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-3">
                                                 {p.userId ? (
-                                                    <span className="bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full text-[10px]">@{p.username}</span>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className="bg-green-500/10 text-green-500 px-2 py-0.5 rounded-md text-[10px] w-fit font-bold">@{p.username}</span>
+                                                        {p.displayName && <span className="text-[10px] text-muted-foreground ml-1">{p.displayName}</span>}
+                                                    </div>
                                                 ) : (
-                                                    <span className="text-muted-foreground italic">Manual Entry</span>
+                                                    <span className="text-muted-foreground italic text-[10px]">Manual Entry</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 min-w-[150px]">
                                                 <div className="flex items-center gap-2">
                                                     {p.decks?.length > 0 ? (
                                                         <select
-                                                            className="flex-1 bg-background border rounded px-2 py-1 outline-none"
+                                                            className="flex-1 bg-background border rounded px-2 py-1 outline-none text-[11px]"
                                                             value={playerSelections[idx]?.deckId || "no_deck"}
                                                             onChange={(e) => setPlayerSelections({
                                                                 ...playerSelections,
@@ -1174,6 +1188,12 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
                             </table>
                         </div>
 
+                        {verificationData.some(p => p.isDuplicate) && (
+                            <p className="text-[10px] text-destructive bg-destructive/10 p-2 rounded flex items-center gap-2 font-medium">
+                                <Ban className="w-3 h-3" /> Heads up: Duplicate players are highlighted and will be skipped.
+                            </p>
+                        )}
+
                         <div className="flex justify-between items-center gap-2">
                             <button onClick={() => setStep('input')} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md border flex items-center gap-1">
                                 <ArrowLeft className="w-3 h-3" /> Back
@@ -1182,11 +1202,11 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
                                 <button onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md">Cancel</button>
                                 <button
                                     onClick={handleSubmit}
-                                    disabled={loading}
+                                    disabled={loading || (verificationData.length > 0 && verificationData.every(p => p.isDuplicate))}
                                     className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
                                 >
                                     {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                    Add All Players
+                                    Add Valid Players
                                 </button>
                             </div>
                         </div>
