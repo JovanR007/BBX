@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction, bulkAddParticipantsAction, seedTournamentAction } from "@/app/actions";
+import { reportMatchAction, advanceBracketAction, addParticipantAction, startTournamentAction, updateParticipantAction, deleteParticipantAction, dropParticipantAction, toggleRegistrationAction, endTournamentAction, getTournamentDataAction, toggleCheckInAction, bulkAddParticipantsAction, seedTournamentAction, validateBulkAddAction, bulkAddWithDecksAction } from "@/app/actions";
 import { ArrowLeft, CheckCircle, Users, UserPlus, Settings, Trash2, Pencil, X, Save, Lock, Unlock, Play, MonitorPlay, Loader2, Ban, Layers, Plus } from "lucide-react";
 import TournamentSettings from "./tournament-settings";
 import { ConfirmationModal } from "@/components/ui/modal";
@@ -1001,8 +1001,72 @@ function DebugSeedButton({ tournamentId }: { tournamentId: any }) {
 
 function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: string, refresh: any }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [step, setStep] = useState<'input' | 'verify'>('input');
     const [loading, setLoading] = useState(false);
+    const [bulkNames, setBulkNames] = useState("");
+    const [verificationData, setVerificationData] = useState<any[]>([]);
+    const [playerSelections, setPlayerSelections] = useState<Record<string, { userId: string | null, deckId: string | null }>>({});
+    const [showDeckBuilderFor, setShowDeckBuilderFor] = useState<{ index: number, userId: string | null, name: string } | null>(null);
+
     const { toast } = useToast();
+
+    // Reset when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setStep('input');
+            setBulkNames("");
+            setVerificationData([]);
+            setPlayerSelections({});
+            setLoading(false);
+        }
+    }, [isOpen]);
+
+    const handleNext = async () => {
+        const names = bulkNames.split('\n').map(n => n.trim()).filter(n => n !== "");
+        if (names.length === 0) return;
+
+        setLoading(true);
+        const res = await validateBulkAddAction(tournamentId, names);
+        if (res.success && res.results) {
+            setVerificationData(res.results);
+            // Default selections
+            const defaults: any = {};
+            res.results.forEach((p: any, idx: number) => {
+                defaults[idx] = {
+                    userId: p.userId,
+                    deckId: p.decks?.[0]?.id || null // Default to first deck if they have one? Or "No Deck"?
+                };
+            });
+            setPlayerSelections(defaults);
+            setStep('verify');
+        } else {
+            toast({ title: "Validation Failed", description: res.error, variant: "destructive" });
+        }
+        setLoading(false);
+    };
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        const participants = verificationData.map((p, idx) => ({
+            name: p.name,
+            userId: playerSelections[idx]?.userId,
+            deckId: playerSelections[idx]?.deckId
+        }));
+
+        const formData = new FormData();
+        formData.append("tournament_id", tournamentId);
+        formData.append("participants", JSON.stringify(participants));
+
+        const res = await bulkAddWithDecksAction(formData);
+        if (res.success) {
+            toast({ title: "Success", description: `Added ${res.count} players.`, variant: "success" });
+            refresh();
+            setIsOpen(false);
+        } else {
+            toast({ title: "Failed", description: parseError(res.error), variant: "destructive" });
+        }
+        setLoading(false);
+    };
 
     if (!isOpen) {
         return (
@@ -1017,62 +1081,139 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
-            <div className="bg-card border rounded-lg shadow-lg max-w-md w-full p-6 space-y-4 animate-in zoom-in-95">
+            <div className={`bg-card border rounded-lg shadow-lg w-full p-6 space-y-4 animate-in zoom-in-95 ${step === 'input' ? 'max-w-md' : 'max-w-2xl'}`}>
                 <div className="flex justify-between items-center">
                     <h3 className="font-bold flex items-center gap-2">
-                        <Users className="w-5 h-5 text-primary" /> Bulk Add Players
+                        <Users className="w-5 h-5 text-primary" />
+                        {step === 'input' ? 'Bulk Add Players' : `Configure Players (${verificationData.length})`}
                     </h3>
                     <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                    Paste a list of names below, one per line.
-                </p>
-
-                <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    setLoading(true);
-                    const formData = new FormData(e.currentTarget);
-
-                    const res = await bulkAddParticipantsAction(formData);
-
-                    if (res.success) {
-                        toast({ title: "Bulk Add Complete", description: `Successfully added ${res.count || 'players'}.`, variant: "success" });
-                        refresh();
-                        setIsOpen(false);
-                    } else {
-                        toast({ title: "Error", description: parseError(res.error), variant: "destructive" });
-                    }
-                    setLoading(false);
-                }} className="space-y-4">
-                    <input type="hidden" name="tournament_id" value={tournamentId} />
-
-                    <textarea
-                        name="bulk_names"
-                        className="w-full h-48 rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary font-mono"
-                        placeholder={`Player One\nPlayer Two\nPlayer Three...`}
-                        autoFocus
-                        required
-                    />
-
-                    <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md">
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
-                        >
-                            {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-                            Add Players
-                        </button>
+                {step === 'input' ? (
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            Paste a list of names/usernames below, one per line. We'll check if they are registered users.
+                        </p>
+                        <textarea
+                            value={bulkNames}
+                            onChange={(e) => setBulkNames(e.target.value)}
+                            className="w-full h-48 rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary font-mono"
+                            placeholder={`Player One\n@username\n...`}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md">Cancel</button>
+                            <button
+                                onClick={handleNext}
+                                disabled={loading || !bulkNames.trim()}
+                                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
+                            >
+                                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                                Next: Verify & Link
+                            </button>
+                        </div>
                     </div>
-                </form>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="max-h-[400px] overflow-y-auto border rounded-md">
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-muted text-muted-foreground uppercase sticky top-0 z-10">
+                                    <tr>
+                                        <th className="px-4 py-2">Player</th>
+                                        <th className="px-4 py-2">Link</th>
+                                        <th className="px-4 py-2">Deck</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {verificationData.map((p, idx) => (
+                                        <tr key={idx} className="hover:bg-muted/50">
+                                            <td className="px-4 py-3 font-medium">{p.name}</td>
+                                            <td className="px-4 py-3">
+                                                {p.userId ? (
+                                                    <span className="bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full text-[10px]">@{p.username}</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground italic">Manual Entry</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 min-w-[150px]">
+                                                <div className="flex items-center gap-2">
+                                                    {p.decks?.length > 0 ? (
+                                                        <select
+                                                            className="flex-1 bg-background border rounded px-2 py-1 outline-none"
+                                                            value={playerSelections[idx]?.deckId || "no_deck"}
+                                                            onChange={(e) => setPlayerSelections({
+                                                                ...playerSelections,
+                                                                [idx]: { ...playerSelections[idx], deckId: e.target.value === "no_deck" ? null : e.target.value }
+                                                            })}
+                                                        >
+                                                            <option value="no_deck">None</option>
+                                                            {p.decks.map((d: any) => (
+                                                                <option key={d.id} value={d.id}>{d.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    ) : (
+                                                        <span className="text-[10px] text-muted-foreground italic flex-1">No decks</span>
+                                                    )}
+
+                                                    {/* Create Deck Shortcut */}
+                                                    <button
+                                                        onClick={() => setShowDeckBuilderFor({ index: idx, userId: p.userId, name: p.name })}
+                                                        title="Create New Deck"
+                                                        className="p-1 hover:bg-primary/20 text-primary rounded transition-colors"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between items-center gap-2">
+                            <button onClick={() => setStep('input')} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md border flex items-center gap-1">
+                                <ArrowLeft className="w-3 h-3" /> Back
+                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={() => setIsOpen(false)} className="px-4 py-2 text-sm font-medium hover:bg-muted rounded-md">Cancel</button>
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={loading}
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2"
+                                >
+                                    {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                                    Add All Players
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Embedded Deck Builder Modal for the bulk flow */}
+                {showDeckBuilderFor && (
+                    <AdminDeckModal
+                        isOpen={true}
+                        onClose={() => setShowDeckBuilderFor(null)}
+                        userId={showDeckBuilderFor.userId}
+                        playerName={showDeckBuilderFor.name}
+                        onDeckCreated={(deckId) => {
+                            if (deckId) {
+                                // Update selection
+                                setPlayerSelections({
+                                    ...playerSelections,
+                                    [showDeckBuilderFor.index]: { ...playerSelections[showDeckBuilderFor.index], deckId }
+                                });
+                            }
+                        }}
+                    />
+                )}
             </div>
         </div>
     )
 }
+
 

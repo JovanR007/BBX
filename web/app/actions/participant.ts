@@ -465,3 +465,109 @@ export async function updateParticipantDeckAction(participantId: string, deckId:
     if (error) return { success: false, error: error.message };
     return { success: true };
 }
+
+export async function validateBulkAddAction(tournamentId: string, names: string[]) {
+    if (!names || names.length === 0) return { success: false, error: "No names provided" };
+
+    try {
+        // 1. Fetch profiles for these names
+        const { data: profiles, error: profileError } = await supabaseAdmin
+            .from("profiles")
+            .select("id, username, display_name")
+            .in("username", names);
+
+        if (profileError) throw profileError;
+
+        const profileMap = new Map();
+        if (profiles) {
+            profiles.forEach((p: any) => profileMap.set(p.username.toLowerCase(), p));
+        }
+
+        // 2. Fetch decks for these users
+        const userIds = profiles?.map(p => p.id) || [];
+        let deckMap = new Map();
+
+        if (userIds.length > 0) {
+            const { data: decks, error: deckError } = await supabaseAdmin
+                .from("decks")
+                .select("id, name, user_id")
+                .in("user_id", userIds);
+
+            if (deckError) throw deckError;
+
+            if (decks) {
+                decks.forEach((d: any) => {
+                    const existing = deckMap.get(d.user_id) || [];
+                    deckMap.set(d.user_id, [...existing, d]);
+                });
+            }
+        }
+
+        // 3. Construct results
+        const results = names.map(name => {
+            const profile = profileMap.get(name.toLowerCase());
+            return {
+                name: name,
+                userId: profile?.id || null,
+                username: profile?.username || null,
+                displayName: profile?.display_name || null,
+                decks: profile ? (deckMap.get(profile.id) || []) : []
+            };
+        });
+
+        return { success: true, results };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function bulkAddWithDecksAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const participantsJson = formData.get("participants") as string;
+
+    if (!tournamentId || !participantsJson) return { success: false, error: "Missing required data" };
+
+    try {
+        const participantsData = JSON.parse(participantsJson);
+        if (!Array.isArray(participantsData) || participantsData.length === 0) {
+            return { success: false, error: "Invalid participants data" };
+        }
+
+        // 1. Limit Check
+        const { data: tourney } = await supabaseAdmin.from("tournaments").select("store_id").eq("id", tournamentId).single();
+        let maxPlayers = 64;
+
+        if (tourney?.store_id) {
+            const { data: store } = await supabaseAdmin.from("stores").select("plan, subscription_tier").eq("id", tourney.store_id).single();
+            const plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
+            maxPlayers = plan === 'pro' ? 999 : 64;
+        }
+
+        const { count: currentCount } = await supabaseAdmin
+            .from("participants")
+            .select("*", { count: "exact", head: true })
+            .eq("tournament_id", tournamentId)
+            .eq("dropped", false);
+
+        if ((currentCount || 0) + participantsData.length > maxPlayers) {
+            return { success: false, error: `Limit exceeded. Max ${maxPlayers} players.` };
+        }
+
+        // 2. Insert
+        const participantsToInsert = participantsData.map(p => ({
+            tournament_id: tournamentId,
+            display_name: p.name,
+            user_id: p.userId || null,
+            deck_id: p.deckId || null,
+            checked_in: true
+        }));
+
+        const { error } = await supabaseAdmin.from("participants").insert(participantsToInsert);
+        if (error) throw error;
+
+        revalidatePath(`/t/${tournamentId}/admin`);
+        return { success: true, count: participantsData.length };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
