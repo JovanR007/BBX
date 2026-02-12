@@ -44,7 +44,7 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-950 border border-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-950 border border-cyan-500/50 rounded-xl shadow-2xl max-w-4xl w-full h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-none">
                     <div>
                         <h3 className="text-lg font-bold flex items-center gap-2 text-white">
@@ -60,7 +60,7 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
                     </button>
                 </div>
 
-                <div className="p-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-800">
+                <div className="p-4 overflow-y-auto flex-1 h-full scrollbar-thin scrollbar-thumb-slate-800">
                     <DeckBuilder
                         userId={userId}
                         onCancel={onClose}
