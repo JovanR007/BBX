@@ -124,14 +124,7 @@ export default function AdminPage({ params }: { params: Promise<{ id: string }> 
                             <MonitorPlay className="w-3.5 h-3.5" /> Projector
                         </Link>
 
-                        {tournament?.status === "draft" ? (
-                            <button
-                                onClick={() => setShowStartModal(true)}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg font-bold text-xs uppercase flex items-center gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
-                            >
-                                <Play className="w-3.5 h-3.5 fill-current" /> Begin Tournament
-                            </button>
-                        ) : tournament?.status === "started" ? (
+                        {tournament?.status === "started" ? (
                             <div className="flex items-center gap-2">
                                 <AdvanceRoundButton tournamentId={tournamentId} />
                             </div>
