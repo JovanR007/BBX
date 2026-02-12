@@ -80,9 +80,9 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container flex h-16 items-center px-2 md:px-6 justify-between relative">
-                {/* Logo Section - Aligned Left */}
-                <div className="flex-1 flex items-center justify-start">
+            <div className="container h-16 grid grid-cols-3 items-center px-2 md:px-6">
+                {/* Left Section: Logo */}
+                <div className="flex items-center justify-start">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <div className="relative w-28 sm:w-32 md:w-48 h-10 sm:h-12 md:h-16">
                             <Image
@@ -96,10 +96,10 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Navigation Section - Centered */}
-                <div className="flex-none md:flex-1 flex justify-center px-4">
+                {/* Center Section: Navigation */}
+                <div className="flex justify-center">
                     {/* Main Navigation - Desktop */}
-                    <nav className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-wider">
+                    <nav className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-wider whitespace-nowrap">
                         <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors">
                             Events
                         </Link>
@@ -114,7 +114,7 @@ export function SiteHeader() {
                     </nav>
 
                     {/* Mobile Navigation - Only visible on small screens */}
-                    <nav className="flex md:hidden items-center gap-2 sm:gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+                    <nav className="flex md:hidden items-center gap-2 sm:gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest whitespace-nowrap">
                         <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors px-1">
                             Events
                         </Link>
@@ -129,8 +129,8 @@ export function SiteHeader() {
                     </nav>
                 </div>
 
-                {/* Actions Section - Aligned Right */}
-                <div className="flex-1 flex items-center justify-end gap-2 md:gap-4">
+                {/* Right Section: Actions */}
+                <div className="flex items-center justify-end gap-2 md:gap-4">
                     {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
                     <div className="hidden sm:block">
                         <div className="hidden lg:block">
