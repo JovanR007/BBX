@@ -15,6 +15,7 @@ export default function DecksPage() {
     const [decks, setDecks] = useState<Deck[]>([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create'>('list');
+    const [editingDeck, setEditingDeck] = useState<Deck | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -35,6 +36,22 @@ export default function DecksPage() {
         }
     }
 
+    const handleCreateNew = () => {
+        setEditingDeck(null);
+        setView('create');
+    };
+
+    const handleEditDeck = (deck: Deck) => {
+        setEditingDeck(deck);
+        setView('create');
+    };
+
+    const handleBackToList = () => {
+        setEditingDeck(null);
+        setView('list');
+        loadDecks(); // Refresh list on back
+    };
+
     if (!user) {
         return <div className="p-8 text-center text-slate-400">Please sign in to manage your decks.</div>;
     }
@@ -47,12 +64,12 @@ export default function DecksPage() {
                     <p className="text-slate-400">Manage your Beyblade configurations for tournaments.</p>
                 </div>
                 {view === 'list' && (
-                    <Button onClick={() => setView('create')} className="bg-cyan-600 hover:bg-cyan-500 text-white gap-2">
+                    <Button onClick={handleCreateNew} className="bg-cyan-600 hover:bg-cyan-500 text-white gap-2">
                         <Plus className="w-4 h-4" /> New Deck
                     </Button>
                 )}
                 {view === 'create' && (
-                    <Button onClick={() => setView('list')} variant="ghost" className="text-slate-400 hover:text-white">
+                    <Button onClick={handleBackToList} variant="ghost" className="text-slate-400 hover:text-white">
                         Cancel
                     </Button>
                 )}
@@ -61,10 +78,11 @@ export default function DecksPage() {
             {view === 'create' ? (
                 <DeckBuilder
                     userId={user.id}
-                    onDeckCreated={() => {
-                        loadDecks();
-                        setView('list');
-                    }}
+                    existingDeck={editingDeck}
+                    onDeckCreated={handleBackToList}
+                    onDeckUpdated={handleBackToList}
+                    onDeckDeleted={handleBackToList}
+                    onCancel={handleBackToList}
                 />
             ) : (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -78,13 +96,17 @@ export default function DecksPage() {
                             <Sword className="w-12 h-12 text-slate-600 mx-auto mb-4" />
                             <h3 className="text-lg font-medium text-slate-300">No Decks Found</h3>
                             <p className="text-slate-500 mb-4">Create your first 3-on-3 deck to join tournaments!</p>
-                            <Button onClick={() => setView('create')} variant="outline" className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-950">
+                            <Button onClick={handleCreateNew} variant="outline" className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-950">
                                 Create Deck
                             </Button>
                         </div>
                     ) : (
                         decks.map(deck => (
-                            <Card key={deck.id} className="bg-slate-950 border-slate-800 overflow-hidden group hover:border-cyan-500/50 transition-colors">
+                            <Card
+                                key={deck.id}
+                                onClick={() => handleEditDeck(deck)}
+                                className="bg-slate-950 border-slate-800 overflow-hidden group hover:border-cyan-500/50 transition-colors cursor-pointer"
+                            >
                                 {deck.image_url && (
                                     <div className="h-32 w-full overflow-hidden relative">
                                         <img src={deck.image_url} alt={deck.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />

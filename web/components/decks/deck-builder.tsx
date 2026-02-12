@@ -1,38 +1,63 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BeyPart, createDeck, getAllParts } from "@/lib/decks";
+import { BeyPart, createDeck, updateDeck, deleteDeck, Deck, getAllParts } from "@/lib/decks";
 import { uploadDeckImageAction } from "@/app/actions/upload";
 import { PartSelect } from "./part-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { Loader2, Plus, Save, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/toaster";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface DeckBuilderProps {
     userId: string;
+    existingDeck?: Deck | null;
     onDeckCreated?: () => void;
+    onDeckUpdated?: () => void;
+    onDeckDeleted?: () => void;
+    onCancel?: () => void;
 }
 
-export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
+export function DeckBuilder({ userId, existingDeck, onDeckCreated, onDeckUpdated, onDeckDeleted, onCancel }: DeckBuilderProps) {
     const { toast } = useToast();
     const [parts, setParts] = useState<BeyPart[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [uploading, setUploading] = useState(false);
 
     // Deck State
-    const [deckName, setDeckName] = useState("");
-    const [description, setDescription] = useState("");
-    const [imageUrl, setImageUrl] = useState("");
+    const [deckName, setDeckName] = useState(existingDeck?.name || "");
+    const [description, setDescription] = useState(existingDeck?.description || "");
+    const [imageUrl, setImageUrl] = useState(existingDeck?.image_url || "");
 
     // Bey States (Array of 3 objects)
     const [beys, setBeys] = useState<any[]>([
         { slot: 1 }, { slot: 2 }, { slot: 3 }
     ]);
+
+    useEffect(() => {
+        if (existingDeck && existingDeck.deck_beys) {
+            // Map existing beys to state format
+            const mappedBeys = [0, 1, 2].map(idx => {
+                const existingBey = existingDeck.deck_beys.find(b => b.slot_number === idx + 1);
+                return existingBey ? {
+                    slot: idx + 1,
+                    blade_id: existingBey.blade?.id || existingBey.blade_id, // Handle joined vs raw
+                    ratchet_id: existingBey.ratchet?.id || existingBey.ratchet_id,
+                    bit_id: existingBey.bit?.id || existingBey.bit_id,
+                    lock_chip_id: existingBey.lock_chip?.id || existingBey.lock_chip_id,
+                    assist_blade_id: existingBey.assist_blade?.id || existingBey.assist_blade_id,
+                    // Derive series for CX logic
+                    blade_series: existingBey.blade?.series || (parts.find(p => p.id === existingBey.blade_id)?.series)
+                } : { slot: idx + 1 };
+            });
+            setBeys(mappedBeys);
+        }
+    }, [existingDeck, parts]); // Re-run when parts load to ensure series lookup works
 
     useEffect(() => {
         loadParts();
@@ -119,10 +144,6 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
             const formData = new FormData();
             formData.append("file", file);
 
-            // Dynamic import to avoid server-only module issues in client component if deemed necessary,
-            // but standard import should work if 'use server' is correctly set in the action file.
-            // Using direct import since we'll import it at top level.
-
             const res = await uploadDeckImageAction(formData);
 
             if (res.success && res.message) {
@@ -137,7 +158,6 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
             toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         } finally {
             setUploading(false);
-            // Reset input value to allow re-uploading same file if needed
             e.target.value = "";
         }
     }
@@ -150,7 +170,7 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
 
         setSubmitting(true);
         try {
-            await createDeck(userId, {
+            const deckData = {
                 name: deckName,
                 description,
                 image_url: imageUrl,
@@ -161,17 +181,43 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
                     lock_chip_id: b.lock_chip_id,
                     assist_blade_id: b.assist_blade_id
                 }))
-            });
-            toast({ title: "Deck created successfully!" });
-            if (onDeckCreated) onDeckCreated();
-            // Reset form?
-            setDeckName("");
-            setBeys([{ slot: 1 }, { slot: 2 }, { slot: 3 }]);
+            };
+
+            if (existingDeck) {
+                await updateDeck(userId, existingDeck.id, deckData);
+                toast({ title: "Deck updated successfully!" });
+                if (onDeckUpdated) onDeckUpdated();
+            } else {
+                await createDeck(userId, deckData);
+                toast({ title: "Deck created successfully!" });
+                if (onDeckCreated) onDeckCreated();
+            }
+
+            // Cleanup provided by parent (switching views)
         } catch (e) {
             console.error(e);
-            toast({ title: "Failed to create deck", variant: "destructive" });
+            toast({ title: `Failed to ${existingDeck ? 'update' : 'create'} deck`, variant: "destructive" });
         } finally {
             setSubmitting(false);
+        }
+    }
+
+    async function handleDelete() {
+        if (!existingDeck) return;
+
+        if (!window.confirm("Are you sure you want to delete this deck? This cannot be undone.")) {
+            return;
+        }
+
+        setDeleting(true);
+        try {
+            await deleteDeck(userId, existingDeck.id);
+            toast({ title: "Deck deleted" });
+            if (onDeckDeleted) onDeckDeleted();
+        } catch (e) {
+            console.error(e);
+            toast({ title: "Failed to delete deck", variant: "destructive" });
+            setDeleting(false);
         }
     }
 
@@ -179,11 +225,26 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="grid gap-4 p-4 border border-slate-800 rounded-xl bg-slate-950/50">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-cyan-400" /> Create New Deck
+                    {existingDeck ? <Save className="w-5 h-5 text-cyan-400" /> : <Plus className="w-5 h-5 text-cyan-400" />}
+                    {existingDeck ? "Edit Deck" : "Create New Deck"}
                 </h2>
+                <div className="flex gap-2">
+                    {existingDeck && (
+                        <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting || submitting}>
+                            {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        </Button>
+                    )}
+                    {onCancel && (
+                        <Button variant="ghost" size="sm" onClick={onCancel}>
+                            Cancel
+                        </Button>
+                    )}
+                </div>
+            </div>
 
+            <div className="grid gap-4 p-4 border border-slate-800 rounded-xl bg-slate-950/50">
                 <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 uppercase">Deck Name</label>
@@ -194,29 +255,32 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
                             className="bg-slate-900 border-slate-800"
                         />
                     </div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Deck Photo</label>
-                    <div className="flex gap-2">
-                        <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="bg-slate-900 border-slate-800 file:text-cyan-400 file:font-bold hover:file:bg-slate-800"
-                            disabled={uploading}
-                        />
-                    </div>
-                    {uploading && <p className="text-xs text-cyan-400 animate-pulse mt-1">Uploading image...</p>}
-                    {imageUrl && (
-                        <div className="mt-2 relative w-full h-64 rounded-lg overflow-hidden border border-slate-800 group">
-                            <img src={imageUrl} alt="Deck Preview" className="w-full h-full object-cover" />
-                            <button
-                                onClick={() => setImageUrl("")}
-                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove Image"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                            </button>
+                    {/* ... (Photo upload section remains same but context is simplified) ... */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Deck Photo</label>
+                        <div className="flex gap-2">
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="bg-slate-900 border-slate-800 file:text-cyan-400 file:font-bold hover:file:bg-slate-800"
+                                disabled={uploading}
+                            />
                         </div>
-                    )}
+                        {uploading && <p className="text-xs text-cyan-400 animate-pulse mt-1">Uploading image...</p>}
+                        {imageUrl && (
+                            <div className="mt-2 relative w-full h-64 rounded-lg overflow-hidden border border-slate-800 group">
+                                <img src={imageUrl} alt="Deck Preview" className="w-full h-full object-cover" />
+                                <button
+                                    onClick={() => setImageUrl("")}
+                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="Remove Image"
+                                >
+                                    <Trash2 className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase">Description / Strategy</label>
@@ -311,10 +375,15 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
                 })}
             </Tabs>
 
-            <div className="flex justify-end pt-4">
+            <div className="flex justify-end pt-4 gap-2">
+                {onCancel && (
+                    <Button variant="ghost" onClick={onCancel} disabled={submitting}>
+                        Cancel
+                    </Button>
+                )}
                 <Button onClick={handleSubmit} disabled={submitting} className="bg-cyan-600 hover:bg-cyan-500 text-white min-w-[150px]">
                     {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Deck
+                    {existingDeck ? "Update Deck" : "Create Deck"}
                 </Button>
             </div>
         </div>

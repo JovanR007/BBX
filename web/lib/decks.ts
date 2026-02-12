@@ -22,7 +22,13 @@ export interface Deck {
 
 export interface DeckBey {
     id: string;
+    deck_id: string;
     slot_number: 1 | 2 | 3;
+    blade_id?: string;
+    ratchet_id?: string;
+    bit_id?: string;
+    lock_chip_id?: string;
+    assist_blade_id?: string;
     blade?: BeyPart;
     ratchet?: BeyPart;
     bit?: BeyPart;
@@ -104,4 +110,65 @@ export async function createDeck(userId: string, deckData: any) {
     }
 
     return deck;
+}
+
+export async function updateDeck(userId: string, deckId: string, deckData: any) {
+    // 1. Update Deck Details
+    const { data: deck, error: deckError } = await supabaseAdmin
+        .from('decks')
+        .update({
+            name: deckData.name,
+            description: deckData.description,
+            image_url: deckData.image_url,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', deckId)
+        .eq('user_id', userId) // Security check
+        .select()
+        .single();
+
+    if (deckError) throw deckError;
+
+    // 2. Update Deck Beys
+    // Strategy: Delete all existing beys for this deck and re-insert (Simpler than upserting individual slots)
+    if (deckData.beys && deckData.beys.length > 0) {
+
+        // Delete existing beys
+        const { error: deleteError } = await supabaseAdmin
+            .from('deck_beys')
+            .delete()
+            .eq('deck_id', deckId);
+
+        if (deleteError) throw deleteError;
+
+        // Re-insert new beys
+        const beysToInsert = deckData.beys.map((bey: any, index: number) => ({
+            deck_id: deck.id,
+            slot_number: index + 1,
+            blade_id: bey.blade_id,
+            ratchet_id: bey.ratchet_id,
+            bit_id: bey.bit_id,
+            lock_chip_id: bey.lock_chip_id || null,
+            assist_blade_id: bey.assist_blade_id || null
+        }));
+
+        const { error: beysError } = await supabaseAdmin
+            .from('deck_beys')
+            .insert(beysToInsert);
+
+        if (beysError) throw beysError;
+    }
+
+    return deck;
+}
+
+export async function deleteDeck(userId: string, deckId: string) {
+    const { error } = await supabaseAdmin
+        .from('decks')
+        .delete()
+        .eq('id', deckId)
+        .eq('user_id', userId); // Security check
+
+    if (error) throw error;
+    return true;
 }
