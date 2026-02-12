@@ -80,11 +80,11 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container flex h-16 items-center justify-between px-2 md:px-6">
-                {/* Logo Section - Aligned Left on Mobile */}
-                <div className="flex items-center gap-1 md:gap-4">
+            <div className="container flex h-16 items-center px-2 md:px-6 justify-between relative">
+                {/* Logo Section - Aligned Left */}
+                <div className="flex-1 flex items-center justify-start">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="relative w-32 md:w-48 h-12 md:h-16">
+                        <div className="relative w-28 sm:w-32 md:w-48 h-10 sm:h-12 md:h-16">
                             <Image
                                 src="/logo.png"
                                 alt="BeyBracket"
@@ -96,39 +96,43 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Main Navigation - Desktop */}
-                <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
-                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Events
-                    </Link>
-                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Directory
-                    </Link>
-                    {user && (
-                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
-                            Host Event
+                {/* Navigation Section - Centered */}
+                <div className="flex-none md:flex-1 flex justify-center px-4">
+                    {/* Main Navigation - Desktop */}
+                    <nav className="hidden md:flex items-center gap-8 text-sm font-bold uppercase tracking-wider">
+                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors">
+                            Events
                         </Link>
-                    )}
-                </nav>
-
-                {/* Mobile Navigation - Always visible on small screens */}
-                <nav className="flex md:hidden items-center gap-3 text-xs font-medium">
-                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                        Events
-                    </Link>
-                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                        Directory
-                    </Link>
-                    {user && (
-                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                            Host
+                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-colors">
+                            Directory
                         </Link>
-                    )}
-                </nav>
+                        {user && (
+                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors">
+                                Host Event
+                            </Link>
+                        )}
+                    </nav>
 
-                <div className="flex items-center gap-2 md:gap-4 pr-1 md:pr-2">
+                    {/* Mobile Navigation - Only visible on small screens */}
+                    <nav className="flex md:hidden items-center gap-2 sm:gap-4 text-[10px] sm:text-xs font-bold uppercase tracking-widest">
+                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors px-1">
+                            Events
+                        </Link>
+                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-colors px-1">
+                            Directory
+                        </Link>
+                        {user && (
+                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors px-1">
+                                Host
+                            </Link>
+                        )}
+                    </nav>
+                </div>
+
+                {/* Actions Section - Aligned Right */}
+                <div className="flex-1 flex items-center justify-end gap-2 md:gap-4">
                     {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
-                    <div>
+                    <div className="hidden sm:block">
                         <div className="hidden lg:block">
                             <SupportButton variant="full" />
                         </div>
