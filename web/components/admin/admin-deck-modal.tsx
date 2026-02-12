@@ -60,7 +60,7 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-800">
+                <div className="p-4 overflow-y-auto flex-1 min-h-0 scrollbar-thin scrollbar-thumb-slate-800">
                     <DeckBuilder
                         userId={userId}
                         onCancel={onClose}
