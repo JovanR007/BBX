@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Layers } from "lucide-react";
+import { createPortal } from "react-dom";
 import { DeckBuilder } from "@/components/decks/deck-builder";
 import { updateParticipantDeckAction } from "@/app/actions/participant";
 import { useToast } from "@/components/ui/toaster";
@@ -18,8 +19,19 @@ interface AdminDeckModalProps {
 export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerName, onDeckCreated }: AdminDeckModalProps) {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        setMounted(true);
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
+    if (!isOpen || !mounted) return null;
 
     const handleDeckCreated = async (deck: any) => {
         setIsSaving(true);
@@ -42,9 +54,9 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-950 border border-slate-800 rounded-xl shadow-2xl max-w-4xl w-full flex flex-col overflow-hidden" style={{ height: '80vh' }} onClick={e => e.stopPropagation()}>
+    return createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-slate-950 border border-slate-800 rounded-xl shadow-2xl max-w-4xl w-full flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200" style={{ height: '80vh' }} onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950 flex-none">
                     <div>
                         <h3 className="text-lg font-bold flex items-center gap-2 text-white">
@@ -70,6 +82,7 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
