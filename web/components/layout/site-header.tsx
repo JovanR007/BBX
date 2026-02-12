@@ -80,7 +80,7 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container h-16 grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 max-w-[1400px]">
+            <div className="w-full h-16 grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 lg:px-12">
                 {/* Left Section: Logo */}
                 <div className="flex items-center justify-start min-w-0">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
