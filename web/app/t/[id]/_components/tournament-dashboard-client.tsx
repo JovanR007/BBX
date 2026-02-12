@@ -8,75 +8,59 @@ import {
     Calendar, MapPin, Activity, CheckCircle2, ChevronRight,
     Star, LayoutDashboard, ExternalLink
 } from "lucide-react";
-import { useTournament } from "@/hooks/use-tournament";
+import { useBracketData } from "@/hooks/use-bracket-data";
+import { calculateStandings } from "@/lib/standings";
 import { JudgeJoin } from "@/components/features/judge-join";
 import { PlayerJoin } from "@/components/features/player-join";
 import { BrandedContainer } from "@/components/features/branded-container";
 import { AdUnit } from "@/components/AdUnit";
 import { useUser } from "@stackframe/stack";
-import { getTournamentDataAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 export function TournamentDashboardClient({ id }: { id: string }) {
-    const { tournament: baseTournament, tournamentId, loading: tLoading, error, isOwner, isJudge } = useTournament(id);
+    const {
+        tournament,
+        matches,
+        participants,
+        loading,
+        derived: { permissions }
+    } = useBracketData(id);
     const user = useUser();
 
-    const [isParticipant, setIsParticipant] = useState(false);
-    const [fullData, setFullData] = useState<any>(null);
-    const [loadingData, setLoadingData] = useState(true);
+    const isParticipant = user && participants
+        ? Object.values(participants).some((p: any) => p.user_id === user.id)
+        : false;
 
-    useEffect(() => {
-        async function fetchData() {
-            if (!tournamentId) return;
-            setLoadingData(true);
-
-            const res = await getTournamentDataAction(tournamentId);
-            if (res.success) {
-                setFullData(res);
-
-                // Check participation
-                if (user) {
-                    const isPart = res.participants?.some((p: any) => p.user_id === user.id);
-                    setIsParticipant(!!isPart);
-                }
-            }
-            setLoadingData(false);
-        }
-        fetchData();
-    }, [tournamentId, user]);
-
-    if (error) return <div className="text-center py-20 text-red-500 font-bold bg-destructive/10 rounded-xl m-4 border border-destructive/20">Error: {error}</div>;
-    if (tLoading || (loadingData && !fullData)) return (
+    if (loading && !tournament) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
             <p className="text-muted-foreground font-medium animate-pulse">Loading Tournament Data...</p>
         </div>
     );
 
-    const tournament = fullData?.tournament || baseTournament;
-    const participants = fullData?.participants || [];
-    const matches = fullData?.matches || [];
+    if (!tournament) return <div className="text-center py-20 text-red-500 font-bold bg-destructive/10 rounded-xl m-4 border border-destructive/20">Error: Tournament not found</div>;
+
+    const { isOwner, isJudge } = permissions;
+    const participantsList = Object.values(participants);
     const tournamentName = tournament?.name || "Tournament";
 
     const stats = {
-        players: participants.length,
+        players: participantsList.length,
         matches: matches.length,
-        checkedIn: participants.filter((p: any) => p.checked_in).length,
+        checkedIn: participantsList.filter((p: any) => p.checked_in).length,
         inProgress: matches.filter((m: any) => m.status === 'in_progress' || (m.status === 'pending' && tournament.status === 'started')).length
     };
 
     const isLive = tournament?.status === "started";
     const currentRound = matches.length > 0 ? Math.max(...matches.map((m: any) => m.swiss_round_number || 0)) : 1;
 
-    // Get Top Standings (Simplified for Dashboard Preview)
-    const topPerformers = participants
-        .filter((p: any) => !p.dropped)
-        .sort((a: any, b: any) => (b.points || 0) - (a.points || 0))
-        .slice(0, 5);
+    // Get Top Standings (Real-time Match-based Standings)
+    const standings = calculateStandings(participants, matches);
+    const topPerformers = standings.slice(0, 5);
 
     // Get Recent Matches
-    const recentMatches = matches
+    const recentMatches = [...matches]
         .filter((m: any) => m.status === 'complete')
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 3);
@@ -169,14 +153,14 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                     {/* Navigation Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <DashboardNavCard
-                            href={`/t/${tournamentId}/standings`}
+                            href={`/t/${tournament?.id}/standings`}
                             icon={Trophy}
                             title="Rankings"
                             description="Real-time Swiss standings and player performance."
                             color="blue"
                         />
                         <DashboardNavCard
-                            href={`/t/${tournamentId}/bracket`}
+                            href={`/t/${tournament?.id}/bracket`}
                             icon={GitBranch}
                             title="Bracket"
                             description="Visualize the elimination phase and path to victory."
@@ -184,7 +168,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                         />
                         {(isOwner || isJudge) && (
                             <DashboardNavCard
-                                href={`/t/${tournamentId}/admin`}
+                                href={`/t/${tournament?.id}/admin`}
                                 icon={LayoutDashboard}
                                 title="Admin Suite"
                                 description="Manage rounds, report match results, and configure settings."
@@ -193,7 +177,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                         )}
                         {isOwner && (
                             <DashboardNavCard
-                                href={`/t/${tournamentId}/timer`}
+                                href={`/t/${tournament?.id}/timer`}
                                 icon={Timer}
                                 title="Tournament Clock"
                                 description="Standard 3-minute match timer for localized events."
@@ -217,14 +201,14 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                     <div className="bg-card/50 backdrop-blur-sm border rounded-3xl p-6 shadow-xl border-white/5">
                         <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground mb-6">Tournament Access</h3>
 
-                        {!tLoading && !isOwner && !isJudge && (
+                        {!loading && !isOwner && !isJudge && (
                             <div className="space-y-6">
-                                <PlayerJoin tournamentId={tournamentId || ""} isRegistered={isParticipant} />
+                                <PlayerJoin tournamentId={tournament?.id || ""} isRegistered={isParticipant} />
                             </div>
                         )}
 
                         <div className="mt-4">
-                            <JudgeJoin tournamentId={tournamentId || ""} />
+                            <JudgeJoin tournamentId={tournament?.id || ""} />
                         </div>
 
                         {isOwner && (
@@ -268,7 +252,7 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                 <div className="p-8 text-center text-xs text-muted-foreground italic">No matches scored yet.</div>
                             )}
                         </div>
-                        <Link href={`/t/${tournamentId}/standings`} className="block p-4 text-center text-[10px] font-bold text-primary hover:bg-primary/10 border-t border-white/5 transition-colors uppercase tracking-widest">
+                        <Link href={`/t/${tournament?.id}/standings`} className="block p-4 text-center text-[10px] font-bold text-primary hover:bg-primary/10 border-t border-white/5 transition-colors uppercase tracking-widest">
                             View Full Standings
                         </Link>
                     </div>
@@ -289,11 +273,11 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                                         </div>
                                         <div className="grid grid-cols-5 items-center gap-2 p-3 bg-muted/20 rounded-2xl border border-white/5">
                                             <div className="col-span-2 truncate text-xs font-bold text-center">
-                                                {participants.find((p: any) => p.id === match.participant_a_id)?.display_name || "BYE"}
+                                                {participants[match.participant_a_id]?.display_name || "BYE"}
                                             </div>
                                             <div className="col-span-1 text-[10px] font-black text-center text-primary">{match.score_a} - {match.score_b}</div>
                                             <div className="col-span-2 truncate text-xs font-bold text-center">
-                                                {participants.find((p: any) => p.id === match.participant_b_id)?.display_name || "BYE"}
+                                                {participants[match.participant_b_id]?.display_name || "BYE"}
                                             </div>
                                         </div>
                                     </div>

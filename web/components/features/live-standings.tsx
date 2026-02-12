@@ -1,5 +1,6 @@
 import { Match, Participant } from "@/types";
 import { Trophy, TrendingUp } from "lucide-react";
+import { calculateStandings } from "@/lib/standings";
 
 interface LiveStandingsProps {
     participants: Record<string, Participant>;
@@ -7,45 +8,7 @@ interface LiveStandingsProps {
 }
 
 export function LiveStandings({ participants, matches }: LiveStandingsProps) {
-    // 1. Calculate Standings
-    // Simple heuristic: Wins > Point Diff (We don't have full Swiss buchholz logic readily reusable here without prop drilling complex objects, 
-    // so we'll do a robust local calculation based on visible matches)
-
-    // NOTE: This logic mimics the backend/hook logic but is purely client-side for immediate display
-    const stats: Record<string, { id: string; wins: number; matchesPlayed: number; diff: number }> = {};
-
-    // Init Object
-    Object.keys(participants).forEach(id => {
-        stats[id] = { id, wins: 0, matchesPlayed: 0, diff: 0 };
-    });
-
-    // Tally
-    matches.forEach(m => {
-        if (m.status === 'complete' && m.winner_id) {
-            const pA = m.participant_a_id;
-            const pB = m.participant_b_id;
-
-            if (pA && stats[pA]) {
-                stats[pA].matchesPlayed++;
-                stats[pA].diff += (m.score_a - m.score_b);
-                if (m.winner_id === pA) stats[pA].wins++;
-            }
-
-            if (pB && stats[pB]) {
-                stats[pB].matchesPlayed++;
-                stats[pB].diff += (m.score_b - m.score_a);
-                if (m.winner_id === pB) stats[pB].wins++;
-            }
-        }
-    });
-
-    // Sort
-    const sorted = Object.values(stats).sort((a, b) => {
-        if (a.wins !== b.wins) return b.wins - a.wins;
-        // Tie breaker: Diff
-        return b.diff - a.diff;
-    });
-
+    const sorted = calculateStandings(participants, matches);
     const top8 = sorted.slice(0, 8); // Top 8 only for projector
 
     return (
