@@ -6,7 +6,7 @@ import { Menu } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, LogOut, Settings, Trophy, CreditCard, Shield } from "lucide-react";
+import { User, LogOut, Settings, Trophy, CreditCard, Shield, Medal } from "lucide-react";
 import Image from "next/image";
 import { NotificationCenter } from "@/components/features/notification-center";
 import { SupportButton } from "@/components/features/support-button";
@@ -185,6 +185,9 @@ export function SiteHeader() {
                                                 </Link>
                                                 <Link href="/leaderboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                                                     <Trophy className="w-4 h-4" /> Leaderboards
+                                                </Link>
+                                                <Link href="/achievements" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                    <Medal className="w-4 h-4" /> Achievements
                                                 </Link>
                                                 <Link
                                                     href={profile.username ? `/u/${profile.username}` : "/account"}

@@ -53,32 +53,32 @@ export function AchievementCard({ badge, progress }: AchievementProps) {
 
     return (
         <div className={cn(
-            "group relative flex flex-col p-5 rounded-2xl border transition-all duration-300 overflow-hidden",
-            isUnlocked ? TIER_STYLES[badge.tier || 'common'] : "border-slate-800/50 bg-slate-950/40 text-slate-600 opacity-80 hover:opacity-100 hover:border-slate-700"
+            "group relative flex flex-col p-4 rounded-xl border transition-all duration-300 overflow-hidden",
+            isUnlocked ? TIER_STYLES[badge.tier || 'common'] : "border-slate-800/60 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:bg-slate-900/40"
         )}>
             {/* Background Glow for High Tier */}
             {(badge.tier === 'legendary' || badge.tier === 'diamond') && isUnlocked && (
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-current opacity-5 pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-current opacity-10 pointer-events-none" />
             )}
 
-            <div className="flex items-start justify-between mb-4 relative z-10">
+            <div className="flex items-start justify-between mb-3 relative z-10">
                 <div className={cn(
-                    "p-3 rounded-xl border transition-all duration-300",
+                    "p-2.5 rounded-lg border transition-all duration-300",
                     isUnlocked
                         ? "bg-black/40 border-current shadow-lg"
-                        : "bg-slate-900 border-slate-800 grayscale"
+                        : "bg-slate-900 border-slate-800 grayscale opacity-70 group-hover:opacity-100"
                 )}>
-                    {isUnlocked ? <Icon className="w-8 h-8" /> : <Lock className="w-8 h-8 opacity-50" />}
+                    {isUnlocked ? <Icon className="w-6 h-6" /> : <Lock className="w-6 h-6 opacity-60" />}
                 </div>
 
                 {isUnlocked && (
-                    <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-current text-black px-2 py-1 rounded-full">
+                    <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-current text-black px-2 py-0.5 rounded-full">
                         <CheckCircle2 className="w-3 h-3" /> Unlocked
                     </div>
                 )}
 
                 {!isUnlocked && badge.tier !== 'common' && (
-                    <div className="text-[10px] font-black uppercase tracking-widest opacity-40 px-2 py-1 border border-current rounded-full">
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60 px-2 py-0.5 border border-current rounded-full">
                         {badge.tier}
                     </div>
                 )}
@@ -86,29 +86,29 @@ export function AchievementCard({ badge, progress }: AchievementProps) {
 
             <div className="flex-1 relative z-10">
                 <h3 className={cn(
-                    "font-black text-lg uppercase leading-tight mb-1 tracking-tight",
-                    isUnlocked ? "text-slate-100" : "text-slate-500"
+                    "font-black text-base uppercase leading-tight mb-1 tracking-tight truncate",
+                    isUnlocked ? "text-white" : "text-slate-300"
                 )}>
                     {badge.name}
                 </h3>
-                <p className="text-xs text-slate-500 line-clamp-2 mb-4 h-8">
+                <p className="text-xs text-slate-400 line-clamp-2 mb-3 h-8 leading-relaxed">
                     {badge.description}
                 </p>
 
                 {/* Progress Section */}
-                <div className="space-y-2 mt-auto">
-                    <div className="flex justify-between text-[10px] font-mono uppercase tracking-wider opacity-70">
-                        <span>{badge.requirement_text || "Secret Achievement"}</span>
-                        <span>{isUnlocked ? "Done" : `${percent}%`}</span>
+                <div className="space-y-1.5 mt-auto">
+                    <div className="flex justify-between text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+                        <span className="truncate pr-2">{badge.requirement_text || "Secret Achievement"}</span>
+                        <span className={isUnlocked ? "text-green-400" : ""}>{isUnlocked ? "Done" : `${percent}%`}</span>
                     </div>
 
                     {!isUnlocked && (
-                        <Progress value={percent} className="h-1.5 bg-slate-900" indicatorClassName={isUnlocked ? "bg-green-500" : "bg-slate-600"} />
+                        <Progress value={percent} className="h-1 bg-slate-800" indicatorClassName={isUnlocked ? "bg-green-500" : "bg-slate-500"} />
                     )}
 
                     {!isUnlocked && remaining > 0 && remaining <= 5 && (
                         <div className="text-[10px] text-cyan-400 font-bold flex items-center justify-end gap-1 animate-pulse">
-                            Only {remaining} {badge.requirement_type?.includes('match') ? 'match(es)' : 'game(s)'} left!
+                            Only {remaining} left!
                         </div>
                     )}
                 </div>
