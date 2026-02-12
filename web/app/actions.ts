@@ -7,3 +7,4 @@ export * from "./actions/store";
 export * from "./actions/invite";
 export * from "./actions/judge";
 export * from "./actions/user";
+export * from "./actions/upload";

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { BeyPart, createDeck, getAllParts } from "@/lib/decks";
+import { uploadDeckImageAction } from "@/app/actions/upload";
 import { PartSelect } from "./part-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,37 +113,32 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
         if (!e.target.files || e.target.files.length === 0) return;
 
         const file = e.target.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${userId}-${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
 
         setUploading(true);
         try {
-            // Client-side upload using standard upload pattern for this app
-            // Note: In a real prod app with RLS, we'd use the supabase client directly here.
-            // Since we are refactoring, let's assume standard supabase client is available or we pass it.
-            // For now, I'll use the supabase client from lib/supabase
-            const { supabase } = await import('@/lib/supabase');
+            const formData = new FormData();
+            formData.append("file", file);
 
-            const { error: uploadError } = await supabase.storage
-                .from('deck-images')
-                .upload(filePath, file);
+            // Dynamic import to avoid server-only module issues in client component if deemed necessary,
+            // but standard import should work if 'use server' is correctly set in the action file.
+            // Using direct import since we'll import it at top level.
 
-            if (uploadError) {
-                throw uploadError;
+            const res = await uploadDeckImageAction(formData);
+
+            if (res.success && res.message) {
+                setImageUrl(res.message);
+                toast({ title: "Image uploaded!" });
+            } else {
+                throw new Error(res.error || "Upload failed");
             }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('deck-images')
-                .getPublicUrl(filePath);
-
-            setImageUrl(publicUrl);
-            toast({ title: "Image uploaded!" });
         } catch (error: any) {
             console.error('Error uploading image:', error);
             toast({ title: "Upload failed", description: error.message, variant: "destructive" });
         } finally {
             setUploading(false);
+            // Reset input value to allow re-uploading same file if needed
+            e.target.value = "";
         }
     }
 
