@@ -57,19 +57,19 @@ export default function DecksPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 space-y-8">
-            <div className="flex items-center justify-between">
+        <div className="container mx-auto py-8 space-y-8 px-4 md:px-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white mb-2">My Decks</h1>
-                    <p className="text-slate-400">Manage your Beyblade configurations for tournaments.</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">My Decks</h1>
+                    <p className="text-sm md:text-base text-slate-400">Manage your Beyblade configurations for tournaments.</p>
                 </div>
                 {view === 'list' && (
-                    <Button onClick={handleCreateNew} className="bg-cyan-600 hover:bg-cyan-500 text-white gap-2">
+                    <Button onClick={handleCreateNew} className="w-full md:w-auto bg-cyan-600 hover:bg-cyan-500 text-white gap-2">
                         <Plus className="w-4 h-4" /> New Deck
                     </Button>
                 )}
                 {view === 'create' && (
-                    <Button onClick={handleBackToList} variant="ghost" className="text-slate-400 hover:text-white">
+                    <Button onClick={handleBackToList} variant="ghost" className="w-full md:w-auto text-slate-400 hover:text-white">
                         Cancel
                     </Button>
                 )}
