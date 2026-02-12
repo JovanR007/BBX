@@ -104,6 +104,9 @@ export function SiteHeader() {
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
                         Directory
                     </Link>
+                    <Link href="/decks" className="text-foreground/60 hover:text-foreground transition-colors">
+                        Decks
+                    </Link>
                     {user && (
                         <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
                             Host Event
@@ -118,6 +121,9 @@ export function SiteHeader() {
                     </Link>
                     <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
                         Directory
+                    </Link>
+                    <Link href="/decks" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
+                        Decks
                     </Link>
                     {user && (
                         <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
