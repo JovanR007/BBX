@@ -3,7 +3,10 @@
 import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import React from 'react';
-import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown } from "lucide-react";
+import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown, Eye } from "lucide-react";
+import { DeckCard } from "@/components/decks/deck-card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 import { Match, Participant } from "@/types";
@@ -103,6 +106,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
 
     // Local UI State
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+    const [selectedDeck, setSelectedDeck] = useState<any | null>(null);
     const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
     const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
 
@@ -120,6 +124,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             plan={tournament?.stores?.plan}
             className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
+            <Dialog open={!!selectedDeck} onOpenChange={(open) => !open && setSelectedDeck(null)}>
+                <DialogContent className="bg-transparent border-none p-0 max-w-2xl shadow-none">
+                    {selectedDeck && <DeckCard deck={selectedDeck} className="w-full shadow-2xl" />}
+                </DialogContent>
+            </Dialog>
+
             {/* Header */}
             <div className="flex justify-between items-center mb-8 landscape:mb-2">
                 <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors landscape:text-xs">
@@ -206,11 +216,18 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                             matches={swissMatches}
                             participants={participants}
                             onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)}
+                            onDeckClick={(d) => setSelectedDeck(d)}
                             totalSwissRounds={tournament?.swiss_rounds ?? 5}
                         />
                     </>
                 ) : (
-                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
+                    <TopCutView
+                        matches={topCutMatches}
+                        participants={participants}
+                        cutSize={tournament?.cut_size ?? 0}
+                        onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)}
+                        onDeckClick={(d) => setSelectedDeck(d)}
+                    />
                 )}
             </div>
 
@@ -293,11 +310,13 @@ function SwissView({
     matches,
     participants,
     onMatchClick,
+    onDeckClick,
     totalSwissRounds = 5
 }: {
     matches: Match[],
     participants: Record<string, Participant>,
     onMatchClick: (m: Match) => void,
+    onDeckClick: (deck: any) => void,
     totalSwissRounds?: number
 }) {
     const rounds: Record<number, Match[]> = {};
@@ -339,7 +358,14 @@ function SwissView({
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
                         <div className="flex flex-col gap-3">
                             {(rounds[rNum] || []).map((m) => (
-                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isSwissKingMatch(m, rNum)} />
+                                <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    participants={participants}
+                                    onClick={() => onMatchClick(m)}
+                                    onDeckClick={onDeckClick}
+                                    isSwissKing={isSwissKingMatch(m, rNum)}
+                                />
                             ))}
                         </div>
                     </div>
@@ -357,7 +383,7 @@ function SwissView({
     );
 }
 
-function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, cutSize: number }) {
+function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, onDeckClick: (d: any) => void, cutSize: number }) {
     // Import the library dynamically to avoid SSR issues
     const [LibraryComponents, setLibraryComponents] = useState<any>(null);
 
@@ -442,14 +468,16 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         resultText: realMatch?.score_a?.toString() ?? '-',
                         isWinner: realMatch?.winner_id === realMatch?.participant_a_id && realMatch?.status === 'complete',
                         status: realMatch?.status === 'complete' ? 'PLAYED' : null,
-                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD')
+                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                        deck: pA?.deck
                     },
                     {
                         id: realMatch?.participant_b_id || `tbd-b-${id}`,
                         resultText: realMatch?.score_b?.toString() ?? '-',
                         isWinner: realMatch?.winner_id === realMatch?.participant_b_id && realMatch?.status === 'complete',
                         status: realMatch?.status === 'complete' ? 'PLAYED' : null,
-                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD')
+                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                        deck: pB?.deck
                     }
                 ]
             };
@@ -581,6 +609,15 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     }}>
                         {topParty.resultText || '-'}
                     </span>
+                    {topParty.deck && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(topParty.deck); }}
+                            className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer"
+                            title={`View Deck: ${topParty.deck.name}`}
+                        >
+                            <Eye className="w-3 h-3" />
+                        </div>
+                    )}
                 </div>
                 {/* Bottom Player */}
                 <div
@@ -620,6 +657,15 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                     }}>
                         {bottomParty.resultText || '-'}
                     </span>
+                    {bottomParty.deck && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(bottomParty.deck); }}
+                            className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer"
+                            title={`View Deck: ${bottomParty.deck.name}`}
+                        >
+                            <Eye className="w-3 h-3" />
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -686,6 +732,7 @@ interface MatchCardProps {
     match: Match;
     participants: Record<string, Participant>;
     onClick?: () => void;
+    onDeckClick?: (deck: any) => void;
     label?: string | null;
     isSwissKing?: boolean;
     nextMatchNumber?: number | null;
@@ -694,7 +741,7 @@ interface MatchCardProps {
     isTarget?: boolean;
 }
 
-function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }: MatchCardProps) {
+function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isHighlighted }: MatchCardProps) {
     const pA = match.participant_a_id ? participants[match.participant_a_id] : null;
     const pB = match.participant_b_id ? participants[match.participant_b_id] : null;
     const isCompleted = match.status === "complete";
@@ -743,6 +790,15 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                 )}>
                     {match.score_a ?? "-"}
                 </span>
+                {pA?.deck && onDeckClick && (
+                    <div
+                        onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
+                        className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                        title={`View Deck: ${pA.deck.name}`}
+                    >
+                        <Eye className="w-3 h-3" />
+                    </div>
+                )}
             </div>
 
             {/* Participant B */}
@@ -762,6 +818,15 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                 )}>
                     {match.score_b ?? "-"}
                 </span>
+                {pB?.deck && onDeckClick && (
+                    <div
+                        onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
+                        className="ml-1 w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-cyan-500 cursor-pointer z-10"
+                        title={`View Deck: ${pB.deck.name}`}
+                    >
+                        <Eye className="w-3 h-3" />
+                    </div>
+                )}
             </div>
         </div>
     );

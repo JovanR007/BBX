@@ -57,6 +57,8 @@ export interface Participant {
     user_id: string | null;
     display_name: string;
     dropped: boolean;
+    deck_id?: string | null;
+    deck?: any; // Populated deck object
 }
 
 export interface Match {

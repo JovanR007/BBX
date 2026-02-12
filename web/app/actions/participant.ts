@@ -93,6 +93,7 @@ export async function addParticipantAction(formData: FormData) {
 
     // 2. Insert Participant
     let userId = formData.get("user_id"); // Optional User Link
+    let deckId = formData.get("deck_id"); // Optional Deck Link
 
     // Auto-Link: If no userId provided, check if 'name' matches a registered username
     if (!userId) {
@@ -105,13 +106,13 @@ export async function addParticipantAction(formData: FormData) {
         if (profile) userId = profile.id;
     }
 
-
     const { data: newPart, error } = await supabaseAdmin
         .from("participants")
         .insert({
             display_name: name,
             tournament_id: tournamentId,
             user_id: userId || null,
+            deck_id: deckId || null,
             checked_in: true // Manual walk-ins are auto checked-in
         })
         .select()

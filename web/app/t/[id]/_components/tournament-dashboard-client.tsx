@@ -6,11 +6,17 @@ import Link from "next/link";
 import { Trophy, Users, GitBranch, ArrowLeft, Loader2, Timer } from "lucide-react";
 import { useTournament } from "@/hooks/use-tournament";
 import { JudgeJoin } from "@/components/features/judge-join";
+import { PlayerJoin } from "@/components/features/player-join";
 import { BrandedContainer } from "@/components/features/branded-container";
 import { AdUnit } from "@/components/AdUnit";
+import { useUser } from "@stackframe/stack";
 
 export function TournamentDashboardClient({ id }: { id: string }) {
     const { tournament, tournamentId, loading: tLoading, error, isOwner, isJudge } = useTournament(id);
+    const user = useUser();
+
+    // Check if user is already a participant
+    const [isParticipant, setIsParticipant] = useState(false);
 
     const [stats, setStats] = useState({ players: 0, matches: 0 });
     const [loadingStats, setLoadingStats] = useState(true);
@@ -31,9 +37,20 @@ export function TournamentDashboardClient({ id }: { id: string }) {
 
             setStats({ players: playerCount || 0, matches: matchCount || 0 });
             setLoadingStats(false);
+
+            if (user) {
+                const { data: part } = await supabase
+                    .from("participants")
+                    .select("id")
+                    .eq("tournament_id", tournamentId)
+                    .eq("user_id", user.id)
+                    .single();
+
+                if (part) setIsParticipant(true);
+            }
         }
         fetchStats();
-    }, [tournamentId]);
+    }, [tournamentId, user]);
 
     if (error) return <div className="text-center py-20 text-red-500">Error: {error}</div>;
     if (tLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>;
@@ -132,6 +149,12 @@ export function TournamentDashboardClient({ id }: { id: string }) {
                 </div>
 
                 <JudgeJoin tournamentId={tournamentId || ""} />
+
+                <div className="mt-8 w-full max-w-sm">
+                    {!tLoading && !isOwner && !isJudge && (
+                        <PlayerJoin tournamentId={tournamentId || ""} isRegistered={isParticipant} />
+                    )}
+                </div>
             </div>
         </BrandedContainer>
     );
