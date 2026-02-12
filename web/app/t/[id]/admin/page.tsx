@@ -1220,13 +1220,20 @@ function BulkAddParticipantsModal({ tournamentId, refresh }: { tournamentId: str
                         onClose={() => setShowDeckBuilderFor(null)}
                         userId={showDeckBuilderFor.userId}
                         playerName={showDeckBuilderFor.name}
-                        onDeckCreated={(deckId) => {
-                            if (deckId) {
+                        onDeckCreated={(deck) => {
+                            if (deck) {
                                 // Update selection
                                 setPlayerSelections({
                                     ...playerSelections,
-                                    [showDeckBuilderFor.index]: { ...playerSelections[showDeckBuilderFor.index], deckId }
+                                    [showDeckBuilderFor.index]: { ...playerSelections[showDeckBuilderFor.index], deckId: deck.id }
                                 });
+                                // ALSO update verification data to include this new deck for that player
+                                const newData = [...verificationData];
+                                if (newData[showDeckBuilderFor.index]) {
+                                    const playerDecks = newData[showDeckBuilderFor.index].decks || [];
+                                    newData[showDeckBuilderFor.index].decks = [...playerDecks, deck];
+                                    setVerificationData(newData);
+                                }
                             }
                         }}
                     />

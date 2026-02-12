@@ -12,7 +12,7 @@ interface AdminDeckModalProps {
     participantId?: string;
     userId: string | null;
     playerName: string;
-    onDeckCreated: (deckId?: string) => void;
+    onDeckCreated: (deck?: any) => void;
 }
 
 export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerName, onDeckCreated }: AdminDeckModalProps) {
@@ -21,11 +21,11 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
 
     if (!isOpen) return null;
 
-    const handleDeckCreated = async (deckId: string) => {
+    const handleDeckCreated = async (deck: any) => {
         setIsSaving(true);
         try {
             if (participantId) {
-                const res = await updateParticipantDeckAction(participantId, deckId);
+                const res = await updateParticipantDeckAction(participantId, deck.id);
                 if (res.success) {
                     toast({ title: "Deck Assigned", description: "The deck has been linked to this participant.", variant: "success" });
                 } else {
@@ -33,7 +33,7 @@ export function AdminDeckModal({ isOpen, onClose, participantId, userId, playerN
                     return; // Don't close if fail? Or let them try again?
                 }
             }
-            onDeckCreated(deckId);
+            onDeckCreated(deck);
             onClose();
         } catch (e: any) {
             toast({ title: "Error", description: e.message, variant: "destructive" });

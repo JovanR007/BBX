@@ -190,7 +190,7 @@ export function DeckBuilder({ userId, existingDeck, onDeckCreated, onDeckUpdated
             } else {
                 const deck = await createDeck(userId, deckData);
                 toast({ title: "Deck created successfully!" });
-                if (onDeckCreated) onDeckCreated(deck.id);
+                if (onDeckCreated) onDeckCreated(deck);
             }
 
             // Cleanup provided by parent (switching views)
