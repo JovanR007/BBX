@@ -206,7 +206,7 @@ export function DeckBuilder({ userId, onDeckCreated }: DeckBuilderProps) {
                     </div>
                     {uploading && <p className="text-xs text-cyan-400 animate-pulse mt-1">Uploading image...</p>}
                     {imageUrl && (
-                        <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-800 group">
+                        <div className="mt-2 relative w-full h-64 rounded-lg overflow-hidden border border-slate-800 group">
                             <img src={imageUrl} alt="Deck Preview" className="w-full h-full object-cover" />
                             <button
                                 onClick={() => setImageUrl("")}

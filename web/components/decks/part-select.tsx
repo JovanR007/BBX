@@ -71,6 +71,12 @@ export function PartSelect({ label, parts, selectedPartId, onSelect, disabled, p
                                             onSelect(part.id);
                                             setOpen(false);
                                         }}
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onSelect(part.id);
+                                            setOpen(false);
+                                        }}
                                         className="aria-selected:bg-slate-800 cursor-pointer pointer-events-auto"
                                     >
                                         <Check
