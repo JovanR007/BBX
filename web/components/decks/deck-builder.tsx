@@ -236,11 +236,6 @@ export function DeckBuilder({ userId, existingDeck, onDeckCreated, onDeckUpdated
                             {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                         </Button>
                     )}
-                    {onCancel && (
-                        <Button variant="ghost" size="sm" onClick={onCancel}>
-                            Cancel
-                        </Button>
-                    )}
                 </div>
             </div>
 

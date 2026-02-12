@@ -14,6 +14,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 import { useTournament } from "@/hooks/use-tournament";
+import { UserSearchInput } from "@/components/admin/user-search-input";
 
 export default function AdminPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -503,6 +504,13 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
     const isDraft = tournament?.status === "draft";
     const isStarted = tournament?.status === "started" || tournament?.status === "completed";
 
+    // User Search State
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+    const [playerName, setPlayerName] = useState("");
+    const [addingPlayer, setAddingPlayer] = useState(false);
+    const [resetTrigger, setResetTrigger] = useState(0);
+
     async function handleToggle() {
         const formData = new FormData();
         formData.append("tournament_id", tournamentId);
@@ -520,6 +528,31 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
         } else {
             toast({ title: "Error", description: parseError(res.error), variant: "destructive" });
         }
+    }
+
+    async function handleAddPlayer() {
+        if (!playerName.trim()) return;
+        setAddingPlayer(true);
+
+        const formData = new FormData();
+        formData.append("tournament_id", tournamentId);
+        formData.append("name", playerName.trim());
+        if (selectedUserId) formData.append("user_id", selectedUserId);
+        if (selectedDeckId) formData.append("deck_id", selectedDeckId);
+
+        const res = await addParticipantAction(formData);
+        if (res?.success) {
+            fetchData();
+            toast({ title: "Player Added", description: `${playerName.trim()} registered successfully.`, variant: "success" });
+            // Reset form
+            setSelectedUserId(null);
+            setSelectedDeckId(null);
+            setPlayerName("");
+            setResetTrigger(prev => prev + 1);
+        } else {
+            toast({ title: "Registration Failed", description: parseError(res.error), variant: "destructive" });
+        }
+        setAddingPlayer(false);
     }
 
     return (
@@ -548,33 +581,43 @@ function RegistrationSection({ tournament, participants, loading, fetchData, tou
                 <div className="flex flex-col md:flex-row gap-8">
                     {/* Add Player Form - Only in Draft */}
                     <div className="w-full md:w-1/3 space-y-4">
-                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">New Player</h3>
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            const form = e.currentTarget;
-                            const formData = new FormData(form);
-                            const res = await addParticipantAction(formData);
-                            if (res?.success) {
-                                form.reset();
-                                fetchData();
-                                toast({ title: "Player Added", description: "Successfully registered new participant.", variant: "success" });
-                            } else {
-                                toast({ title: "Registration Failed", description: parseError(res.error), variant: "destructive" });
-                            }
-                        }} className="flex gap-2">
-                            <input type="hidden" name="tournament_id" value={tournamentId} />
-                            <input
-                                name="name"
-                                placeholder="Enter Name"
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-ring"
-                                required
-                            />
-                            <button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-10 flex items-center justify-center rounded-md">
-                                <UserPlus className="w-4 h-4" />
-                            </button>
-                        </form>
+                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Add Player</h3>
+
+                        <UserSearchInput
+                            selectedUserId={selectedUserId}
+                            resetTrigger={resetTrigger}
+                            onSelectUser={(userId, displayName, decks) => {
+                                setSelectedUserId(userId);
+                                setPlayerName(displayName);
+                            }}
+                            onSelectDeck={(deckId) => setSelectedDeckId(deckId)}
+                            onNameChange={(name) => {
+                                setPlayerName(name);
+                                if (!name) {
+                                    setSelectedUserId(null);
+                                    setSelectedDeckId(null);
+                                }
+                            }}
+                        />
+
+                        {selectedUserId && (
+                            <p className="text-[10px] text-cyan-500 bg-cyan-500/10 px-2 py-1 rounded">
+                                ✓ Linked to account — deck selection available above
+                            </p>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleAddPlayer}
+                            disabled={addingPlayer || !playerName.trim()}
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 rounded-md font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {addingPlayer ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                            Add Player
+                        </button>
+
                         <p className="text-xs text-muted-foreground">
-                            Add all players here before locking.
+                            Type a name to add manually, or search for a registered player to link their account & deck.
                         </p>
 
                         <div className="pt-2">

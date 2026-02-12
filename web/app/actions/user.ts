@@ -269,5 +269,30 @@ export async function getNotificationsAction() {
     // Sort by newest first
     items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    // ... existing code ...
     return { success: true, items };
+}
+
+export async function searchUsersAndDecksAction(query: string) {
+    if (!query || query.length < 2) return { success: false, error: "Query too short" };
+
+    const { data: profiles, error } = await supabaseAdmin
+        .from("profiles")
+        .select(`
+            id,
+            username,
+            display_name,
+            email,
+            avatar_url,
+            decks (
+                id,
+                name
+            )
+        `)
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(10);
+
+    if (error) return { success: false, error: error.message };
+
+    return { success: true, users: profiles };
 }
