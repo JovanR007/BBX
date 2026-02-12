@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Participant, Tournament } from "@/types";
 import { getTournamentDataAction } from "@/app/actions";
 import { useToast } from "@/components/ui/toaster";
@@ -107,6 +107,17 @@ export function useBracketData(tournamentId: string | undefined) {
         setLoading(false);
     }, [tournamentId, toast, user]);
 
+    const matchesRef = useRef(matches);
+    const participantsRef = useRef(participants);
+
+    useEffect(() => {
+        matchesRef.current = matches;
+    }, [matches]);
+
+    useEffect(() => {
+        participantsRef.current = participants;
+    }, [participants]);
+
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
@@ -116,7 +127,8 @@ export function useBracketData(tournamentId: string | undefined) {
         const actualId = tournament?.id;
         if (!actualId) return;
 
-        // Subscribe to Realtime Changes using the resolved UUID
+        // Subscribe to Realtime Changes without server-side filter for UPDATE events
+        // (Server-side filters fail on partial UPDATE payloads if the filtered column didn't change)
         const channel = supabase
             .channel(`tournament-data-${actualId}`)
             .on(
@@ -124,14 +136,15 @@ export function useBracketData(tournamentId: string | undefined) {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'matches',
-                    filter: `tournament_id=eq.${actualId}`
+                    table: 'matches'
                 },
                 (payload) => {
-                    if (payload.eventType === 'UPDATE') {
-                        const newMatch = payload.new as Match;
-                        setMatches(prev => prev.map(m => m.id === newMatch.id ? newMatch : m));
-                    } else {
+                    const newRec = payload.new as any;
+                    const oldRec = payload.old as any;
+                    const matchId = newRec?.id || oldRec?.id;
+
+                    const isOurMatch = matchesRef.current.some((m: Match) => m.id === matchId) || newRec?.tournament_id === actualId;
+                    if (isOurMatch) {
                         fetchData(true);
                     }
                 }
@@ -151,10 +164,18 @@ export function useBracketData(tournamentId: string | undefined) {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'participants',
-                    filter: `tournament_id=eq.${actualId}`
+                    table: 'participants'
                 },
-                () => fetchData(true)
+                (payload) => {
+                    const newRec = payload.new as any;
+                    const oldRec = payload.old as any;
+                    const partId = newRec?.id || oldRec?.id;
+
+                    const isOurParticipant = !!participantsRef.current[partId] || newRec?.tournament_id === actualId;
+                    if (isOurParticipant) {
+                        fetchData(true);
+                    }
+                }
             )
             .subscribe();
 
