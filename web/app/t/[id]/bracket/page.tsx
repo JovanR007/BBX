@@ -205,7 +205,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                     <div className="p-12 border border-dashed rounded-xl text-center text-muted-foreground">
                         <Info className="w-8 h-8 mx-auto mb-4 opacity-50" />
                         <p>No matches found yet.</p>
-                        <p className="text-sm">The tournament hasn't started.</p>
+                        <p className="text-sm">The tournament has not started.</p>
                     </div>
                 ) : viewMode === "swiss" ? (
                     <>
@@ -349,33 +349,37 @@ function SwissView({
     };
 
     return (
-        <div className="flex flex-row gap-8 pb-12 min-w-max">
-            {roundsList.map(rNumStr => {
-                const rNum = Number(rNumStr);
-                const isLastRound = rNum === Number(maxRound);
-                return (
-                    <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
-                        <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
-                        <div className="flex flex-col gap-3">
-                            {(rounds[rNum] || []).map((m) => (
-                                <MatchCard
-                                    key={m.id}
-                                    match={m}
-                                    participants={participants}
-                                    onClick={() => onMatchClick(m)}
-                                    onDeckClick={onDeckClick}
-                                    isSwissKing={isSwissKingMatch(m, rNum)}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                );
-            })}
+        <div className="flex flex-col lg:flex-row gap-6 pb-12">
+            {/* Left: Horizontal Scrollable Matches */}
+            <div className="flex-1 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40">
+                <div className="flex flex-row gap-6 min-w-max pr-4">
+                    {roundsList.map(rNumStr => {
+                        const rNum = Number(rNumStr);
+                        const isLastRound = rNum === Number(maxRound);
+                        return (
+                            <div key={rNum} className="flex flex-col gap-3 min-w-[280px]">
+                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider text-xs border-b border-white/5 pb-2">Round {rNum}</div>
+                                <div className="flex flex-col gap-2">
+                                    {(rounds[rNum] || []).map((m) => (
+                                        <MatchCard
+                                            key={m.id}
+                                            match={m}
+                                            participants={participants}
+                                            onClick={() => onMatchClick(m)}
+                                            onDeckClick={onDeckClick}
+                                            isSwissKing={isSwissKingMatch(m, rNum)}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
 
-            {/* Live Standings Sidebar - Adjusted height to fit Top 8 */}
-            <div className="flex flex-col gap-4 min-w-[320px] h-fit">
-                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Standings</div>
-                <div className="rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-2xl backdrop-blur-md">
+            {/* Right: Live Standings Sidebar */}
+            <div className="w-full lg:w-[350px] shrink-0 space-y-4">
+                <div className="rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-xl backdrop-blur-md">
                     <LiveStandings participants={participants} matches={matches} />
                 </div>
             </div>
