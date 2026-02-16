@@ -45,8 +45,10 @@ export async function advanceBracket(tournamentId: string) {
     if (tErr) throw tErr;
 
     const cutSize = tournament.cut_size;
+    // Standard Elimination Bracket: structure must follow a power of 2 (4, 8, 16, 32, 64)
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(cutSize)));
     const multiplier = Math.pow(2, currentRoundNum);
-    const idealMatchCount = Math.floor(cutSize / multiplier);
+    const idealMatchCount = Math.floor(bracketSize / multiplier);
 
     // 3. Fetch matches from current round
     const { data: prevMatches, error: pmErr } = await supabase
