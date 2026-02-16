@@ -423,8 +423,15 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         onWarn={() => handleWarning('A')}
                         bey={beyA} setBey={setBeyA}
                         isBestOf3={isBestOf3}
-                        disabled={isGameOver}
+                        disabled={isGameOver && !isOverrideMode}
                         onShowDeck={setViewingDeck}
+                        isEditing={isOverrideMode}
+                        onManualScoreChange={(val: number) => {
+                            const newHistory = saveState();
+                            setScoreA(val);
+                            scoreARef.current = val;
+                            syncDB(val, scoreB, currentSetScoreA, currentSetScoreB, newHistory);
+                        }}
                     />
 
                     {/* CENTER CONTROLS (Undo, Submit) - Narrow Column */}
@@ -433,7 +440,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                             <Undo2 className="w-4 h-4 md:w-6 md:h-6" />
                         </button>
 
-                         {isOverrideMode && (
+                        {isOverrideMode && (
                             <input
                                 type="password"
                                 placeholder="PIN"
@@ -471,8 +478,15 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         onWarn={() => handleWarning('B')}
                         bey={beyB} setBey={setBeyB}
                         isBestOf3={isBestOf3}
-                        disabled={isGameOver}
+                        disabled={isGameOver && !isOverrideMode}
                         onShowDeck={setViewingDeck}
+                        isEditing={isOverrideMode}
+                        onManualScoreChange={(val: number) => {
+                            const newHistory = saveState();
+                            setScoreB(val);
+                            scoreBRef.current = val;
+                            syncDB(scoreA, val, currentSetScoreA, currentSetScoreB, newHistory);
+                        }}
                     />
 
                 </div>
@@ -502,7 +516,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 }
 
 // Sub-Component for Player Section to reduce duplication
-function PlayerConsole({ player, label, score, setScore, warnings, isWinner, colorClass, onScore, onWarn, bey, setBey, isBestOf3, disabled, onShowDeck }: any) {
+function PlayerConsole({ player, label, score, setScore, warnings, isWinner, colorClass, onScore, onWarn, bey, setBey, isBestOf3, disabled, onShowDeck, isEditing, onManualScoreChange }: any) {
     const isPrimary = colorClass === "primary";
     const bgWin = isPrimary ? "bg-green-500/10 border-green-500" : "bg-green-500/10 border-green-500";
     const textWin = "text-green-600";
@@ -541,9 +555,22 @@ function PlayerConsole({ player, label, score, setScore, warnings, isWinner, col
             {/* SCORE DISPLAY */}
             <div className="flex-1 flex flex-col items-center justify-center py-4 relative min-h-[120px]">
                 {/* Main Score (Sets or Points) */}
-                <span className={cn("text-8xl font-black tracking-tighter tabular-nums leading-none", isWinner ? textWin : textNormal)}>
-                    {score}
-                </span>
+                {isEditing ? (
+                    <input
+                        type="number"
+                        value={score}
+                        onChange={(e) => onManualScoreChange(Number(e.target.value))}
+                        className={cn(
+                            "text-6xl md:text-8xl font-black tracking-tighter tabular-nums leading-none text-center bg-transparent border-b-2 border-dashed border-white/20 w-full focus:outline-none focus:border-white/50",
+                            isWinner ? textWin : textNormal
+                        )}
+                    />
+                ) : (
+                    <span className={cn("text-8xl font-black tracking-tighter tabular-nums leading-none", isWinner ? textWin : textNormal)}>
+                        {score}
+                    </span>
+                )}
+
                 <span className="text-[10px] uppercase font-bold text-muted-foreground mt-2">
                     {isBestOf3 ? "Sets Won" : "Points"}
                 </span>
