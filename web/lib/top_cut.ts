@@ -1,28 +1,6 @@
 import { supabaseAdmin } from "./supabase-admin";
 import { calculateStandings } from "./standings";
 
-/**
- * Get active participants ranked by swiss standings.
- */
-async function loadActiveStandings(tournamentId: string) {
-    const { data, error } = await supabaseAdmin
-        .from("swiss_standings")
-        .select(
-            "participant_id, display_name, participant_status, match_wins, buchholz, point_diff"
-        )
-        .eq("tournament_id", tournamentId)
-        .order("match_wins", { ascending: false })
-        .order("point_diff", { ascending: false })
-        .order("buchholz", { ascending: false })
-        .order("participant_id", { ascending: true }); // Deterministic tie-breaker
-
-    if (error) throw error;
-
-    return (data || []).filter((p) =>
-        ["approved", "checked_in"].includes(p.participant_status)
-    );
-}
-
 interface ByeMatchParams {
     tournamentId: string;
     roundId?: string; // Not used in top_cut typically? Or passed?
@@ -162,7 +140,7 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
                 makeByeMatch({
                     tournamentId,
                     matchNumber: matchNum,
-                    aId: topSeed.participant_id,
+                    aId: topSeed.id,
                     target
                 })
             );
@@ -172,7 +150,7 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
                 makeByeMatch({
                     tournamentId,
                     matchNumber: matchNum,
-                    aId: botSeed.participant_id,
+                    aId: botSeed.id,
                     target
                 })
             );
@@ -183,8 +161,8 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
                 stage: "top_cut",
                 bracket_round: 1,
                 match_number: matchNum,
-                participant_a_id: topSeed.participant_id,
-                participant_b_id: botSeed.participant_id,
+                participant_a_id: topSeed.id,
+                participant_b_id: botSeed.id,
                 score_a: 0,
                 score_b: 0,
                 target_points: target,
