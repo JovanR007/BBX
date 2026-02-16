@@ -9,7 +9,7 @@ import { stackServerApp } from "@/lib/stack";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { checkMatchBadges } from "@/lib/badges";
 import { updatePlayerPoints } from "@/lib/ranking";
-import { verifyTournamentOwner, verifyStorePin, ActionResult } from "./utils";
+import { verifyTournamentOwner, verifyStorePin, ActionResult, isSuperAdmin } from "./utils";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -99,6 +99,9 @@ export async function reportMatchAction(formData: FormData) {
     // Check if user is owner (store owner OR casual tournament organizer)
     const ownerUser = await verifyTournamentOwner(match.tournament_id);
     let isAuthorized = !!ownerUser;
+
+    // Super Admin Override
+    if (await isSuperAdmin(user)) isAuthorized = true;
 
     if (!isAuthorized) {
         // Check Judge
@@ -302,9 +305,14 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
 
     if (mErr || !match) return { success: false, error: "Match not found" };
 
-    // SECURE: Check PIN
-    const providedPin = formData.get("admin_pin") as string;
-    if (!await verifyStorePin(match.tournament_id, providedPin)) return { success: false, error: "Invalid Store PIN" };
+    // SECURE: Check PIN (unless Super Admin)
+    const user = await stackServerApp.getUser();
+    const isSuper = await isSuperAdmin(user);
+
+    if (!isSuper) {
+        const providedPin = formData.get("admin_pin") as string;
+        if (!await verifyStorePin(match.tournament_id, providedPin)) return { success: false, error: "Invalid Store PIN" };
+    }
 
     // 2. Verify it's the CURRENT round (Top Cut or Swiss)
     // For Swiss, check if it's the latest round.
