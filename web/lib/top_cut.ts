@@ -114,32 +114,49 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
 
 
     // 4. Create seeding array (size = Next Power of 2)
-    // Example: Top 12 -> Bracket 16. Seeds 0-11 filled. 12-15 are BYEs.
     const bracketSize = Math.pow(2, Math.ceil(Math.log2(cutSize)));
     const seeds = new Array(bracketSize).fill(null);
 
-    for (let i = 0; i < qualified.length; i++) {
-        seeds[i] = qualified[i];
+    // Standard Balanced Seeding (recursive placement)
+    // 1-seed Top, 2-seed Bottom, etc.
+    function getBalancedSeedingOrder(size: number): number[] {
+        let order = [1, 2];
+        while (order.length < size) {
+            let nextOrder = [];
+            for (let i = 0; i < order.length; i++) {
+                nextOrder[i * 2] = order[i];
+                nextOrder[i * 2 + 1] = order.length * 2 + 1 - order[i];
+            }
+            order = nextOrder;
+        }
+        return order;
     }
 
-    // 5. Generate Pairings (1 vs 16, 2 vs 15, etc.)
+    const seedingOrder = getBalancedSeedingOrder(bracketSize);
+
+    // Fill seeds array based on rank
+    // qualified[0] is rank 1, qualified[1] is rank 2
+    for (let i = 0; i < qualified.length; i++) {
+        const rank = i + 1;
+        const seedIndex = seedingOrder.indexOf(rank);
+        if (seedIndex !== -1) {
+            seeds[seedIndex] = qualified[i];
+        }
+    }
+
+    // 5. Generate Pairings (Indices: 0 vs 1, 2 vs 3, etc.)
     const matchesToInsert = [];
     const target = 4; // Early elim rounds are 4 points
 
-    // We only iterate top half (0 to bracketSize/2 - 1)
     for (let i = 0; i < bracketSize / 2; i++) {
-        const topSeed = seeds[i];
-        const botSeed = seeds[bracketSize - 1 - i];
+        const topSeed = seeds[i * 2];
+        const botSeed = seeds[i * 2 + 1];
 
         const matchNum = i + 1; // 1-indexed
 
-        if (!topSeed) {
-            // Should not happen if we sort correctly and valid count > 0, 
-            // but effectively double BYE? No, just ignore.
-            continue;
-        }
+        if (!topSeed && !botSeed) continue; // Skip empty slots
 
-        if (!botSeed) {
+        if (topSeed && !botSeed) {
             // BYE for the Top Seed
             matchesToInsert.push(
                 makeByeMatch({
@@ -149,12 +166,22 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
                     target
                 })
             );
+        } else if (!topSeed && botSeed) {
+            // BYE for the Bot Seed (unlikely with rank 1..N seeding)
+            matchesToInsert.push(
+                makeByeMatch({
+                    tournamentId,
+                    matchNumber: matchNum,
+                    aId: botSeed.participant_id,
+                    target
+                })
+            );
         } else {
             // Real Match
             matchesToInsert.push({
                 tournament_id: tournamentId,
                 stage: "top_cut",
-                bracket_round: 1, // First round of elimination
+                bracket_round: 1,
                 match_number: matchNum,
                 participant_a_id: topSeed.participant_id,
                 participant_b_id: botSeed.participant_id,
