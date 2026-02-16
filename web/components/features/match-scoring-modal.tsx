@@ -65,6 +65,9 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     const scoreASetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_a || 0) : 0);
     const scoreBSetRef = useRef((isBestOf3 && match?.metadata) ? (match.metadata.current_set_score_b || 0) : 0);
 
+    // History Ref for reliable tracking
+    const historyRef = useRef<any[]>([]);
+
     // --- INITIALIZATION ---
     useEffect(() => {
         if (isOpen && match && match.id) {
@@ -97,10 +100,12 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
             if (match.metadata?.scoring_history && match.metadata.scoring_history.length > 0) {
                 // Restore persisted history
                 setHistory(match.metadata.scoring_history);
+                historyRef.current = match.metadata.scoring_history;
             } else {
                 // DO NOT seed 0-0 if no history exists.
                 // This prevents "Undoing" to 0-0 when the user just opened the modal to edit a score.
                 setHistory([]);
+                historyRef.current = [];
             }
 
             // Signal that this match is being actively scored (real-time highlight)
@@ -130,13 +135,14 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     // --- HELPERS ---
     const saveState = () => {
         const newEntry = {
-            scoreA, scoreB,
-            currentSetScoreA, currentSetScoreB,
-            warningsA, warningsB,
+            scoreA: scoreARef.current, scoreB: scoreBRef.current,
+            currentSetScoreA: scoreASetRef.current, currentSetScoreB: scoreBSetRef.current,
+            warningsA, warningsB, // warnings state might need refs if they update rapidly too, but simplified for now
             lastMove
         };
-        const newHistory = [...history, newEntry];
+        const newHistory = [...historyRef.current, newEntry];
         setHistory(newHistory);
+        historyRef.current = newHistory;
         return newHistory;
     };
 
@@ -154,9 +160,9 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     };
 
     const handleUndo = () => {
-        if (history.length === 0) return;
-        const prev = history[history.length - 1];
-        const newHistory = history.slice(0, -1);
+        if (historyRef.current.length === 0) return;
+        const prev = historyRef.current[historyRef.current.length - 1];
+        const newHistory = historyRef.current.slice(0, -1);
         setScoreA(prev.scoreA);
         setScoreB(prev.scoreB);
         setCurrentSetScoreA(prev.currentSetScoreA);
@@ -171,6 +177,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         setWarningsB(prev.warningsB);
         setLastMove(prev.lastMove);
         setHistory(newHistory);
+        historyRef.current = newHistory;
 
         syncDB(prev.scoreA, prev.scoreB, prev.currentSetScoreA, prev.currentSetScoreB, newHistory);
         toast({ title: "Undone", description: "Reverted last action." });

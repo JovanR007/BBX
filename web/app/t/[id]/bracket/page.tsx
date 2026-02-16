@@ -313,7 +313,7 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
         <div className="flex flex-row gap-8 pb-12 min-w-max">
             {roundsList.map(rNumStr => {
                 const rNum = Number(rNumStr);
-                const isLastRound = rNum === Number(maxRound);
+                const isLastRound = rNum === 5;
                 return (
                     <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
                         <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
