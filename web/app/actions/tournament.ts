@@ -351,6 +351,11 @@ export async function updateTournamentAction(formData: FormData) {
     if (judgeCode !== undefined) updates.judge_code = judgeCode || null;
     if (status) updates.status = status;
 
+    const cutSize = Number(formData.get("cut_size"));
+    if (cutSize && [4, 8, 12, 16, 24, 32, 48, 64].includes(cutSize)) {
+        updates.cut_size = cutSize;
+    }
+
     const { error } = await supabaseAdmin
         .from("tournaments")
         .update(updates)

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase-admin";
+import { calculateStandings } from "./standings";
 
 /**
  * Get active participants ranked by swiss standings.
@@ -12,7 +13,8 @@ async function loadActiveStandings(tournamentId: string) {
         .eq("tournament_id", tournamentId)
         .order("match_wins", { ascending: false })
         .order("point_diff", { ascending: false })
-        .order("buchholz", { ascending: false });
+        .order("buchholz", { ascending: false })
+        .order("participant_id", { ascending: true }); // Deterministic tie-breaker
 
     if (error) throw error;
 
@@ -67,13 +69,49 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
         throw new Error(`Invalid cut_size ${cutSize}. Must be 4, 8, 12, 16, 24, 32, 48, or 64.`);
     }
 
-    // 2. Load Standings
-    const standings = await loadActiveStandings(tournamentId);
-    if (standings.length < 2) throw new Error("Not enough players for a Top Cut.");
+    // 2. Load Participants and Matches to calculate standings MANUALLY
+    // This ensures it matches the "Live Standings" view exactly and ignores any potential DB View staleness.
+    const { data: participants, error: pErr } = await supabaseAdmin
+        .from("participants")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .in("participant_status", ["approved", "checked_in", "active"]) // Ensure we get allowed players
+        .eq("dropped", false); // Exclude dropped players from Top Cut? Usually yes.
+
+    if (pErr) throw pErr;
+    if (!participants || participants.length < 2) throw new Error("Not enough players for a Top Cut.");
+
+    const { data: matches, error: mErr } = await supabaseAdmin
+        .from("matches")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .eq("stage", "swiss")
+        .eq("status", "complete");
+
+    if (mErr) throw mErr;
+
+    // Calculate Rankings (Wins -> Diff)
+    // Cast matches to any for now if strict type mismatch occurs with Supabase return
+    const stats = calculateStandings(participants, (matches || []) as any[]);
+
+    // Sort Deterministically (Wins DESC, Diff DESC, ID ASC)
+    stats.sort((a, b) => {
+        if (a.wins !== b.wins) return b.wins - a.wins;
+        if (a.diff !== b.diff) return b.diff - a.diff;
+        return a.id.localeCompare(b.id); // Valid deterministic tie-breaker
+    });
 
     // 3. Take top N players
-    const qualified = standings.slice(0, cutSize);
-    console.log(`Generating Top ${cutSize} cut with ${qualified.length} qualified players.`);
+    const qualifiedStats = stats.slice(0, cutSize);
+
+    // Map back to Participant objects for seeding
+    // We need to preserve the order of qualifiedStats!
+    const qualified = qualifiedStats.map(s => participants.find(p => p.id === s.id)).filter(Boolean) as any[];
+
+    if (qualified.length === 0) throw new Error("No qualified players found (Match error?)");
+
+    console.log(`Generating Top ${cutSize} cut. Top Seed: ${qualified[0]?.display_name} (${qualifiedStats[0].wins} wins)`);
+
 
     // 4. Create seeding array (size = Next Power of 2)
     // Example: Top 12 -> Bracket 16. Seeds 0-11 filled. 12-15 are BYEs.

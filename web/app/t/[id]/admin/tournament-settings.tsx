@@ -19,18 +19,26 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
     const [deleting, setDeleting] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-    async function handleUpdate(e: React.FormEvent) {
+    async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        const form = e.currentTarget;
         setLoading(true);
-        const formData = new FormData();
+        const formData = new FormData(form); // Use form data captured at start
         formData.append("tournament_id", tournament.id);
-        formData.append("name", name);
-        formData.append("judge_code", judgeCode);
+        // name and judge_code already in form if using inputs, but let's be explicit if using state
+        // actually easier to just use standard FormData from event since we added a name="cut_size" select
+
+        // Manual appends for state-controlled inputs if needed, or ensuring they have name attributes
+        // Let's ensure the state vars are still used or sync'd.
+        // Re-appending explicit state to override form defaults just in case
+        formData.set("name", name);
+        formData.set("judge_code", judgeCode);
 
         const res = await updateTournamentAction(formData);
 
         if (res.success) {
             toast({ title: "Settings Saved", description: "Tournament updated successfully.", variant: "success" });
+            if (refresh) refresh();
         } else {
             toast({ title: "Update Failed", description: parseError(res.error), variant: "destructive" });
         }
@@ -120,6 +128,27 @@ export default function TournamentSettings({ tournament, judges = [], refresh }:
                                 Save Changes
                             </button>
                         </form>
+
+                        <div className="pt-8 border-t border-dashed space-y-4">
+                            <h3 className="text-sm font-bold flex items-center gap-2">
+                                <Users className="w-4 h-4 text-primary" /> Bracket Settings
+                            </h3>
+                            <div className="space-y-2">
+                                <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">Top Cut Size</label>
+                                <select
+                                    name="cut_size"
+                                    className="flex h-11 w-full rounded-xl border border-input bg-background/50 px-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all"
+                                    defaultValue={tournament.cut_size || 16}
+                                >
+                                    {[4, 8, 16, 32, 64].map(size => (
+                                        <option key={size} value={size}>Top {size}</option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-muted-foreground italic px-1">
+                                    Number of players advancing to the elimination bracket.
+                                </p>
+                            </div>
+                        </div>
 
                         <div className="pt-8 border-t border-dashed">
                             <h3 className="text-sm font-bold text-destructive mb-3 flex items-center gap-2">
