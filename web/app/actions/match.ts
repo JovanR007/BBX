@@ -2,7 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from "next/cache";
-import { advanceBracket } from "@/lib/bracket-logic";
+import { advanceBracket, promoteWinnerToNextRound } from "@/lib/bracket-logic";
 import { generateSwissRound } from "@/lib/swiss_round";
 import { generateTopCut } from "@/lib/top_cut";
 import { stackServerApp } from "@/lib/stack";
@@ -145,6 +145,9 @@ export async function reportMatchAction(formData: FormData) {
     }).eq("id", matchId);
 
     if (mErr) return { success: false, error: mErr.message };
+
+    // 3. Propagate Winner to Next Round (if applicable)
+    await promoteWinnerToNextRound(matchId);
 
     revalidatePath("/", "layout");
 
@@ -376,6 +379,9 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
         .eq("id", matchId);
 
     if (upErr) return { success: false, error: upErr.message };
+
+    // 5. Propagate Winner to Next Round (if applicable)
+    await promoteWinnerToNextRound(matchId);
 
     // Also trigger recalculations if needed?
     // If we change a past match, standings might be wrong.

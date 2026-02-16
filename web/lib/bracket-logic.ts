@@ -217,3 +217,71 @@ export async function advanceBracket(tournamentId: string) {
 
     return inserted;
 }
+
+/**
+ * Propagates the winner of a match to the next round in the bracket.
+ * Should be called whenever a match is completed or its score/winner changes.
+ */
+export async function promoteWinnerToNextRound(matchId: string) {
+    const supabase = supabaseAdmin;
+
+    // 1. Get current match details
+    const { data: match, error: mErr } = await supabase
+        .from("matches")
+        .select("id, tournament_id, stage, bracket_round, match_number, winner_id, status")
+        .eq("id", matchId)
+        .single();
+
+    if (mErr || !match) {
+        console.error("Promote: Match not found", matchId);
+        return;
+    }
+
+    // Only applicable for Top Cut matches that are complete
+    if (match.stage !== 'top_cut' || !match.bracket_round || !match.match_number) return;
+    // We allow propagating even if status!=complete (e.g. if we reverted to pending, we might want to propagate 'null' to next round?
+    // For now, let's assume we propagate whatever winner_id is (id or null).
+
+    const nextRound = match.bracket_round + 1;
+    const nextMatchNum = Math.ceil(match.match_number / 2);
+    const isPlayerA = (match.match_number % 2) === 1;
+
+    // 2. Find the destination match
+    const { data: nextMatch, error: nErr } = await supabase
+        .from("matches")
+        .select("id, participant_a_id, participant_b_id, status")
+        .eq("tournament_id", match.tournament_id)
+        .eq("stage", 'top_cut')
+        .eq("bracket_round", nextRound)
+        .eq("match_number", nextMatchNum)
+        .single();
+
+    if (nErr && nErr.code !== 'PGRST116') { // Ignore "Not Found" error
+        console.error("Promote: Error finding next match", nErr);
+        return;
+    }
+
+    if (!nextMatch) {
+        // Next round hasn't been generated yet. Nothing to do.
+        // The advanceBracketAction() will handle it later.
+        return;
+    }
+
+    // 3. Update the destination match
+    const updates: any = {};
+    if (isPlayerA) {
+        if (nextMatch.participant_a_id !== match.winner_id) updates.participant_a_id = match.winner_id;
+    } else {
+        if (nextMatch.participant_b_id !== match.winner_id) updates.participant_b_id = match.winner_id;
+    }
+
+    if (Object.keys(updates).length > 0) {
+        console.log(`Promoting ${match.winner_id} to Match ${nextRound}-${nextMatchNum} (Slot ${isPlayerA ? 'A' : 'B'})`);
+        const { error: uErr } = await supabase
+            .from("matches")
+            .update(updates)
+            .eq("id", nextMatch.id);
+
+        if (uErr) console.error("Promote: Update failed", uErr);
+    }
+}
