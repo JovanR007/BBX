@@ -171,7 +171,7 @@ export async function getInviteByTokenAction(token: string) {
     return { success: true, invite: data };
 }
 
-export async function acceptInviteAction(token: string) {
+export async function acceptInviteAction(token: string, deckId?: string | null) {
     const user = await stackServerApp.getUser();
     if (!user) return { success: false, error: "Authentication required", notAuthenticated: true };
 
@@ -219,7 +219,8 @@ export async function acceptInviteAction(token: string) {
             tournament_id: invite.tournament_id,
             user_id: user.id,
             display_name: displayName,
-            dropped: false
+            dropped: false,
+            deck_id: deckId || null
         });
 
     if (joinErr) return { success: false, error: "Failed to join: " + joinErr.message };

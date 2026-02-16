@@ -2,22 +2,26 @@
 
 import { useEffect, useState, use } from "react";
 import { supabase } from "@/lib/supabase";
-import { ArrowLeft, Medal, Trophy } from "lucide-react";
+import { ArrowLeft, Medal, Trophy, Eye } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Deck, DeckBey, BeyPart } from "@/lib/decks";
+import { DeckCard } from "@/components/decks/deck-card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { BrandedContainer } from "@/components/features/branded-container";
 import { useTournament } from "@/hooks/use-tournament";
 import { SwissStanding, MatchHistory } from "@/types";
 
 export default function StandingsPage({ params }: { params: Promise<{ id: string }> }) {
-    // Next.js 15+ / React 19: params is a Promise
     const { id: paramId } = use(params);
-    const { tournament, tournamentId, loading: tLoading, error: tError } = useTournament(paramId);
+    const { tournament, tournamentId, loading: tLoading } = useTournament(paramId);
 
-    const [standings, setStandings] = useState<SwissStanding[]>([]);
+    const [standings, setStandings] = useState<any[]>([]);
     const [cutSize, setCutSize] = useState(0);
     const [loadingData, setLoadingData] = useState(true);
+    const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
 
     useEffect(() => {
         if (tournamentId) fetchData();
@@ -29,10 +33,9 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
         if (!tournamentId) return;
         setLoadingData(true);
 
-        // Fetch Tournament Info from hook data (avoid extra request)
         setCutSize(tournament?.cut_size || 0);
 
-        // Fetch Standings View
+        // 1. Fetch Standings View
         const { data: stds } = await supabase
             .from("swiss_standings")
             .select("*")
@@ -41,25 +44,51 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
             .order("point_diff", { ascending: false })
             .order("buchholz", { ascending: false });
 
-        // Fetch All Matches to build History
+        // 2. Fetch All Matches for History
         const { data: allMatches } = await supabase
             .from("matches")
             .select("participant_a_id, participant_b_id, winner_id, swiss_round_number, status")
             .eq("tournament_id", tournamentId)
             .eq("stage", "swiss");
 
-        // Process History
-        // History map: playerId -> [ { result: 'W'|'L'|'D', round: 1 }, ... ]
+        // 3. Fetch Participant Decks with explicit alias matching the lib/decks logic
+        // We manually construct the nested structure if needed, or rely on Supabase alias
+        const { data: deckData } = await supabase
+            .from("participants")
+            .select(`
+                id, 
+                deck_id, 
+                decks (
+                    *,
+                    deck_beys (
+                        *,
+                        blade:parts!blade_id(*),
+                        ratchet:parts!ratchet_id(*),
+                        bit:parts!bit_id(*),
+                        lock_chip:parts!lock_chip_id(*),
+                        assist_blade:parts!assist_blade_id(*)
+                    )
+                )
+            `)
+            .eq("tournament_id", tournamentId)
+            .not("deck_id", "is", null);
+
+        // Map Decks
+        const deckMap = new Map<string, Deck>();
+        if (deckData) {
+            deckData.forEach((p: any) => {
+                if (p.decks) {
+                    deckMap.set(p.id, p.decks as Deck);
+                }
+            });
+        }
+
+        // Process Match History
         const historyMap: Record<string, MatchHistory[]> = {};
-
         if (stds && allMatches) {
-            // Initialize map
             stds.forEach(p => historyMap[p.participant_id] = []);
-
-            // Fill map
             allMatches.forEach(m => {
                 if (m.status !== 'complete') return;
-
                 const pA = m.participant_a_id;
                 const pB = m.participant_b_id;
                 const win = m.winner_id;
@@ -77,25 +106,19 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                     historyMap[pB].push({ round: m.swiss_round_number, result: res });
                 }
             });
-
-            // Sort history by round
             Object.values(historyMap).forEach(arr => arr.sort((a, b) => a.round - b.round));
         }
 
-        // Merge History into Standings
+        // Merge Data
         const enhancedStandings = stds?.map(p => ({
             ...p,
-            history: historyMap[p.participant_id] || []
+            history: historyMap[p.participant_id] || [],
+            deck: deckMap.get(p.participant_id) || null
         })) || [];
 
         setStandings(enhancedStandings);
         setLoadingData(false);
     }
-
-    // Trigger fetch when tournamentId changes
-    useEffect(() => {
-        if (tournamentId) fetchData();
-    }, [tournamentId]);
 
     return (
         <BrandedContainer
@@ -104,6 +127,12 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
             plan={tournament?.stores?.plan}
             className="container mx-auto px-4 py-8 min-h-screen bg-transparent"
         >
+            <Dialog open={!!selectedDeck} onOpenChange={(open) => !open && setSelectedDeck(null)}>
+                <DialogContent className="bg-transparent border-none p-0 max-w-2xl shadow-none">
+                    {selectedDeck && <DeckCard deck={selectedDeck} className="w-full shadow-2xl skew-x-1" />}
+                </DialogContent>
+            </Dialog>
+
             <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground mb-8 transition-colors">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
             </Link>
@@ -171,7 +200,20 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                                 {index === 1 && <Medal className="w-5 h-5 text-gray-400 shrink-0" />}
                                                 {index === 2 && <Medal className="w-5 h-5 text-amber-700 shrink-0" />}
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-base whitespace-nowrap">{player.display_name}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-base whitespace-nowrap">{player.display_name}</span>
+                                                        {player.deck && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6 text-muted-foreground hover:text-cyan-400"
+                                                                onClick={() => setSelectedDeck(player.deck)}
+                                                                title={`View Deck: ${player.deck.name}`}
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                     {isQualifying && <span className="text-[10px] uppercase font-bold text-primary tracking-wider">Qualified</span>}
                                                 </div>
                                             </div>
@@ -258,7 +300,19 @@ export default function StandingsPage({ params }: { params: Promise<{ id: string
                                         {rank}
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-lg leading-tight">{player.display_name}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-lg leading-tight">{player.display_name}</span>
+                                            {player.deck && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 text-muted-foreground hover:text-cyan-400"
+                                                    onClick={() => setSelectedDeck(player.deck)}
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                </Button>
+                                            )}
+                                        </div>
                                         {isQualifying && <span className="text-[10px] uppercase font-bold text-primary tracking-wider">Qualified</span>}
                                     </div>
                                 </div>

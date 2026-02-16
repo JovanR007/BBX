@@ -8,6 +8,8 @@ import { reportMatchAction, forceUpdateMatchScoreAction, syncMatchStateAction, t
 import { useToast } from "@/components/ui/toaster";
 import { parseError } from "@/lib/errors";
 import { useUser } from "@stackframe/stack";
+import { DeckCard } from "@/components/decks/deck-card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import dynamic from "next/dynamic";
 
 const CameraStreamer = dynamic(() => import("./camera-streamer").then(mod => mod.CameraStreamer), { ssr: false });
@@ -58,6 +60,8 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     const pB = participants ? participants[match?.participant_b_id] : match?.participant_b;
     const isGameOver = scoreA >= WINNING_SCORE || scoreB >= WINNING_SCORE;
     const winner = scoreA >= WINNING_SCORE ? pA : (scoreB >= WINNING_SCORE ? pB : null);
+
+    const [viewingDeck, setViewingDeck] = useState<any>(null);
 
     // Ref-based state to prevent race conditions on rapid clicks
     const scoreARef = useRef(match?.score_a || 0);
@@ -120,19 +124,37 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     useEffect(() => {
         const matchId = match?.id;
         const matchMeta = match?.metadata;
-        const matchScoreA = match?.score_a ?? 0;
-        const matchScoreB = match?.score_b ?? 0;
+
         return () => {
             if (matchId) {
-                syncMatchStateAction(matchId, matchScoreA, matchScoreB, {
+                // BUG FIX: Use current Refs for score, NOT stale match prop
+                // This prevents resetting score to 0 on close/unmount
+                const finalScoreA = scoreARef.current;
+                const finalScoreB = scoreBRef.current;
+
+                syncMatchStateAction(matchId, finalScoreA, finalScoreB, {
                     ...(matchMeta || {}),
                     scoring_active: false,
                 }).catch(console.error);
             }
         };
-    }, [match?.id]);
+    }, [match?.id]); // Only run on mount/unmount or ID change
 
     // --- HELPERS ---
+    // HEARTBEAT: Re-assert scoring_active: true every 15 seconds
+    useEffect(() => {
+        if (!isOpen || !match?.id) return;
+
+        const hb = setInterval(() => {
+            syncMatchStateAction(match.id, scoreARef.current, scoreBRef.current, {
+                ...(match.metadata || {}),
+                scoring_active: true,
+            }).catch(console.error);
+        }, 15000);
+
+        return () => clearInterval(hb);
+    }, [isOpen, match?.id]);
+
     const saveState = () => {
         const newEntry = {
             scoreA: scoreARef.current, scoreB: scoreBRef.current,
@@ -375,7 +397,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                                 toggleCameraStreamAction(match.id, false).catch(console.error);
                             }
                             // Clear scoring_active highlight
-                            syncMatchStateAction(match.id, match.score_a ?? scoreA, match.score_b ?? scoreB, {
+                            syncMatchStateAction(match.id, scoreA, scoreB, {
                                 ...(match.metadata || {}),
                                 scoring_active: false,
                             }).catch(console.error);
@@ -402,6 +424,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         bey={beyA} setBey={setBeyA}
                         isBestOf3={isBestOf3}
                         disabled={isGameOver}
+                        onShowDeck={setViewingDeck}
                     />
 
                     {/* CENTER CONTROLS (Undo, Submit) - Narrow Column */}
@@ -449,6 +472,7 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                         bey={beyB} setBey={setBeyB}
                         isBestOf3={isBestOf3}
                         disabled={isGameOver}
+                        onShowDeck={setViewingDeck}
                     />
 
                 </div>
@@ -467,12 +491,18 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     }} />
                 </>
             )}
+
+            <Dialog open={!!viewingDeck} onOpenChange={(open) => !open && setViewingDeck(null)}>
+                <DialogContent className="bg-transparent border-none p-0 max-w-sm md:max-w-2xl shadow-none z-[60]">
+                    {viewingDeck && <DeckCard deck={viewingDeck} className="w-full shadow-2xl" />}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
 
 // Sub-Component for Player Section to reduce duplication
-function PlayerConsole({ player, label, score, setScore, warnings, isWinner, colorClass, onScore, onWarn, bey, setBey, isBestOf3, disabled }: any) {
+function PlayerConsole({ player, label, score, setScore, warnings, isWinner, colorClass, onScore, onWarn, bey, setBey, isBestOf3, disabled, onShowDeck }: any) {
     const isPrimary = colorClass === "primary";
     const bgWin = isPrimary ? "bg-green-500/10 border-green-500" : "bg-green-500/10 border-green-500";
     const textWin = "text-green-600";
@@ -487,6 +517,17 @@ function PlayerConsole({ player, label, score, setScore, warnings, isWinner, col
             <div className="text-center space-y-1">
                 <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
                 <div className="text-2xl font-black truncate">{player?.display_name || "Unknown"}</div>
+
+                {/* Registered Deck Indicator */}
+                {player?.deck && (
+                    <button
+                        onClick={() => onShowDeck(player.deck)}
+                        className="mx-auto flex items-center gap-1.5 text-[10px] md:text-xs font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors mb-1"
+                    >
+                        <Layers className="w-3 h-3" />
+                        <span>{player.deck.name}</span>
+                    </button>
+                )}
 
                 {/* Beyblade Input */}
                 <input

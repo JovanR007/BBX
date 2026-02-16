@@ -93,6 +93,7 @@ export async function addParticipantAction(formData: FormData) {
 
     // 2. Insert Participant
     let userId = formData.get("user_id"); // Optional User Link
+    let deckId = formData.get("deck_id"); // Optional Deck Link
 
     // Auto-Link: If no userId provided, check if 'name' matches a registered username
     if (!userId) {
@@ -105,13 +106,13 @@ export async function addParticipantAction(formData: FormData) {
         if (profile) userId = profile.id;
     }
 
-
     const { data: newPart, error } = await supabaseAdmin
         .from("participants")
         .insert({
             display_name: name,
             tournament_id: tournamentId,
             user_id: userId || null,
+            deck_id: deckId || null,
             checked_in: true // Manual walk-ins are auto checked-in
         })
         .select()
@@ -451,4 +452,138 @@ export async function bulkAddParticipantsAction(formData: FormData) {
 
     revalidatePath(`/t/${tournamentId}/admin`);
     return { success: true, count: names.length };
+}
+
+export async function updateParticipantDeckAction(participantId: string, deckId: string) {
+    if (!participantId || !deckId) return { success: false, error: "Missing required IDs" };
+
+    const { error } = await supabaseAdmin
+        .from("participants")
+        .update({ deck_id: deckId })
+        .eq("id", participantId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+}
+
+export async function validateBulkAddAction(tournamentId: string, names: string[]) {
+    if (!names || names.length === 0) return { success: false, error: "No names provided" };
+
+    try {
+        // 1. Fetch existing participants to check for duplicates
+        const { data: existingParticipants, error: participantError } = await supabaseAdmin
+            .from("participants")
+            .select("display_name, user_id")
+            .eq("tournament_id", tournamentId)
+            .eq("dropped", false);
+
+        if (participantError) throw participantError;
+
+        const existingNames = new Set(existingParticipants?.map(p => p.display_name.toLowerCase()) || []);
+        const existingUserIds = new Set(existingParticipants?.map(p => p.user_id).filter(Boolean) || []);
+
+        // 2. Fetch profiles for these names
+        const { data: profiles, error: profileError } = await supabaseAdmin
+            .from("profiles")
+            .select("id, username, display_name")
+            .in("username", names);
+
+        if (profileError) throw profileError;
+
+        const profileMap = new Map();
+        if (profiles) {
+            profiles.forEach((p: any) => profileMap.set(p.username.toLowerCase(), p));
+        }
+
+        // 3. Fetch decks for these users
+        const userIds = profiles?.map(p => p.id) || [];
+        let deckMap = new Map();
+
+        if (userIds.length > 0) {
+            const { data: decks, error: deckError } = await supabaseAdmin
+                .from("decks")
+                .select("id, name, user_id")
+                .in("user_id", userIds);
+
+            if (deckError) throw deckError;
+
+            if (decks) {
+                decks.forEach((d: any) => {
+                    const existing = deckMap.get(d.user_id) || [];
+                    deckMap.set(d.user_id, [...existing, d]);
+                });
+            }
+        }
+
+        // 4. Construct results
+        const results = names.map(name => {
+            const profile = profileMap.get(name.toLowerCase());
+            const isDuplicateName = existingNames.has(name.toLowerCase());
+            const isDuplicateUser = profile ? existingUserIds.has(profile.id) : false;
+
+            return {
+                name: name,
+                userId: profile?.id || null,
+                username: profile?.username || null,
+                displayName: profile?.display_name || null,
+                isDuplicate: isDuplicateName || isDuplicateUser,
+                decks: profile ? (deckMap.get(profile.id) || []) : []
+            };
+        });
+
+        return { success: true, results };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function bulkAddWithDecksAction(formData: FormData) {
+    const tournamentId = formData.get("tournament_id") as string;
+    const participantsJson = formData.get("participants") as string;
+
+    if (!tournamentId || !participantsJson) return { success: false, error: "Missing required data" };
+
+    try {
+        const participantsData = JSON.parse(participantsJson);
+        if (!Array.isArray(participantsData) || participantsData.length === 0) {
+            return { success: false, error: "Invalid participants data" };
+        }
+
+        // 1. Limit Check
+        const { data: tourney } = await supabaseAdmin.from("tournaments").select("store_id").eq("id", tournamentId).single();
+        let maxPlayers = 64;
+
+        if (tourney?.store_id) {
+            const { data: store } = await supabaseAdmin.from("stores").select("plan, subscription_tier").eq("id", tourney.store_id).single();
+            const plan = (store?.plan === 'pro' || (store as any)?.subscription_tier === 'pro') ? 'pro' : 'free';
+            maxPlayers = plan === 'pro' ? 999 : 64;
+        }
+
+        const { count: currentCount } = await supabaseAdmin
+            .from("participants")
+            .select("*", { count: "exact", head: true })
+            .eq("tournament_id", tournamentId)
+            .eq("dropped", false);
+
+        if ((currentCount || 0) + participantsData.length > maxPlayers) {
+            return { success: false, error: `Limit exceeded. Max ${maxPlayers} players.` };
+        }
+
+        // 2. Insert
+        const participantsToInsert = participantsData.map(p => ({
+            tournament_id: tournamentId,
+            display_name: p.name,
+            user_id: p.userId || null,
+            deck_id: p.deckId || null,
+            checked_in: true
+        }));
+
+        const { error } = await supabaseAdmin.from("participants").insert(participantsToInsert);
+        if (error) throw error;
+
+        revalidatePath(`/t/${tournamentId}/admin`);
+        return { success: true, count: participantsData.length };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
 }

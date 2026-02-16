@@ -3,7 +3,10 @@
 import { use, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import React from 'react';
-import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown } from "lucide-react";
+import { ArrowLeft, Trophy, Info, Loader2, PlayCircle, AlertCircle, Wand2, Trash2, Crown, Eye } from "lucide-react";
+import { DeckCard } from "@/components/decks/deck-card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 import { Match, Participant } from "@/types";
@@ -19,6 +22,7 @@ import { BracketConnector } from "@/components/features/bracket-connector";
 import { VictoryModal } from "@/components/features/victory-modal";
 import { ConcludeModal } from "@/components/features/conclude-modal";
 import { BrandedContainer } from "@/components/features/branded-container";
+import { LiveStandings } from "@/components/features/live-standings";
 
 // --- Page Component ---
 export default function BracketPage({ params }: { params: Promise<{ id: string }> }) {
@@ -102,6 +106,7 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
 
     // Local UI State
     const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
+    const [selectedDeck, setSelectedDeck] = useState<any | null>(null);
     const selectedMatch = useMemo(() => matches.find(m => m.id === selectedMatchId) || null, [matches, selectedMatchId]);
     const currentlyStreamingMatch = useMemo(() => matches.find(m => m.metadata?.streaming_judge_id), [matches]);
 
@@ -119,6 +124,12 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
             plan={tournament?.stores?.plan}
             className="container mx-auto px-4 py-8 min-h-screen flex flex-col"
         >
+            <Dialog open={!!selectedDeck} onOpenChange={(open) => !open && setSelectedDeck(null)}>
+                <DialogContent className="bg-transparent border-none p-0 max-w-2xl shadow-none">
+                    {selectedDeck && <DeckCard deck={selectedDeck} className="w-full shadow-2xl" />}
+                </DialogContent>
+            </Dialog>
+
             {/* Header */}
             <div className="flex justify-between items-center mb-8 landscape:mb-2">
                 <Link href={`/t/${tournamentId}`} className="flex items-center text-muted-foreground hover:text-foreground transition-colors landscape:text-xs">
@@ -194,17 +205,29 @@ export default function BracketPage({ params }: { params: Promise<{ id: string }
                     <div className="p-12 border border-dashed rounded-xl text-center text-muted-foreground">
                         <Info className="w-8 h-8 mx-auto mb-4 opacity-50" />
                         <p>No matches found yet.</p>
-                        <p className="text-sm">The tournament hasn't started.</p>
+                        <p className="text-sm">The tournament has not started.</p>
                     </div>
                 ) : viewMode === "swiss" ? (
                     <>
                         <div className="mb-8 overflow-x-auto">
                             <BracketConnector matches={swissMatches} match_target_points={tournament?.match_target_points ?? 4} />
                         </div>
-                        <SwissView matches={swissMatches} participants={participants} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
+                        <SwissView
+                            matches={swissMatches}
+                            participants={participants}
+                            onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)}
+                            onDeckClick={(d) => setSelectedDeck(d)}
+                            totalSwissRounds={tournament?.swiss_rounds ?? 5}
+                        />
                     </>
                 ) : (
-                    <TopCutView matches={topCutMatches} participants={participants} cutSize={tournament?.cut_size ?? 0} onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)} />
+                    <TopCutView
+                        matches={topCutMatches}
+                        participants={participants}
+                        cutSize={tournament?.cut_size ?? 0}
+                        onMatchClick={(m) => canEdit && setSelectedMatchId(m.id)}
+                        onDeckClick={(d) => setSelectedDeck(d)}
+                    />
                 )}
             </div>
 
@@ -283,7 +306,19 @@ function TopCutControls({ isBracketRoundComplete, isTournamentComplete, currentB
     );
 }
 
-function SwissView({ matches, participants, onMatchClick }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void }) {
+function SwissView({
+    matches,
+    participants,
+    onMatchClick,
+    onDeckClick,
+    totalSwissRounds = 5
+}: {
+    matches: Match[],
+    participants: Record<string, Participant>,
+    onMatchClick: (m: Match) => void,
+    onDeckClick: (deck: any) => void,
+    totalSwissRounds?: number
+}) {
     const rounds: Record<number, Match[]> = {};
     matches.forEach(m => {
         if (!rounds[m.swiss_round_number]) rounds[m.swiss_round_number] = [];
@@ -301,35 +336,57 @@ function SwissView({ matches, participants, onMatchClick }: { matches: Match[], 
     });
     const maxWins = Object.values(winCounts).length > 0 ? Math.max(...Object.values(winCounts)) : 0;
 
-    // A match is a "Swiss King Battle" if both players have the top win count going into the last round
-    const isSwissKingMatch = (m: Match): boolean => {
-        if (Number(maxRound) < 2) return false; // Need at least 2 rounds
+    // A match is a "Swiss King Battle" if:
+    // 1. It is the FINAL round of the Swiss stage (usually Round 5)
+    // 2. Both players have the top win count going into this round
+    const isSwissKingMatch = (m: Match, rNum: number): boolean => {
+        if (rNum !== totalSwissRounds) return false;
+        if (rNum < 2) return false;
+
         const winsA = m.participant_a_id ? (winCounts[m.participant_a_id] || 0) : 0;
         const winsB = m.participant_b_id ? (winCounts[m.participant_b_id] || 0) : 0;
         return winsA === maxWins && winsB === maxWins && maxWins > 0;
     };
 
     return (
-        <div className="flex flex-row gap-8 pb-12 min-w-max">
-            {roundsList.map(rNumStr => {
-                const rNum = Number(rNumStr);
-                const isLastRound = rNum === 5;
-                return (
-                    <div key={rNum} className="flex flex-col gap-4 min-w-[200px]">
-                        <div className="text-center font-bold text-muted-foreground uppercase tracking-wider border-b pb-2">Round {rNum}</div>
-                        <div className="flex flex-col gap-3">
-                            {(rounds[rNum] || []).map((m) => (
-                                <MatchCard key={m.id} match={m} participants={participants} onClick={() => onMatchClick(m)} isSwissKing={isLastRound && isSwissKingMatch(m)} />
-                            ))}
-                        </div>
-                    </div>
-                );
-            })}
+        <div className="flex flex-col lg:flex-row gap-6 pb-12">
+            {/* Left: Horizontal Scrollable Matches */}
+            <div className="flex-1 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-primary/20 hover:scrollbar-thumb-primary/40">
+                <div className="flex flex-row gap-4 min-w-max pr-4">
+                    {roundsList.map(rNumStr => {
+                        const rNum = Number(rNumStr);
+                        return (
+                            <div key={rNum} className="flex flex-col gap-2 min-w-[160px] max-w-[180px]">
+                                <div className="text-center font-bold text-muted-foreground uppercase tracking-wider text-[10px] border-b border-white/5 pb-1">Round {rNum}</div>
+                                <div className="flex flex-col gap-1.5">
+                                    {(rounds[rNum] || []).map((m) => (
+                                        <MatchCard
+                                            key={m.id}
+                                            match={m}
+                                            participants={participants}
+                                            onClick={() => onMatchClick(m)}
+                                            onDeckClick={onDeckClick}
+                                            isSwissKing={isSwissKingMatch(m, rNum)}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Right: Live Standings Sidebar */}
+            <div className="w-full lg:w-[300px] shrink-0 space-y-4">
+                <div className="rounded-xl border border-white/5 overflow-hidden bg-slate-900/40 shadow-xl backdrop-blur-md">
+                    <LiveStandings participants={participants} matches={matches} />
+                </div>
+            </div>
         </div>
     );
 }
 
-function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, cutSize: number }) {
+function TopCutView({ matches, participants, onMatchClick, onDeckClick, cutSize }: { matches: Match[], participants: Record<string, Participant>, onMatchClick: (m: Match) => void, onDeckClick: (d: any) => void, cutSize: number }) {
     // Import the library dynamically to avoid SSR issues
     const [LibraryComponents, setLibraryComponents] = useState<any>(null);
 
@@ -343,7 +400,11 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
     // cutSize = 4 -> 2 rounds (Semis, Finals)
     // cutSize = 8 -> 3 rounds (Quarters, Semis, Finals)
     // cutSize = 16 -> 4 rounds (Ro16, Quarters, Semis, Finals)
-    const totalRounds = useMemo(() => Math.log2(cutSize || 4), [cutSize]);
+    const totalRounds = useMemo(() => {
+        const size = cutSize || 4;
+        const bracketSize = Math.pow(2, Math.ceil(Math.log2(size)));
+        return Math.log2(bracketSize);
+    }, [cutSize]);
 
     // Transform our match data to the library's format
     const transformedMatches = useMemo(() => {
@@ -360,8 +421,9 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
         const allSlots = [];
         const slotMap = new Map<string, string>(); // map "round-match" -> id
 
+        const bracketSize = Math.pow(2, totalRounds);
         for (let r = 1; r <= totalRounds; r++) {
-            const matchCount = cutSize / Math.pow(2, r);
+            const matchCount = bracketSize / Math.pow(2, r);
             for (let m = 1; m <= matchCount; m++) {
                 const key = `${r}-${m}`;
                 const realMatch = realMatchMap.get(key);
@@ -376,7 +438,9 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
             if (round === totalRounds) return 'Finals';
             if (round === totalRounds - 1) return 'Semifinals';
             if (round === totalRounds - 2) return 'Quarterfinals';
-            return `Round ${round}`;
+            // NOTE: The library usually prefixes with 'Round' if it's not a special string, 
+            // but our current setup seems to double it if we include 'Round' here.
+            return `${round}`;
         };
 
         // 4. Build Library Objects
@@ -407,14 +471,16 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         resultText: realMatch?.score_a?.toString() ?? '-',
                         isWinner: realMatch?.winner_id === realMatch?.participant_a_id && realMatch?.status === 'complete',
                         status: realMatch?.status === 'complete' ? 'PLAYED' : null,
-                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD')
+                        name: pA?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                        deck: pA?.deck
                     },
                     {
                         id: realMatch?.participant_b_id || `tbd-b-${id}`,
                         resultText: realMatch?.score_b?.toString() ?? '-',
                         isWinner: realMatch?.winner_id === realMatch?.participant_b_id && realMatch?.status === 'complete',
                         status: realMatch?.status === 'complete' ? 'PLAYED' : null,
-                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD')
+                        name: pB?.display_name || (realMatch ? 'BYE' : 'TBD'),
+                        deck: pB?.deck
                     }
                 ]
             };
@@ -517,7 +583,7 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         height: '50%',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '4px 8px',
+                        padding: '2px 8px',
                         background: topWon ? '#22D3EE' : topHovered ? '#1E293B' : 'transparent',
                         borderBottom: '1px solid #334155',
                         transition: 'background 0.2s',
@@ -525,28 +591,47 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                 >
                     <span style={{
                         color: topWon ? '#000000' : '#E2E8F0',
-                        fontSize: '11px',
-                        fontWeight: topWon ? 'bold' : 'normal',
-                        paddingRight: '8px',
-                        wordBreak: 'break-word',
+                        fontSize: '10px',
+                        fontWeight: topWon ? '900' : 'bold',
+                        paddingRight: '4px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        lineHeight: '1.1',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1
                     }}>
-                        {topParty.name || teamNameFallback}
+                        {(() => {
+                            const p = participants[topParty.id];
+                            const profile: any = p?.profiles;
+                            return (Array.isArray(profile) ? profile[0] : profile)?.display_name || topParty.name || teamNameFallback;
+                        })()}
                     </span>
                     <span style={{
                         color: topWon ? '#000000' : '#94A3B8',
-                        fontSize: '12px',
+                        fontSize: '10px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '20px',
+                        minWidth: '16px',
                         textAlign: 'right',
-                        opacity: topWon ? 1 : 0.6,
+                        opacity: topWon ? 1 : 0.8,
                     }}>
                         {topParty.resultText || '-'}
                     </span>
+                    {topParty.deck && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(topParty.deck); }}
+                            className={cn(
+                                "ml-1 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                topWon ? "text-slate-950" : "text-cyan-500"
+                            )}
+                            title={`View Deck: ${topParty.deck.name}`}
+                        >
+                            <Eye className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                    )}
                 </div>
+
                 {/* Bottom Player */}
                 <div
                     onMouseEnter={() => onMouseEnter(bottomParty.id)}
@@ -557,34 +642,52 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         height: '50%',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '4px 8px',
+                        padding: '2px 8px',
                         background: bottomWon ? '#22D3EE' : bottomHovered ? '#1E293B' : 'transparent',
                         transition: 'background 0.2s',
                     }}
                 >
                     <span style={{
                         color: bottomWon ? '#000000' : '#E2E8F0',
-                        fontSize: '11px',
-                        fontWeight: bottomWon ? 'bold' : 'normal',
-                        paddingRight: '8px',
-                        wordBreak: 'break-word',
+                        fontSize: '10px',
+                        fontWeight: bottomWon ? '900' : 'bold',
+                        paddingRight: '4px',
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em',
-                        lineHeight: '1.1',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        flex: 1
                     }}>
-                        {bottomParty.name || teamNameFallback}
+                        {(() => {
+                            const p = participants[bottomParty.id];
+                            const profile: any = p?.profiles;
+                            return (Array.isArray(profile) ? profile[0] : profile)?.display_name || bottomParty.name || teamNameFallback;
+                        })()}
                     </span>
                     <span style={{
                         color: bottomWon ? '#000000' : '#94A3B8',
-                        fontSize: '12px',
+                        fontSize: '10px',
                         fontWeight: '900',
                         fontFamily: 'monospace',
-                        minWidth: '20px',
+                        minWidth: '16px',
                         textAlign: 'right',
-                        opacity: bottomWon ? 1 : 0.6,
+                        opacity: bottomWon ? 1 : 0.8,
                     }}>
                         {bottomParty.resultText || '-'}
                     </span>
+                    {bottomParty.deck && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(bottomParty.deck); }}
+                            className={cn(
+                                "ml-1 w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer",
+                                bottomWon ? "text-slate-950" : "text-cyan-500"
+                            )}
+                            title={`View Deck: ${bottomParty.deck.name}`}
+                        >
+                            <Eye className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -608,10 +711,10 @@ function TopCutView({ matches, participants, onMatchClick, cutSize }: { matches:
                         theme={BeybladeTheme}
                         options={{
                             style: {
-                                width: 180,
-                                boxHeight: 80,
-                                spaceBetweenColumns: 60,
-                                spaceBetweenRows: 24,
+                                width: 140,
+                                boxHeight: 48,
+                                spaceBetweenColumns: 40,
+                                spaceBetweenRows: 12,
                                 canvasPadding: 20,
                                 roundHeader: {
                                     backgroundColor: 'transparent',
@@ -651,6 +754,7 @@ interface MatchCardProps {
     match: Match;
     participants: Record<string, Participant>;
     onClick?: () => void;
+    onDeckClick?: (deck: any) => void;
     label?: string | null;
     isSwissKing?: boolean;
     nextMatchNumber?: number | null;
@@ -659,7 +763,7 @@ interface MatchCardProps {
     isTarget?: boolean;
 }
 
-function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }: MatchCardProps) {
+function MatchCard({ match, participants, onClick, onDeckClick, isSwissKing, isHighlighted }: MatchCardProps) {
     const pA = match.participant_a_id ? participants[match.participant_a_id] : null;
     const pB = match.participant_b_id ? participants[match.participant_b_id] : null;
     const isCompleted = match.status === "complete";
@@ -668,6 +772,8 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
     const bWon = isCompleted && winnerId === match.participant_b_id;
     const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
+    const isPending = !isCompleted && !isScoringActive && match.participant_a_id && match.participant_b_id;
+
     return (
         <div
             onClick={onClick}
@@ -675,7 +781,8 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
                 "flex flex-col w-full rounded-md border overflow-hidden cursor-pointer transition-all duration-200 shadow-lg",
                 isSwissKing ? "border-yellow-500/50 shadow-yellow-500/10" : "border-slate-800",
                 isHighlighted ? "border-cyan-500 ring-1 ring-cyan-500/20 scale-[1.02]" : "hover:border-slate-700",
-                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.3)] animate-pulse"
+                isPending && !isHighlighted && "border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.1)] bg-cyan-950/20",
+                isScoringActive && "border-cyan-400 ring-2 ring-cyan-400/40 shadow-[0_0_20px_rgba(34,211,238,0.4)] animate-pulse bg-cyan-950/20"
             )}
             style={isSwissKing ? { background: 'linear-gradient(to bottom right, #0F172A, #1e1b10)' } : { background: '#0F172A' }}
         >
@@ -689,41 +796,75 @@ function MatchCard({ match, participants, onClick, isSwissKing, isHighlighted }:
 
             {/* Participant A */}
             <div className={cn(
-                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_22px_22px] min-h-[24px] items-center px-1.5 py-0.5 transition-colors",
                 aWon ? "bg-cyan-400" : "bg-transparent",
                 !aWon && "border-b border-slate-800"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    "text-[10px] uppercase font-black tracking-tighter truncate",
                     aWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pA?.display_name || "BYE"}
+                    {(() => {
+                        const profile: any = pA?.profiles;
+                        return (Array.isArray(profile) ? profile[0] : profile)?.display_name || pA?.display_name || "BYE";
+                    })()}
                 </span>
                 <span className={cn(
-                    "text-xs font-black font-mono min-w-[20px] text-right",
-                    aWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                    "text-xs font-black font-mono text-center",
+                    aWon ? "text-slate-950" : "text-cyan-400"
                 )}>
                     {match.score_a ?? "-"}
                 </span>
+                <div className="flex justify-center">
+                    {pA?.deck && onDeckClick && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(pA.deck); }}
+                            className={cn(
+                                "w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                aWon ? "text-slate-950" : "text-cyan-500"
+                            )}
+                            title={`View Deck: ${pA.deck.name}`}
+                        >
+                            <Eye className="w-2 h-2 stroke-[3]" />
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Participant B */}
             <div className={cn(
-                "flex flex-1 min-h-[40px] justify-between items-center px-2 py-1.5 transition-colors",
+                "grid grid-cols-[1fr_22px_22px] min-h-[24px] items-center px-1.5 py-0.5 transition-colors",
                 bWon ? "bg-cyan-400" : "bg-transparent"
             )}>
                 <span className={cn(
-                    "text-[10px] uppercase font-bold tracking-tight break-words pr-2 line-clamp-2",
+                    "text-[10px] uppercase font-black tracking-tighter truncate",
                     bWon ? "text-slate-950" : "text-slate-100"
                 )}>
-                    {pB?.display_name || "BYE"}
+                    {(() => {
+                        const profile: any = pB?.profiles;
+                        return (Array.isArray(profile) ? profile[0] : profile)?.display_name || pB?.display_name || "BYE";
+                    })()}
                 </span>
                 <span className={cn(
-                    "text-xs font-black font-mono min-w-[20px] text-right",
-                    bWon ? "text-slate-950" : "text-cyan-400 opacity-60"
+                    "text-xs font-black font-mono text-center",
+                    bWon ? "text-slate-950" : "text-cyan-400"
                 )}>
                     {match.score_b ?? "-"}
                 </span>
+                <div className="flex justify-center">
+                    {pB?.deck && onDeckClick && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onDeckClick(pB.deck); }}
+                            className={cn(
+                                "w-3.5 h-3.5 flex items-center justify-center rounded hover:bg-white/10 cursor-pointer z-10",
+                                bWon ? "text-slate-950" : "text-cyan-500"
+                            )}
+                            title={`View Deck: ${pB.deck.name}`}
+                        >
+                            <Eye className="w-2 h-2 stroke-[3]" />
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

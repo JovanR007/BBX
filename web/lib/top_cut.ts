@@ -63,8 +63,8 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
         cutSize = t.cut_size;
     }
 
-    if (![4, 8, 16, 32, 64].includes(cutSize)) {
-        throw new Error(`Invalid cut_size ${cutSize}. Must be 4, 8, 16, 32, or 64.`);
+    if (![4, 8, 12, 16, 24, 32, 48, 64].includes(cutSize)) {
+        throw new Error(`Invalid cut_size ${cutSize}. Must be 4, 8, 12, 16, 24, 32, 48, or 64.`);
     }
 
     // 2. Load Standings
@@ -75,21 +75,23 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
     const qualified = standings.slice(0, cutSize);
     console.log(`Generating Top ${cutSize} cut with ${qualified.length} qualified players.`);
 
-    // 4. Create seeding array (size = cutSize)
-    // Fill with players, rest are null (BYEs)
-    const seeds = new Array(cutSize).fill(null);
+    // 4. Create seeding array (size = Next Power of 2)
+    // Example: Top 12 -> Bracket 16. Seeds 0-11 filled. 12-15 are BYEs.
+    const bracketSize = Math.pow(2, Math.ceil(Math.log2(cutSize)));
+    const seeds = new Array(bracketSize).fill(null);
+
     for (let i = 0; i < qualified.length; i++) {
         seeds[i] = qualified[i];
     }
 
-    // 5. Generate Pairings (1 vs 32, 2 vs 31, etc.)
+    // 5. Generate Pairings (1 vs 16, 2 vs 15, etc.)
     const matchesToInsert = [];
     const target = 4; // Early elim rounds are 4 points
 
-    // We only iterate top half (0 to cut/2 - 1)
-    for (let i = 0; i < cutSize / 2; i++) {
+    // We only iterate top half (0 to bracketSize/2 - 1)
+    for (let i = 0; i < bracketSize / 2; i++) {
         const topSeed = seeds[i];
-        const botSeed = seeds[cutSize - 1 - i];
+        const botSeed = seeds[bracketSize - 1 - i];
 
         const matchNum = i + 1; // 1-indexed
 

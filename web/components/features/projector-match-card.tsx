@@ -20,32 +20,36 @@ export function ProjectorMatchCard({ match, participants, participantStats }: Pr
     const isCompleted = match.status === 'complete';
     const isScoringActive = !isCompleted && match.metadata?.scoring_active;
 
+    const isPending = !isCompleted && !isScoringActive && match.participant_a_id && match.participant_b_id;
+
     return (
         <div className={cn(
-            "flex flex-col h-full bg-slate-900/50 border rounded-3xl overflow-hidden relative shadow-2xl backdrop-blur-sm group transition-all duration-500",
+            "flex flex-col h-full bg-slate-900 border rounded-xl overflow-hidden relative shadow-md backdrop-blur-sm group transition-all duration-300",
             isScoringActive
-                ? "border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)] animate-pulse"
-                : "border-slate-800 hover:border-cyan-500/30"
+                ? "border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+                : isPending
+                    ? "border-indigo-500/30"
+                    : "border-slate-800/50"
         )}>
-            {/* Status Indicator */}
+            {/* Status Indicator - Compact */}
             {isLive && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-red-600 text-white text-xs font-black uppercase tracking-widest rounded-full animate-pulse z-10 shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded animate-pulse z-10">
                     Live
                 </div>
             )}
             {!isLive && isScoringActive && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-cyan-500 text-black text-xs font-black uppercase tracking-widest rounded-full animate-pulse z-10 shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-cyan-500 text-black text-[10px] font-black uppercase tracking-widest rounded animate-pulse z-10 shadow-[0_0_10px_rgba(34,211,238,0.4)]">
                     Scoring
                 </div>
             )}
             {isCompleted && (
-                <div className="absolute top-4 right-4 px-3 py-1 bg-slate-700 text-slate-300 text-xs font-black uppercase tracking-widest rounded-full z-10">
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded z-10">
                     Final
                 </div>
             )}
 
             {/* Match Content */}
-            <div className="flex-1 flex flex-col justify-center p-8 gap-8">
+            <div className="flex-1 flex flex-col justify-center p-2 gap-0.5">
                 {/* Player A */}
                 <PlayerRow
                     participant={pA}
@@ -53,13 +57,14 @@ export function ProjectorMatchCard({ match, participants, participantStats }: Pr
                     stats={statsA}
                     isWinner={isCompleted && match.winner_id === match.participant_a_id}
                     align="left"
+                    compact
                 />
 
-                {/* VS Divider */}
-                <div className="flex items-center gap-4 opacity-30">
-                    <div className="h-px bg-white/50 flex-1" />
-                    <span className="font-mono font-black italic text-2xl text-white">VS</span>
-                    <div className="h-px bg-white/50 flex-1" />
+                {/* VS Divider - Compact */}
+                <div className="flex items-center gap-1 opacity-20 my-0.5">
+                    <div className="h-[0.5px] bg-white/30 flex-1" />
+                    <span className="font-mono font-black italic text-[9px] text-white/50 tracking-tighter">VS</span>
+                    <div className="h-[0.5px] bg-white/30 flex-1" />
                 </div>
 
                 {/* Player B */}
@@ -69,6 +74,7 @@ export function ProjectorMatchCard({ match, participants, participantStats }: Pr
                     stats={statsB}
                     isWinner={isCompleted && match.winner_id === match.participant_b_id}
                     align="right"
+                    compact
                 />
             </div>
         </div>
@@ -80,36 +86,38 @@ function PlayerRow({
     score,
     stats,
     isWinner,
-    align = "left"
+    align = "left",
+    compact = false
 }: {
     participant: Participant | null;
     score: number;
     stats: { wins: number; losses: number } | null;
     isWinner: boolean;
     align?: "left" | "right";
+    compact?: boolean;
 }) {
     return (
-        <div className={cn("flex items-center gap-6", align === "right" && "flex-row-reverse text-right")}>
-            {/* Score Box */}
+        <div className={cn("flex items-center gap-2", align === "right" && "flex-row-reverse text-right")}>
+            {/* Score Box - Shrinking to w-10 */}
             <div className={cn(
-                "w-20 h-20 flex items-center justify-center rounded-2xl text-4xl font-black font-mono shadow-inner border border-white/5 relative overflow-hidden",
-                isWinner ? "bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.4)]" : "bg-black/40 text-white"
+                "w-10 h-10 flex items-center justify-center rounded-md text-xl font-black font-mono shadow-inner border border-white/5 relative overflow-hidden shrink-0",
+                isWinner ? "bg-cyan-500 text-black shadow-[0_0_8px_rgba(6,182,212,0.4)]" : "bg-black/40 text-white"
             )}>
                 {score ?? "-"}
-                {isWinner && <Trophy className="absolute w-12 h-12 text-black/10 -bottom-2 -right-2" />}
+                {isWinner && <Trophy className="absolute w-4 h-4 text-black/10 -bottom-0.5 -right-0.5" />}
             </div>
 
-            {/* Name & Stats */}
+            {/* Name & Stats - Smaller responsive fonts & wrapping instead of truncation */}
             <div className="flex flex-col flex-1 min-w-0">
                 <div className={cn(
-                    "text-3xl font-black uppercase tracking-tight truncate leading-none mb-1",
+                    "text-[10px] sm:text-[11px] md:text-[13px] font-black uppercase tracking-tight leading-tight break-words",
                     isWinner ? "text-cyan-400" : "text-white"
                 )}>
                     {participant ? participant.display_name : "TBD"}
                 </div>
                 {stats && (
                     <div className={cn(
-                        "text-lg font-bold font-mono tracking-wider opacity-60",
+                        "text-[8px] font-bold font-mono tracking-wider opacity-40 leading-none mt-0.5",
                         align === "right" && "ml-auto"
                     )}>
                         ({stats.wins}-{stats.losses})

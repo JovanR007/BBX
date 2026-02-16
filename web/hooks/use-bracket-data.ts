@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Match, Participant, Tournament } from "@/types";
 import { getTournamentDataAction } from "@/app/actions";
 import { useToast } from "@/components/ui/toaster";
@@ -19,9 +19,9 @@ export function useBracketData(tournamentId: string | undefined) {
     const [permissions, setPermissions] = useState({ isOwner: false, isJudge: false, isSuperAdmin: false });
     const user = useUser();
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (silent = false) => {
         if (!tournamentId) return;
-        setLoading(true);
+        if (!silent) setLoading(true);
 
         const res = await getTournamentDataAction(tournamentId);
 
@@ -94,7 +94,8 @@ export function useBracketData(tournamentId: string | undefined) {
         if (maxS > 0) {
             const lastSwissRoundMatches = swissMatchesTemp.filter((m: any) => m.swiss_round_number === maxS);
             const allComplete = lastSwissRoundMatches.every((m: any) => m.status === "complete");
-            setIsSwissFinished(allComplete && maxS >= 5); // Heuristic or check tournament settings in future
+            const neededRounds = tourney?.swiss_rounds ?? 5;
+            setIsSwissFinished(allComplete && maxS >= neededRounds); // Heuristic or check tournament settings in future
         } else {
             setIsSwissFinished(false);
         }
@@ -106,32 +107,73 @@ export function useBracketData(tournamentId: string | undefined) {
         setLoading(false);
     }, [tournamentId, toast, user]);
 
+    const matchesRef = useRef(matches);
+    const participantsRef = useRef(participants);
+
     useEffect(() => {
+        matchesRef.current = matches;
+    }, [matches]);
+
+    useEffect(() => {
+        participantsRef.current = participants;
+    }, [participants]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
+    }, [fetchData]);
 
-        if (!tournamentId) return;
+    useEffect(() => {
+        const actualId = tournament?.id;
+        if (!actualId) return;
 
-        // Subscribe to Realtime Changes
+        // Subscribe to Realtime Changes without server-side filter for UPDATE events
+        // (Server-side filters fail on partial UPDATE payloads if the filtered column didn't change)
         const channel = supabase
-            .channel(`tournament-${tournamentId}`)
+            .channel(`tournament-data-${actualId}`)
             .on(
                 'postgres_changes',
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'matches',
-                    filter: `tournament_id=eq.${tournamentId}`
+                    table: 'matches'
                 },
                 (payload) => {
-                    if (payload.eventType === 'UPDATE') {
-                        // Optimistic update for score/status changes
-                        const newMatch = payload.new as Match;
-                        setMatches(prev => prev.map(m => m.id === newMatch.id ? newMatch : m));
-                    } else if (payload.eventType === 'INSERT') {
-                        // New match created (new round generated) - fetch everything to be safe
-                        // Or just append if we trust the payload? 
-                        // Better to re-fetch to ensure consistency (e.g. participant IDs might be TBD initially then updated)
-                        fetchData();
+                    const newRec = payload.new as any;
+                    const oldRec = payload.old as any;
+                    const matchId = newRec?.id || oldRec?.id;
+
+                    const isOurMatch = matchesRef.current.some((m: Match) => m.id === matchId) || newRec?.tournament_id === actualId;
+                    if (isOurMatch) {
+                        fetchData(true);
+                    }
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'tournaments',
+                    filter: `id=eq.${actualId}`
+                },
+                () => fetchData(true)
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'participants'
+                },
+                (payload) => {
+                    const newRec = payload.new as any;
+                    const oldRec = payload.old as any;
+                    const partId = newRec?.id || oldRec?.id;
+
+                    const isOurParticipant = !!participantsRef.current[partId] || newRec?.tournament_id === actualId;
+                    if (isOurParticipant) {
+                        fetchData(true);
                     }
                 }
             )
@@ -140,7 +182,7 @@ export function useBracketData(tournamentId: string | undefined) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [fetchData, tournamentId]);
+    }, [fetchData, tournament?.id]);
 
     // Derived Values
     const swissMatches = matches.filter(m => m.stage === "swiss");

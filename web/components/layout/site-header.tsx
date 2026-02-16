@@ -6,7 +6,7 @@ import { Menu } from "lucide-react";
 import { useUser } from "@stackframe/stack";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { User, LogOut, Settings, Trophy, CreditCard, Shield } from "lucide-react";
+import { User, LogOut, Settings, Trophy, CreditCard, Shield, Medal, Sword } from "lucide-react";
 import Image from "next/image";
 import { NotificationCenter } from "@/components/features/notification-center";
 import { SupportButton } from "@/components/features/support-button";
@@ -80,11 +80,11 @@ export function SiteHeader() {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 py-2">
-            <div className="container flex h-16 items-center justify-between px-2 md:px-6">
-                {/* Logo Section - Aligned Left on Mobile */}
-                <div className="flex items-center gap-1 md:gap-4">
+            <div className="w-full h-16 grid grid-cols-[1fr_auto_1fr] items-center px-4 md:px-8 lg:px-12">
+                {/* Left Section: Logo */}
+                <div className="flex items-center justify-start min-w-0">
                     <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <div className="relative w-32 md:w-48 h-12 md:h-16">
+                        <div className="relative w-28 sm:w-32 md:w-40 h-10 sm:h-12 md:h-14">
                             <Image
                                 src="/logo.png"
                                 alt="BeyBracket"
@@ -96,49 +96,53 @@ export function SiteHeader() {
                     </Link>
                 </div>
 
-                {/* Main Navigation - Desktop */}
-                <nav className="hidden md:flex items-center gap-6 text-sm font-medium absolute left-1/2 -translate-x-1/2">
-                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Events
-                    </Link>
-                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors">
-                        Directory
-                    </Link>
-                    {user && (
-                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors">
-                            Host Event
+                {/* Center Section: Navigation */}
+                <div className="flex justify-center flex-none px-2 lg:px-6">
+                    {/* Main Navigation - Desktop */}
+                    <nav className="hidden md:flex items-center gap-6 lg:gap-10 text-xs font-black uppercase tracking-widest whitespace-nowrap">
+                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                            Tournaments
                         </Link>
-                    )}
-                </nav>
-
-                {/* Mobile Navigation - Always visible on small screens */}
-                <nav className="flex md:hidden items-center gap-3 text-xs font-medium">
-                    <Link href="/tournaments" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                        Events
-                    </Link>
-                    <Link href="/stores" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                        Directory
-                    </Link>
-                    {user && (
-                        <Link href="/create" className="text-foreground/60 hover:text-foreground transition-colors px-2 py-1">
-                            Host
+                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                            Stores
                         </Link>
-                    )}
-                </nav>
+                        {user && (
+                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-all hover:scale-105">
+                                Create Tournament
+                            </Link>
+                        )}
+                    </nav>
 
-                <div className="flex items-center gap-2 md:gap-4 pr-1 md:pr-2">
+                    {/* Mobile Navigation - Only visible on small screens */}
+                    <nav className="flex md:hidden items-center gap-3 sm:gap-6 text-[10px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap">
+                        <Link href="/tournaments" className="text-foreground/60 hover:text-primary transition-colors">
+                            Tournaments
+                        </Link>
+                        <Link href="/stores" className="text-foreground/60 hover:text-primary transition-colors">
+                            Stores
+                        </Link>
+                        {user && (
+                            <Link href="/create" className="text-foreground/60 hover:text-primary transition-colors">
+                                Create
+                            </Link>
+                        )}
+                    </nav>
+                </div>
+
+                {/* Right Section: Actions */}
+                <div className="flex items-center justify-end gap-2 md:gap-4 min-w-0">
                     {/* Support Button (Desktop: Full, Mobile/Tablet/Landscape: Icon) */}
-                    <div>
-                        <div className="hidden lg:block">
+                    <div className="hidden sm:block">
+                        <div className="hidden xl:block">
                             <SupportButton variant="full" />
                         </div>
-                        <div className="lg:hidden">
+                        <div className="xl:hidden">
                             <SupportButton variant="icon" className="w-8 h-8 border-none bg-transparent hover:bg-slate-800" />
                         </div>
                     </div>
 
                     {user ? (
-                        <div className="flex items-center gap-2 md:gap-4">
+                        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                             <NotificationCenter />
                             <div className="relative" onClick={(e) => e.stopPropagation()}>
                                 <button
@@ -186,12 +190,22 @@ export function SiteHeader() {
                                                 <Link href="/leaderboard" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
                                                     <Trophy className="w-4 h-4" /> Leaderboards
                                                 </Link>
+                                                <Link href="/achievements" className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                                                    <Medal className="w-4 h-4" /> Achievements
+                                                </Link>
                                                 <Link
                                                     href={profile.username ? `/u/${profile.username}` : "/account"}
                                                     onClick={() => setIsMenuOpen(false)}
                                                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
                                                 >
                                                     <User className="w-4 h-4" /> My Profile
+                                                </Link>
+                                                <Link
+                                                    href="/decks"
+                                                    onClick={() => setIsMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                                >
+                                                    <Sword className="w-4 h-4" /> My Decks
                                                 </Link>
                                                 <Link
                                                     href="/account"

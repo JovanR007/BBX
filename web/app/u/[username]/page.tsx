@@ -242,16 +242,21 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
                 <div className="space-y-12">
                     {/* Achievements Section */}
                     <div className="space-y-6">
-                        <h2 className="text-xl font-black uppercase italic tracking-widest flex items-center gap-2">
-                            <Star className="w-5 h-5 text-cyan-400" />
-                            Achievements
-                            <span className="text-[10px] text-slate-600 normal-case tracking-normal ml-2 font-mono">
-                                {achievements.length} UNLOCKED
-                            </span>
-                        </h2>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-black uppercase italic tracking-widest flex items-center gap-2">
+                                <Star className="w-5 h-5 text-cyan-400" />
+                                Achievements
+                                <span className="text-[10px] text-slate-600 normal-case tracking-normal ml-2 font-mono">
+                                    {achievements.length} UNLOCKED
+                                </span>
+                            </h2>
+                            <Link href="/achievements" className="text-xs text-cyan-400 hover:text-cyan-300 font-bold uppercase tracking-wider flex items-center gap-1">
+                                View All <Trophy className="w-3 h-3" />
+                            </Link>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            {achievements.map((ub: any) => {
+                            {achievements.slice(0, 6).map((ub: any) => {
                                 const Icon = TIER_ICONS[ub.badges.tier] || Medal;
                                 return (
                                     <div key={ub.id} className={cn(
@@ -274,6 +279,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
                                 <div className="col-span-2 text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-600 text-xs uppercase font-black tracking-widest">
                                     No badges earned yet.
                                 </div>
+                            )}
+                            {achievements.length > 6 && (
+                                <Link href="/achievements" className="col-span-2 text-center py-2 text-xs text-slate-500 hover:text-white transition-colors uppercase font-bold tracking-widest border border-slate-800 rounded-lg hover:bg-slate-800">
+                                    + {achievements.length - 6} More
+                                </Link>
                             )}
                         </div>
                     </div>

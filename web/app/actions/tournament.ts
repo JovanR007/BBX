@@ -19,18 +19,46 @@ export async function getTournamentDataAction(tournamentId: string) {
     if (!tournamentId) return { success: false, error: "No ID provided" };
 
     try {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tournamentId);
+        let tourneyQuery = supabaseAdmin.from("tournaments").select("id, created_at, store_id, organizer_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)");
+
+        if (isUUID) {
+            tourneyQuery = tourneyQuery.eq("id", tournamentId);
+        } else {
+            tourneyQuery = tourneyQuery.eq("slug", tournamentId);
+        }
+
+        const tourneyResult = await tourneyQuery.single();
+        if (tourneyResult.error) throw tourneyResult.error;
+        const tourney = tourneyResult.data;
+
         const results = await Promise.all([
-            supabaseAdmin.from("tournaments").select("id, created_at, store_id, organizer_id, name, status, cut_size, slug, judge_code, match_target_points, swiss_rounds, stores(name, primary_color, secondary_color, plan)").eq("id", tournamentId).single(),
-            supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points, metadata").eq("tournament_id", tournamentId).order("match_number", { ascending: true }),
-            supabaseAdmin.from("participants").select("id, created_at, tournament_id, user_id, display_name, dropped, checked_in").eq("tournament_id", tournamentId),
-            supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tournamentId)
+            supabaseAdmin.from("matches").select("id, created_at, tournament_id, stage, swiss_round_id, swiss_round_number, bracket_round, match_number, participant_a_id, participant_b_id, score_a, score_b, winner_id, status, is_bye, target_points, metadata").eq("tournament_id", tourney.id).order("match_number", { ascending: true }),
+            supabaseAdmin.from("participants")
+                .select(`
+                    id, created_at, tournament_id, user_id, display_name, dropped, checked_in, deck_id,
+                    profiles:user_id ( display_name ),
+                    deck:decks (
+                        *,
+                        deck_beys (
+                            *,
+                            blade:parts!blade_id(*),
+                            ratchet:parts!ratchet_id(*),
+                            bit:parts!bit_id(*)
+                        )
+                    )
+                `)
+                .eq("tournament_id", tourney.id),
+            supabaseAdmin.from("tournament_judges").select("user_id, created_at").eq("tournament_id", tourney.id)
         ]);
 
         if (results[0].error) throw results[0].error;
         if (results[1].error) throw results[1].error;
         if (results[2].error) throw results[2].error;
 
-        const judgesRaw = results[3].data || [];
+        const matches = results[0].data || [];
+        const participants = results[1].data || [];
+        const judgesRaw = results[2].data || [];
 
         // Fetch Judge Names
         let judgesWithNames = judgesRaw;
@@ -49,9 +77,9 @@ export async function getTournamentDataAction(tournamentId: string) {
 
         return {
             success: true,
-            tournament: results[0].data,
-            matches: results[0].data ? results[1].data || [] : [], // Only return matches if tournament found
-            participants: results[2].data || [],
+            tournament: tourney,
+            matches: matches,
+            participants: participants,
             judges: judgesWithNames
         };
 
@@ -120,8 +148,9 @@ export async function startTournamentAction(formData: FormData) {
         revalidatePath(`/t/${tournamentId}/admin`);
         revalidatePath(`/t/${tournamentId}`);
         return { success: true };
-    } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Unknown Error";
+    } catch (e: any) {
+        console.error("Start Tournament Error:", e);
+        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
         return { success: false, error: msg };
     }
 }
@@ -397,6 +426,27 @@ export async function deleteTournamentAction(tournamentId: string) {
 }
 
 export async function getLiveTournamentsAction(city?: string) {
+    const user = await stackServerApp.getUser();
+    const HIDDEN_STORE_IDS = [
+        '53981f89-a0cf-4750-9432-59271d68586b',
+        'ba3adf1d-e5e6-46a4-ba17-d3215e300fb2'
+    ];
+    let excludeStoreIds = HIDDEN_STORE_IDS;
+
+    if (user) {
+        // If user owns any hidden stores, remove them from exclusion list
+        const { data: myOwnedStores } = await supabaseAdmin
+            .from("stores")
+            .select("id")
+            .eq("owner_id", user.id)
+            .in("id", HIDDEN_STORE_IDS);
+
+        if (myOwnedStores) {
+            const ownedIds = myOwnedStores.map(s => s.id);
+            excludeStoreIds = HIDDEN_STORE_IDS.filter(id => !ownedIds.includes(id));
+        }
+    }
+
     // 1. Base Query: Active Tournaments (pending, started) - Filter Out Drafts for Cleaner Feed
     let query = supabase
         .from("tournaments")
@@ -415,6 +465,11 @@ export async function getLiveTournamentsAction(city?: string) {
         .neq("status", "draft") // Premium Feed: No Drafts
         .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("created_at", { ascending: false });
+
+    // Hide Hidden Stores (Live Feed checks inner join, so store_id is never null)
+    if (excludeStoreIds.length > 0) {
+        query = query.not('store_id', 'in', `(${excludeStoreIds.join(',')})`);
+    }
 
     // 2. Apply City Filter on the joined Store table
     if (city && city !== "all") {
@@ -469,6 +524,27 @@ export async function autoConcludeFinishedTournaments() {
 }
 
 export async function getTournamentsDirectoryAction(city?: string, page = 1, pageSize = 12) {
+    const user = await stackServerApp.getUser();
+    const HIDDEN_STORE_IDS = [
+        '53981f89-a0cf-4750-9432-59271d68586b',
+        'ba3adf1d-e5e6-46a4-ba17-d3215e300fb2'
+    ];
+    let excludeStoreIds = HIDDEN_STORE_IDS;
+
+    if (user) {
+        // If user owns any hidden stores, remove them from exclusion list
+        const { data: myOwnedStores } = await supabaseAdmin
+            .from("stores")
+            .select("id")
+            .eq("owner_id", user.id)
+            .in("id", HIDDEN_STORE_IDS);
+
+        if (myOwnedStores) {
+            const ownedIds = myOwnedStores.map(s => s.id);
+            excludeStoreIds = HIDDEN_STORE_IDS.filter(id => !ownedIds.includes(id));
+        }
+    }
+
     // 0. Auto-cleanup old live tournaments
     try {
         await autoConcludeFinishedTournaments();
@@ -499,6 +575,11 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
         .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Filter out stale (older than 24h)
         .order("start_time", { ascending: true });
 
+    // Hide Hidden Stores (Preserve store_id is null for casual tournaments)
+    if (excludeStoreIds.length > 0) {
+        liveQuery = liveQuery.or(`store_id.is.null,store_id.not.in.(${excludeStoreIds.join(',')})`);
+    }
+
     if (city && city !== "all") {
         liveQuery = liveQuery.ilike("location", `%${city}%`);
     }
@@ -523,8 +604,14 @@ export async function getTournamentsDirectoryAction(city?: string, page = 1, pag
         `, { count: 'exact' })
         // Include both 'created' (Published) and 'draft' (user requested)
         .in("status", ["created", "draft"])
+        .gt("start_time", new Date().toISOString())
         .order("start_time", { ascending: true })
         .range(from, to);
+
+    // Hide Hidden Stores (Preserve store_id is null for casual tournaments)
+    if (excludeStoreIds.length > 0) {
+        upcomingQuery = upcomingQuery.or(`store_id.is.null,store_id.not.in.(${excludeStoreIds.join(',')})`);
+    }
 
     if (city && city !== "all") {
         upcomingQuery = upcomingQuery.ilike("location", `%${city}%`);
