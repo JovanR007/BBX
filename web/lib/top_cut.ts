@@ -54,8 +54,7 @@ export async function generateTopCut(tournamentId: string, requestedCutSize: num
             .from("participants")
             .select("*")
             .eq("tournament_id", tournamentId)
-            .in("participant_status", ["approved", "checked_in", "active"]) // Ensure we get allowed players
-            .eq("dropped", false); // Exclude dropped players from Top Cut? Usually yes.
+            .eq("dropped", false);
 
         if (pErr) throw pErr;
         if (!participants || participants.length < 2) throw new Error("Not enough players for a Top Cut.");
