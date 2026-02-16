@@ -26,7 +26,7 @@ export async function advanceBracket(tournamentId: string) {
         .select("id")
         .eq("tournament_id", tournamentId)
         .eq("stage", "top_cut")
-        .eq("bracket_round", currentRoundNum)
+        .eq("bracket_round", currentRoundNum.toString())
         .neq("status", "complete")
         .limit(1);
 
@@ -56,7 +56,7 @@ export async function advanceBracket(tournamentId: string) {
         .select("id, match_number, winner_id, participant_a_id, participant_b_id")
         .eq("tournament_id", tournamentId)
         .eq("stage", "top_cut")
-        .eq("bracket_round", currentRoundNum);
+        .eq("bracket_round", currentRoundNum.toString());
 
     if (pmErr) throw pmErr;
 
@@ -105,7 +105,7 @@ export async function advanceBracket(tournamentId: string) {
         matchesToInsert.push({
             tournament_id: tournamentId,
             stage: "top_cut",
-            bracket_round: nextRoundNum,
+            bracket_round: nextRoundNum.toString(),
             match_number: 1, // Finals is always Match 1
             participant_a_id: winnerA,
             participant_b_id: winnerB,
@@ -119,7 +119,7 @@ export async function advanceBracket(tournamentId: string) {
         matchesToInsert.push({
             tournament_id: tournamentId,
             stage: "top_cut",
-            bracket_round: nextRoundNum,
+            bracket_round: nextRoundNum.toString(),
             match_number: 2, // 3rd Place is always Match 2
             participant_a_id: loserA,
             participant_b_id: loserB,
@@ -191,7 +191,7 @@ export async function advanceBracket(tournamentId: string) {
             matchesToInsert.push({
                 tournament_id: tournamentId,
                 stage: "top_cut",
-                bracket_round: nextRoundNum,
+                bracket_round: nextRoundNum.toString(),
                 match_number: currentMatchNum,
                 target_points: target,
                 ...newMatch
@@ -205,7 +205,7 @@ export async function advanceBracket(tournamentId: string) {
         .select("id")
         .eq("tournament_id", tournamentId)
         .eq("stage", "top_cut")
-        .eq("bracket_round", nextRoundNum)
+        .eq("bracket_round", nextRoundNum.toString())
         .limit(1);
 
     if (existing && existing.length > 0) throw new Error(`Round ${nextRoundNum} already exists.`);

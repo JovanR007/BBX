@@ -229,8 +229,9 @@ export async function proceedToTopCutAction(tournamentId: string) {
         revalidatePath(`/t/${tournamentId}/admin`);
         revalidatePath(`/t/${tournamentId}/bracket`);
         return { success: true };
-    } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Unknown Error";
+    } catch (e: any) {
+        console.error("Action Error (Proceed to Top Cut):", e);
+        const msg = e?.message || (typeof e === 'string' ? e : "Unknown Server Error");
         return { success: false, error: msg };
     }
 }
