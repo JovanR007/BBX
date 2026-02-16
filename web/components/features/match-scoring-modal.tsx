@@ -286,8 +286,13 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
     };
 
     // --- SUBMISSION ---
+    // Admin Override State
+    const [isOverrideMode, setIsOverrideMode] = useState(false);
+    const [adminPin, setAdminPin] = useState("");
+
+    // --- SUBMISSION ---
     async function handleSubmit() {
-        if (!isGameOver) return;
+        if (!isGameOver && !isOverrideMode) return; // Allow submit if override mode is on, even if game not "over" (force fix)
         setSubmitting(true);
 
         const form = new FormData();
@@ -310,9 +315,16 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
         let finishType = lastMove?.type || 'spin';
         form.append("finish_type", finishType);
 
-        const res = await reportMatchAction(form);
+        let res;
+        if (isOverrideMode) {
+            form.append("admin_pin", adminPin);
+            res = await forceUpdateMatchScoreAction(form);
+        } else {
+            res = await reportMatchAction(form);
+        }
+
         if (res.success) {
-            toast({ title: "Match Verified", description: `Winner: ${winner?.display_name || 'TBD'}`, variant: "success" });
+            toast({ title: isOverrideMode ? "Match Updated (Admin)" : "Match Verified", description: `Winner: ${winner?.display_name || 'TBD'}`, variant: "success" });
             refresh();
             onClose();
         } else {
@@ -341,6 +353,18 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Admin Override Toggle */}
+                        <button
+                            onClick={() => setIsOverrideMode(!isOverrideMode)}
+                            className={cn(
+                                "p-2 rounded-full transition-all flex items-center gap-2",
+                                isOverrideMode ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" : "hover:bg-muted text-muted-foreground"
+                            )}
+                            title="Admin Override"
+                        >
+                            {isOverrideMode ? <AlertTriangle className="w-5 h-5" /> : <RefreshCcw className="w-5 h-5" />}
+                        </button>
+
                         {/* Camera Toggle for Finals */}
                         {isFinalsMatch && (
                             <CameraToggleButton matchId={match.id} currentStreamer={match.metadata?.streaming_judge_id} refresh={refresh} currentlyStreamingMatchId={currentlyStreamingMatchId} />
@@ -382,18 +406,33 @@ export function MatchScoringModal({ isOpen, onClose, match, participants, refres
 
                     {/* CENTER CONTROLS (Undo, Submit) - Narrow Column */}
                     <div className="flex flex-col items-center justify-center gap-2 p-1 border-x bg-background/50 w-12 md:w-32 shrink-0 z-10">
-                        <button onClick={handleUndo} disabled={history.length === 0} className="md:w-16 md:h-16 w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
+                        <button onClick={handleUndo} disabled={historyRef.current.length === 0} className="md:w-16 md:h-16 w-8 h-8 rounded-full bg-secondary hover:bg-secondary/80 flex items-center justify-center shadow-lg transition-transform active:scale-95 disabled:opacity-50">
                             <Undo2 className="w-4 h-4 md:w-6 md:h-6" />
                         </button>
 
-                        {isGameOver && (
+                         {isOverrideMode && (
+                            <input
+                                type="password"
+                                placeholder="PIN"
+                                value={adminPin}
+                                onChange={(e) => setAdminPin(e.target.value)}
+                                className="w-full text-center text-xs py-1 rounded border border-red-500/30 bg-red-500/10 text-red-500 placeholder:text-red-500/50 focus:outline-none focus:border-red-500"
+                            />
+                        )}
+
+                        {(isGameOver || isOverrideMode) && (
                             <button
                                 onClick={handleSubmit}
                                 disabled={submitting}
-                                className="flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-1 md:p-3 shadow-green-500/20 shadow-lg transition-all hover:scale-105 w-full"
+                                className={cn(
+                                    "flex flex-col items-center justify-center gap-1 rounded-lg p-1 md:p-3 shadow-lg transition-all hover:scale-105 w-full",
+                                    isOverrideMode ? "bg-red-600 hover:bg-red-700 shadow-red-500/20" : "bg-green-600 hover:bg-green-700 shadow-green-500/20"
+                                )}
                             >
                                 <Trophy className="w-4 h-4 md:w-6 md:h-6" />
-                                <span className="text-[8px] md:text-[10px] font-black uppercase hidden md:block">Finish</span>
+                                <span className="text-[8px] md:text-[10px] font-black uppercase hidden md:block">
+                                    {isOverrideMode ? "Force" : "Finish"}
+                                </span>
                             </button>
                         )}
                     </div>

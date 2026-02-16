@@ -293,6 +293,11 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
     const matchId = formData.get("match_id") as string;
     const scoreA = Number(formData.get("score_a"));
     const scoreB = Number(formData.get("score_b"));
+    const metadataStr = formData.get("metadata") as string;
+    const beyA = formData.get("bey_a") as string;
+    const beyB = formData.get("bey_b") as string;
+    // We might not use finish_type for an event here, or we could.
+    // Let's at least capture it if we want to log it, but for now just updating the match state is priority.
 
     if (!matchId) return { success: false, error: "Match ID required" };
 
@@ -314,8 +319,14 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
         if (!await verifyStorePin(match.tournament_id, providedPin)) return { success: false, error: "Invalid Store PIN" };
     }
 
-    // 2. Verify it's the CURRENT round (Top Cut or Swiss)
-    // For Swiss, check if it's the latest round.
+    // 2. Verify it's the CURRENT round (Top Cut or Swiss) -> REMOVED/RELAXED for Admin Override
+    // Admins usually want to fix PAST matches too if they made a mistake that affects standings.
+    // But changing past matches might break pairings for subsequent rounds.
+    // User request: "update the score of finished matches". implied potential for past matches.
+    // However, safest is to allow it, but maybe warn? Or just allow it.
+    // If we strictly follow "CURRENT round" logic, they can't fix a Round 1 mistake in Round 3.
+    // Let's COMMENT OUT the restriction for now to allow full override power.
+    /*
     if (match.stage === 'swiss') {
         const { data: latestRound } = await supabase
             .from("swiss_rounds")
@@ -329,6 +340,7 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
             return { success: false, error: "Can only edit matches in the current active round." };
         }
     }
+    */
 
     // 3. Determine Winner
     const pA = match.participant_a_id;
@@ -341,17 +353,48 @@ export async function forceUpdateMatchScoreAction(formData: FormData) {
     else status = 'draw';
 
     // 4. Update
+    const updatePayload: any = {
+        score_a: scoreA,
+        score_b: scoreB,
+        winner_id: winnerId,
+        status: status
+    };
+
+    if (metadataStr) {
+        try {
+            updatePayload.metadata = JSON.parse(metadataStr);
+        } catch (e) {
+            // ignore JSON parse error, keep old metadata or don't update it
+        }
+    }
+    if (beyA !== undefined) updatePayload.bey_a = beyA;
+    if (beyB !== undefined) updatePayload.bey_b = beyB;
+
     const { error: upErr } = await supabaseAdmin
         .from("matches")
-        .update({
-            score_a: scoreA,
-            score_b: scoreB,
-            winner_id: winnerId,
-            status: status
-        })
+        .update(updatePayload)
         .eq("id", matchId);
 
     if (upErr) return { success: false, error: upErr.message };
+
+    // Also trigger recalculations if needed?
+    // If we change a past match, standings might be wrong.
+    // We should probably trigger an update for player points or standings if advanced logic exists.
+    // For now, assume revalidatePath triggers a fetch which might be computed.
+    // (Actually the points are stored in DB, so we should probably update points).
+    // Let's reuse the logic from reportMatchAction for points updates:
+    const { updatePlayerPoints } = await import("@/lib/ranking");
+
+    if (winnerId) {
+        const { data: part } = await supabaseAdmin.from("participants").select("user_id").eq("id", winnerId).single();
+        if (part?.user_id) await updatePlayerPoints(part.user_id);
+    }
+    const loserId = winnerId === pA ? pB : pA;
+    if (loserId) {
+        const { data: partL } = await supabaseAdmin.from("participants").select("user_id").eq("id", loserId).single();
+        if (partL?.user_id) await updatePlayerPoints(partL.user_id);
+    }
+
 
     revalidatePath(`/t/${match.tournament_id}/bracket`);
     revalidatePath(`/t/${match.tournament_id}/standings`);
